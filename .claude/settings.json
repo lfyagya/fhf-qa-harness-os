@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "effortLevel": "high",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/prompt-router.mjs\"" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/protect-app-source.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/pre-validate-cypress-rules.mjs\"" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/manual-task-guard.mjs\"" }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/block-generic-agents.mjs\"" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/session-end-reminder.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/spec-sweep-stop-hook.mjs\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/validate-cypress-rules.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/scenario-file-guard.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/scenario-content-guard.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/artifact-duplication-guard.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/coverage-strategy-guard.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/sync-reminder.mjs\"" }
+        ]
+      }
+    ]
+  },
+  "autoCompactEnabled": true,
+  "autoCompactWindow": 70000,
+  "skillListingMaxDescChars": 240,
+  "skillListingBudgetFraction": 0.015,
+  "skillOverrides": {
+    "statusline-setup": "name-only",
+    "keybindings-help": "name-only",
+    "fewer-permission-prompts": "name-only",
+    "claude-api": "name-only",
+    "update-config": "name-only",
+    "simplify": "name-only",
+    "init": "name-only",
+    "security-review": "name-only",
+    "loop": "name-only",
+    "run": "name-only",
+    "verify": "name-only"
+  },
+  "permissions": {
+    "defaultMode": "auto",
+    "allow": [
+      "Bash(npm run lint*)",
+      "Bash(npm run check*)",
+      "Bash(npm run files:manage)",
+      "Bash(npm run folders:manage)",
+      "Bash(npm run cy:run*)",
+      "Bash(npx cypress*)",
+      "Bash(grep -r* cypress/*)",
+      "Bash(find cypress/*)"
+    ],
+    "deny": ["WebSearch"]
+  }
+}
