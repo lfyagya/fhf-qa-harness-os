@@ -11,8 +11,8 @@ import { fileURLToPath } from "node:url";
 const HOOKS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks");
 const failures = [];
 
-function run(hook, payload, env = {}) {
-  const r = spawnSync("node", [path.join(HOOKS, hook)], {
+function run(hook, payload, env = {}, args = []) {
+  const r = spawnSync("node", [path.join(HOOKS, hook), ...args], {
     input: JSON.stringify(payload),
     encoding: "utf8",
     timeout: 15000,
@@ -47,8 +47,16 @@ expect("protect-app-source blocks fhf-dashboards/src write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/Users/Leapfrog/FHF/fhf-dashboards/src/App.tsx" } }), 2);
 expect("protect-app-source allows CypressFHF package write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/x/CypressFHF/fhf-dashboards/cypress/tests/a.cy.js" } }), 0);
+expect("protect-app-source blocks ApplyPatch payload",
+  run("protect-app-source.mjs", { tool_input: { patch: "*** Update File: C:/x/fhf-dashboards/src/App.tsx\n@@\n-old\n+new" } }), 2);
+expect("protect-second-brain blocks stray wiki scaffolding",
+  run("protect-second-brain-boundary.mjs", { input: { path: "C:/Users/Leapfrog/FHF/wiki/index.md" } }), 2);
+expect("protect-second-brain allows the sibling vault",
+  run("protect-second-brain-boundary.mjs", { input: { path: "C:/Users/Leapfrog/FHF/claude-obsidian/wiki/index.md" } }), 0);
 expect("pre-validate blocks cy.wait(number) before write",
   run("pre-validate-cypress-rules.mjs", { tool_input: { file_path: "cypress/tests/a.cy.js", content: "cy.wait(3000);" } }), 2);
+expect("pre-validate blocks cy.wait(number) in ApplyPatch payload",
+  run("pre-validate-cypress-rules.mjs", { input: { patch: "*** Update File: cypress/tests/a.cy.js\n@@\n-old\n+cy.wait(3000);" } }), 2);
 expect("pre-validate blocks mutation in smoke",
   run("pre-validate-cypress-rules.mjs", { tool_input: { file_path: "cypress/tests/smoke/a.cy.js", content: "cy.request({ method: 'POST' }); .post(" } }), 2);
 expect("manual-task-guard blocks force push",
@@ -61,6 +69,8 @@ expect("block-generic-agents allows cypress-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-generator" } }), 0);
 expect("block-generic-agents blocks retired agent names",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-runner" } }), 2);
+expect("block-generic-agents denies a Cursor-matched subagent",
+  run("block-generic-agents.mjs", {}, {}, ["--deny-matched-subagent"]), 2);
 
 // PostToolUse — validators must exit 2 (exit 1 would be invisible to Claude)
 expect("validate-cypress-rules flags bad spec with exit 2",

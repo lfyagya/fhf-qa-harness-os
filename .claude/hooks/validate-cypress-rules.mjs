@@ -16,6 +16,17 @@ function findUiConfigRoot(filePath) {
   return m ? m[1] : null;
 }
 
+// Strip /* */ and // comments before scanning for data-cy literals — a
+// data-cy value mentioned in a JSDoc header or a `// DOM:` annotation isn't a
+// real object-literal declaration and must not count as one on either side
+// of the duplicate-selector check (extraction or sibling-file matching).
+// Incident: lossMitigationAuctionInvoice.ui.js's own @fileoverview + inline
+// DOM comment mention "tab-list-container", falsely flagged as a real
+// duplicate of insuranceCommon.ui.js's TAB_LIST_CONTAINER, 2026-07-23.
+function stripComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
 // Recursively collect .js/.ts files under dir, skipping the file just written.
 function walkJsFiles(dir, excludePath) {
   let out = [];
@@ -56,7 +67,7 @@ if (isConfig && !content.includes('Object.freeze('))
 const uiConfigRoot = findUiConfigRoot(filePath);
 const isCommonUi = /common\.ui\.(js|ts)$/.test(filePath);
 if (isConfig && uiConfigRoot && !isCommonUi) {
-  const dataCyValues = [...content.matchAll(/data-cy=\\?"([^"\\]+)\\?"/g)].map((m) => m[1]);
+  const dataCyValues = [...stripComments(content).matchAll(/data-cy=\\?"([^"\\]+)\\?"/g)].map((m) => m[1]);
   const seen = new Set();
   for (const value of dataCyValues) {
     if (seen.has(value)) continue;
@@ -68,7 +79,7 @@ if (isConfig && uiConfigRoot && !isCommonUi) {
     for (const other of walkJsFiles(uiConfigRoot, payload.tool_input.file_path.replace(/\\/g, '/'))) {
       if (/common\.ui\.(js|ts)$/.test(other)) continue;
       let otherContent;
-      try { otherContent = readFileSync(other, 'utf8'); } catch { continue; }
+      try { otherContent = stripComments(readFileSync(other, 'utf8')); } catch { continue; }
       if (needleRe.test(otherContent)) {
         violations.push(
           `Selector data-cy="${value}" already declared in ${other} — move the shared literal to ` +

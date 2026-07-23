@@ -12,9 +12,11 @@ C:\Users\Leapfrog\FHF\fhf-dashboards
 
 Read-only evidence source for QA. **NEVER write, edit, or create files there** — it is owned by the frontend dev team. Missing `data-cy` hook → record as a gap in the exploration report; propose upstream via PR.
 
-Deep-dive companion (per-concern detail, worked examples, known traps): `docs/framework/application-intelligence/`.
+Deep-dive companion (per-concern detail, worked examples, known traps): `docs/framework/application-intelligence/`. Escalate to it when discovering how a specific piece of the app actually works, or mapping a module's full UI→API→DB chain — not as a first stop before grepping the table below.
 
 Source shows *intended* behavior; tests verify *actual* behavior. When they diverge, the divergence IS the bug — never resolve it by adjusting tests.
+
+Planning docs and Confluence/Jira-sourced context can hallucinate or mislabel dashboard/module names. Before citing a sub-module list from a planning doc, verify the names against live nav or `src/constants/routes.js` — don't repeat a planning doc's naming as fact unchecked.
 
 ### Evidence map — grep here first, browser second
 

@@ -14,6 +14,7 @@
         "matcher": "Edit|Write",
         "hooks": [
           { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/protect-app-source.mjs\"" },
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/protect-second-brain-boundary.mjs\"" },
           { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/pre-validate-cypress-rules.mjs\"" }
         ]
       },

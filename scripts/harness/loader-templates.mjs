@@ -17,15 +17,55 @@ export const CURSOR_HOOKS = {
         failClosed: false,
       },
     ],
+    preToolUse: [
+      {
+        command: `node ${HARNESS_HOOKS}/protect-app-source.mjs`,
+        matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
+        failClosed: true,
+      },
+      {
+        command: `node ${HARNESS_HOOKS}/protect-second-brain-boundary.mjs`,
+        matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
+        failClosed: true,
+      },
+      {
+        command: `node ${HARNESS_HOOKS}/pre-validate-cypress-rules.mjs`,
+        matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
+        failClosed: true,
+      },
+    ],
     beforeShellExecution: [
       {
         command: `node ${HARNESS_HOOKS}/manual-task-guard.mjs`,
         failClosed: false,
       },
     ],
+    subagentStart: [
+      {
+        command: `node ${HARNESS_HOOKS}/block-generic-agents.mjs --deny-matched-subagent`,
+        matcher: "generalPurpose|general-purpose|explore|Explore|documentation-writer|test-execution-planner|cypress-bug-hunter|cypress-cloud-investigator|cypress-e2e-automation|cypress-explorer|cypress-performance-auditor|cypress-runner|cypress-test-automation|cypress-ui-coverage-analyst|pr-creator|pre-merge-qa-gate|qa-ticket-router|spec-generation-loop|test-design-reviewer",
+        failClosed: true,
+      },
+    ],
     postToolUse: [
       {
         command: `node ${HARNESS_HOOKS}/validate-cypress-rules.mjs`,
+        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+      },
+      {
+        command: `node ${HARNESS_HOOKS}/scenario-file-guard.mjs`,
+        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+      },
+      {
+        command: `node ${HARNESS_HOOKS}/scenario-content-guard.mjs`,
+        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+      },
+      {
+        command: `node ${HARNESS_HOOKS}/artifact-duplication-guard.mjs`,
+        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+      },
+      {
+        command: `node ${HARNESS_HOOKS}/coverage-strategy-guard.mjs`,
         matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
       },
       {
@@ -38,9 +78,43 @@ export const CURSOR_HOOKS = {
         command: `node ${HARNESS_HOOKS}/session-end-reminder.mjs`,
         failClosed: false,
       },
+      {
+        command: `node ${HARNESS_HOOKS}/spec-sweep-stop-hook.mjs`,
+        failClosed: false,
+      },
     ],
   },
 };
+
+export function parentCopilotInstructions() {
+  return `# Copilot Instructions — FHF Parent Workspace
+
+Canonical shared harness policy:
+- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
+- \`C:\\Users\\Leapfrog\\FHF\\CLAUDE.md\`
+
+This workspace contains two test lanes. Route E2E / functional / regression work to
+\`AG Frontend Automation/front-end-automation\` and production smoke work to
+\`ProdSmokeExecution/front-end-automation\`. Smoke is GET-only and must never mutate production.
+
+Follow the lane repository's \`.github/copilot-instructions.md\` before changing tests.
+`;
+}
+
+export function parentGeminiInstructions() {
+  return `# Gemini Instructions — FHF Parent Workspace
+
+Canonical shared harness policy:
+- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
+- \`C:\\Users\\Leapfrog\\FHF\\CLAUDE.md\`
+
+This workspace contains two test lanes. Route E2E / functional / regression work to
+\`AG Frontend Automation/front-end-automation\` and production smoke work to
+\`ProdSmokeExecution/front-end-automation\`. Smoke is GET-only and must never mutate production.
+
+Follow the lane repository's \`GEMINI.md\` before changing tests.
+`;
+}
 
 export function docsReadme(lane) {
   if (lane === "e2e") {
@@ -274,6 +348,81 @@ export function copilotInstructions(lane) {
 - Smoke specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/\``;
 
   return `# Copilot Instructions — ${lane === "e2e" ? "E2E" : "Smoke"} Overlay
+
+Single source of shared harness policy:
+- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
+
+This file contains only ${lane === "e2e" ? "E2E" : "smoke"} lane deltas.
+
+---
+
+${laneBlock}
+`;
+}
+
+// Gemini CLI reads GEMINI.md at the project root, same role CLAUDE.md plays for Claude Code.
+// Same "thin overlay, canonical source elsewhere" shape as copilotInstructions — never restate
+// the non-negotiables independently here, mirror them from the same laneBlock content.
+export function geminiInstructions(lane) {
+  const laneBlock =
+    lane === "e2e"
+      ? `## Lane
+
+- Type: E2E / functional / regression
+- Environment: Dev and QA
+- Mutations: Allowed
+- Baseline branch: \`dev\`
+
+---
+
+## Non-Negotiables
+
+- Use command-first architecture: Config -> Commands -> Tests.
+- Never use \`cy.wait(number)\`.
+- Never hardcode selectors, endpoints, routes, credentials, or secrets.
+- Always call \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`.
+- Always register intercepts before \`cy.visit()\`.
+- Always use \`cy.apiWait()\` before API-dependent assertions.
+- Always keep \`testIsolation: true\`.
+- Never run mutation tests on production.
+- Never use real customer data.
+
+---
+
+## Paths
+
+- Package root: \`CypressFHF/fhf-dashboards/\`
+- E2E specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/e2e/\``
+      : `## Lane
+
+- Type: Smoke / availability / auth / structure
+- Environment: Production
+- Mutations: Forbidden (GET-only)
+- Baseline branch: \`staging\`
+
+---
+
+## Non-Negotiables
+
+- Use command-first architecture: Config -> Commands -> Tests.
+- Never use \`cy.wait(number)\`.
+- Never hardcode selectors, endpoints, routes, credentials, or secrets.
+- Always call \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`.
+- Always register intercepts before \`cy.visit()\`.
+- Always use \`cy.apiWait()\` before API-dependent assertions.
+- Always keep \`testIsolation: true\`.
+- Never use POST/PUT/PATCH/DELETE in smoke.
+- Never assert volatile data values in smoke.
+- Deterministic production failures are incidents, not test-fix work.
+
+---
+
+## Paths
+
+- Package root: \`CypressFHF/fhf-dashboards/\`
+- Smoke specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/\``;
+
+  return `# Gemini Instructions — ${lane === "e2e" ? "E2E" : "Smoke"} Overlay
 
 Single source of shared harness policy:
 - \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`

@@ -7,11 +7,14 @@ let payload = {};
 try {
   payload = JSON.parse(readFileSync(0, "utf8"));
 } catch {
-  process.exit(0);
+  if (!process.argv.includes("--deny-matched-subagent")) process.exit(0);
 }
 
 const subagentType = String(
-  payload.tool_input?.subagent_type ?? "",
+  payload.tool_input?.subagent_type ??
+    payload.subagent_type ??
+    payload.subagentType ??
+    "",
 ).toLowerCase();
 const GENERIC = ["general-purpose", "explore"];
 const RETIRED = [
@@ -34,6 +37,13 @@ const RETIRED = [
   "test-design-reviewer",
 ];
 const FORBIDDEN = [...GENERIC, ...RETIRED];
+
+// Cursor's subagentStart matcher has already selected a forbidden type. Keep the
+// roster in one place above while sharing this hook with Claude Code's Task event.
+if (process.argv.includes("--deny-matched-subagent")) {
+  console.error("BLOCKED: this subagent type is forbidden by the FHF routing roster.");
+  process.exit(2);
+}
 
 for (const name of FORBIDDEN) {
   if (subagentType === name) {

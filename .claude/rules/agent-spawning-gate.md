@@ -46,6 +46,17 @@ gate handoff. Neutralized; see `docs/adr/0004-neutralize-cypress-author-for-fhf.
 | Open a PR, or a UI-coverage/automation-backlog/risk report, or document an API config | `cypress-shipper` | PR creation is the default mode; the other three are on-demand only — say which one you want |
 | Planning / design question unrelated to Cypress specs | `Plan` | Task description only |
 
+## Workflow tool — self-applied, not hook-blocked (confirmed gap, 2026-07-21)
+
+`block-generic-agents.mjs` only matches the `Task` tool (`.claude/settings.json` PreToolUse). The
+`Workflow` tool spawns its internal `agent()` calls through its own mechanism, not `Task` — so
+that hook never fires for them, and a workflow script left on defaults would use a generic
+subagent type outside this roster entirely. When authoring a workflow script for FHF work,
+**always pass `opts.agentType`** on every `agent()` call, set to one of the 4 agents above (or
+`Plan` for a non-Cypress design question) — never leave it default. Same self-applied-not-
+mechanical pattern as the Cursor/Copilot rows in `harness-engineering.md` §9; see that doc for the
+full per-surface caveat.
+
 ## Forbidden (hook-blocked, zero tolerance)
 
 `general-purpose`, `Explore` → use Grep/Glob/Read directly. The 13 retired agents

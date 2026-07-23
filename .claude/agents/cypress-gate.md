@@ -68,6 +68,10 @@ Derive the changed-file list yourself — never wait to be told:
 - [ ] Protected endpoints tested for 401 when unauthenticated (smoke suite)
 - [ ] Audit trail assertions present where the feature supports it
 
+The exact-match and audit-trail rules above are the concrete assertion requirements for two of the
+`riskCategory` values (`money-flow`, `compliance-regulatory`) in `TESTS.md` §Interaction Impact
+Tag (ADOPTED) — this phase is where they're actually enforced.
+
 **BLOCK** on any failure — non-negotiable, zero tolerance.
 
 ## Phase 5 — Bug Fix Completeness
@@ -100,6 +104,18 @@ regression test matches the category:
 - [ ] New `cypress.env.*` keys present across all environment files
 - [ ] New API schema → schema file added to `cypress/fixtures/schemas/`
 - [ ] New files use kebab-case
+- [ ] `it()` blocks read as one Arrange → Act → Assert pass, not interleaved act/assert
+  (`docs/framework/testing-standards/TESTS.md` §Structure)
+- [ ] Smoke spec adds/touches a filter field, sort header, search box, or any other control that
+  re-fires an API — confirm depth matches its `priority`/`riskCategory` tag (`TESTS.md`
+  §Interaction Impact Tag): `critical`/`high` needs its own real-behavior test
+  (narrows-results / reorder-proof / etc.), not just render-only; `medium`/`low` is correctly
+  closed by the shared render-only sweep alone — flag a `medium`/`low` field that also got a
+  dedicated real-behavior test as over-testing, not a bonus. A module not yet retrofitted (every
+  field still on both tracks) is not itself a violation — flag under-tagging, not the pre-tag
+  default. A documented, deliberate render-only exception (e.g. search's SERV-3637
+  nondeterminism) is not a violation either — check for that reasoning before flagging.
+  (`docs/framework/testing-standards/TESTS.md` §Interactive Control Coverage)
 
 **BLOCK** on duplicate commands; **WARNING** on the rest.
 
@@ -117,13 +133,39 @@ BLOCK unless the ticket explicitly required full mapping). Cross-reference TestR
 `.claude/rules/source-map.md` §TestRail Coverage to catch cases that already exist elsewhere
 under a different name.
 
+## Phase 9 — Known-Issue Coverage (only when a dashboard/module spec under `cypress/tests/fhf-dashboard/**` changed)
+
+Phases 1–8 only check the diff's own internal consistency — none of them cross-reference a spec
+against documented known bugs for that dashboard. This phase closes that blind spot. Found via
+`impound.cy.js`: `docs/framework/application-intelligence/modules/loss_mitigation/06_impound_dashboard.md`
+documented a live regression (SERV-10834, "Check Insurance" false positive) with selectors already
+sitting unused in `loss-mitigation.ui.js` — Phases 1–8 all passed on that file anyway, because none
+of them look outside the diff.
+
+For each changed spec, resolve its module + dashboard from the file path (e.g.
+`loss-mitigation/impound.cy.js` → Loss Mitigation module, Impound dashboard):
+
+- [ ] Grep `docs/known-issues/*.md` for that module/dashboard name
+- [ ] Grep the matching `docs/framework/application-intelligence/modules/{module}/*.md` deep-dive
+  doc(s) for known-bug markers on that dashboard (🟡, "known issue", "regression", a ticket ID like
+  `SERV-\d+`/`BUG-\d+` mentioned in prose — not already covered by Phase 5's
+  `context('Regression Tests')` check, which only looks at bug fixes the *current diff* claims to make)
+- [ ] For each hit: does any `it()` in this spec assert the specific behavior the doc describes?
+  Check whether `cypress/configs/ui/**` or `configs/api/**` already define selectors/endpoints for
+  the affected feature with zero `it()` referencing them — selector exists + doc flags a known bug
+  there + no test covering it is the exact gap signature to flag.
+
+**PASS_WITH_ACTIONS** on any hit, never BLOCK — the gap predates this diff and closing it may
+legitimately be out of scope for the current change. Report it so a human decides priority; never
+silently drop it. N/A if no changed file is a dashboard spec.
+
 ## Self-Repair Loop (max 3 cycles) — you drive this, not a separate orchestrator
 
 On any BLOCK: don't just report it, close it.
 
 1. Spawn `cypress-generator` via `Task` with the exact findings (`file:line — phase — issue —
    required fix`). Wait for it to complete.
-2. Re-run Phases 1–8 against the same scope.
+2. Re-run Phases 1–9 against the same scope.
 3. Compare this cycle's `git diff` (for the touched files) against the previous cycle's:
    - Verdict is now PASS or PASS_WITH_ACTIONS → stop, report success.
    - Still BLOCK and the diff **changed** → genuine progress; increment cycle, repeat, up to
@@ -159,6 +201,7 @@ the user's explicit go-ahead.
 ### Phase 6 — Env/Command Hygiene: PASS | BLOCK
 ### Phase 7 — Docs Integrity:      PASS | BLOCK | SKIPPED
 ### Phase 8 — Scenario Traceability: PASS | WARNING | N/A
+### Phase 9 — Known-Issue Coverage: PASS | PASS_WITH_ACTIONS | N/A
 
 ### Verdict: PASS | PASS_WITH_ACTIONS | BLOCK
 

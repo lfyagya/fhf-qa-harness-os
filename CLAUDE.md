@@ -12,7 +12,7 @@ It is not a QA test suite. It contains no Cypress specs, no application docs, no
 
 ```
 .claude/
-    hooks/      — the 13 deterministic gates (PreToolUse/PostToolUse/Stop/UserPromptSubmit)
+    hooks/      — the 14 deterministic gates (PreToolUse/PostToolUse/Stop/UserPromptSubmit)
     agents/     — 4 agents, one per harness phase: cypress-generator (build), cypress-gate
                   (evaluator), cypress-debugger (diagnose/fix), cypress-shipper (ship/report)
     rules/      — routing map, source map, session discipline, assertion precision
@@ -23,7 +23,7 @@ scripts/harness/
     check-docs-links.mjs       — docs integrity check
     loader-templates.mjs       — single source of truth for generated consumer-repo content
     sync-loader-shims.mjs      — regenerates every consumer repo's .claude/ + overlay docs
-    check-loader-drift.mjs     — CI gate: fails if a consumer repo's generated files drifted
+    check-loader-drift.mjs     — local gate: fails if a consumer repo's generated files drifted
 docs/
     framework/harness-engineering.md  — control-plane reference (hook topology, agent roles, model config)
     adr/                              — architecture decision records for harness changes
@@ -32,7 +32,7 @@ docs/
 
 ## Consumer contract
 
-Every consumer repo's `.claude/{hooks,agents,rules,skills}/` and `.claude/settings.json` are **generated**, not hand-authored — regenerate with `node scripts/harness/sync-loader-shims.mjs` after any change here, then verify with `node scripts/harness/check-loader-drift.mjs`. Consumers hardcode absolute paths back to this repo (`C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/*.mjs`) in their hook commands — this is a single-machine design, not a portable package; that tradeoff already existed before this repo split out and is unchanged by it.
+The FHF root's `.claude/{hooks,agents,rules,skills}/`, `.claude/settings.json`, `.cursor/hooks.json`, `.github/copilot-instructions.md`, and `GEMINI.md` are generated. Lane repos receive settings plus Cursor, Copilot, Gemini, and documentation overlays. Regenerate with `node scripts/harness/sync-loader-shims.mjs` after any change here, then verify with `node scripts/harness/check-loader-drift.mjs`. Consumers hardcode absolute paths back to this repo (`C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/*.mjs`) in their hook commands — this is a single-machine design, not a portable package; that tradeoff already existed before this repo split out and is unchanged by it.
 
 ## Governance
 

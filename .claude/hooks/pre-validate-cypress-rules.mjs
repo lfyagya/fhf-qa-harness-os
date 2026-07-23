@@ -6,16 +6,17 @@
 import { readFileSync } from 'fs';
 import { extname } from 'path';
 import { CY_WAIT_NUMBER_RE, SMOKE_MUTATION_RE, isSmokePath } from './lib/cypress-rule-patterns.mjs';
+import { hookContent, hookFilePath } from './lib/hook-payload.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
 
-const filePath = (payload.tool_input?.file_path ?? '').replace(/\\/g, '/');
+const filePath = hookFilePath(payload);
 if (!filePath.includes('cypress') && !filePath.includes('CypressFHF')) process.exit(0);
 if (!['.js', '.ts', '.mjs'].includes(extname(filePath))) process.exit(0);
 
 // Content to check: new_string (Edit) or content (Write)
-const content = payload.tool_input?.new_string ?? payload.tool_input?.content ?? '';
+const content = hookContent(payload);
 if (!content) process.exit(0);
 
 const critical = [];

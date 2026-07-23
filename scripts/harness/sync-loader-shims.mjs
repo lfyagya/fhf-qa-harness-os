@@ -8,6 +8,9 @@ import {
   architectureOverlay,
   contributingOverlay,
   copilotInstructions,
+  geminiInstructions,
+  parentCopilotInstructions,
+  parentGeminiInstructions,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +36,7 @@ function copyDirSync(src, dest) {
   fs.rmSync(dest, { recursive: true, force: true });
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (entry.name === ".sweep-retries") continue;
     const s = path.join(src, entry.name);
     const d = path.join(dest, entry.name);
     if (entry.isDirectory()) copyDirSync(s, d);
@@ -49,6 +53,9 @@ function syncFhfRoot() {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(FHF_ROOT, ".claude", sub));
   }
   writeText(path.join(FHF_ROOT, ".claude", "settings.json"), harnessSettings());
+  writeText(path.join(FHF_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  writeText(path.join(FHF_ROOT, ".github", "copilot-instructions.md"), parentCopilotInstructions());
+  writeText(path.join(FHF_ROOT, "GEMINI.md"), parentGeminiInstructions());
 }
 
 // Sub-repos (E2E/Smoke lanes) never needed agents/rules/skills/commands — hooks run via
@@ -63,6 +70,7 @@ function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, ".claude", "settings.json"), harnessSettings());
   writeText(path.join(repoPath, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
   writeText(path.join(repoPath, ".github", "copilot-instructions.md"), copilotInstructions(lane));
+  writeText(path.join(repoPath, "GEMINI.md"), geminiInstructions(lane));
 }
 
 syncFhfRoot();
