@@ -146,7 +146,7 @@ function checkSubRepo(repoPath, lane) {
     if (actual !== expected) issues.push(`Drift detected: ${settingsPath} differs from harness settings.json`);
   }
 
-  checkAllowedEntries(docsDir, ["README.md"]);
+  // The harness owns docs/README.md only; product/planning docs beside it are consumer content.
   checkAllowedEntries(cursorDir, ["hooks.json"]);
   checkAllowedEntries(githubDir, ["copilot-instructions.md", "workflows"]);
   checkExactText(path.join(docsDir, "README.md"), docsReadme(lane));

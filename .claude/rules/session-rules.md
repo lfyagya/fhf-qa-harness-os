@@ -61,6 +61,54 @@ When a task spans multiple modules (e.g., "rebuild the docs for these 6 modules,
 
 A recurring correction or confirmed judgment call (a "feedback" memory) is a candidate rule, not a place to stop. Session/agent memory is per-assistant-instance and can be wiped or unavailable to a different session — it is not a substitute for the harness. Once a piece of feedback is confirmed as a standing rule (not a one-off), promote it into the checked-in harness: `.claude/rules/*.md` here in `fhf-harness-os` (then `sync-loader-shims.mjs`) for anything cross-repo/engine-level, or the relevant repo's `CLAUDE.md` for a repo-specific rule. Memory may still record *why* the rule exists and reference the canonical file — it should not be the only place the rule itself lives.
 
+## Memory lifecycle — archive closed project memories, don't accumulate forever
+
+`MEMORY.md` truncates past 200 lines — an unbounded index silently loses its oldest entries with
+no warning. `project` memories are the type that goes stale: a task finishes, a bug gets fixed, a
+gap gets closed, and the memory recording it stops being actionable but stays indexed forever
+unless someone prunes it.
+
+A `project` memory is closed when its underlying task is fully resolved with no forward-looking
+action left (confirmed against current state, not just recalled — same rule as "before
+recommending from memory" below applies to closing one too). On confirming closure:
+
+- If the resolution was promoted into a checked-in rule or repo doc (the "Where standards live"
+  pattern above), move the memory file to `memory/archive/` and drop its `MEMORY.md` index line —
+  the checked-in doc is now the durable record, keeping the memory file live is pure duplication.
+- If it wasn't promoted anywhere (a one-off historical fact with no standing rule to point to),
+  archive the file but leave one condensed index line pointing at it — don't delete institutional
+  history, just get it out of the always-loaded index.
+- Check for closable `project` memories opportunistically whenever `MEMORY.md` is touched for an
+  unrelated reason, and always once it crosses ~150/200 lines (75% of the truncation limit) —
+  don't wait for the cap to bite.
+- `user`, `feedback`, and `reference` memories don't have a "task resolved" state — this policy
+  only applies to `project` memories.
+
 ## Verifying subagent output
 
 A subagent's final message describes what it intended to do, not necessarily what it did. Before treating a subagent's report as fact — especially citations (Cloud run numbers, doc paths, "user-approved scope" claims) or a "files touched" summary — independently verify: check the citation resolves, diff the actual files changed. Never relay a subagent's self-reported summary as a verified result without that check.
+
+## Absence claims — the same discipline applies to this agent's own words, not just subagents'
+
+"No CI exists," "nothing implements X," "this file doesn't exist" are the highest-risk class of
+claim this harness makes, because a negative is invisible to spot-check unless the search scope
+is shown — a wrong positive claim gets caught the first time someone looks for the thing; a wrong
+negative claim just sits there being believed. Real incident (2026-07-24): "no CI exists in
+either repo" was asserted from one glob (`.github/workflows/` at the FHF root only), missing AWS
+CodeBuild entirely; the correction was *itself* wrong for the same reason (missed the sub-repos'
+own `.github/workflows/`) and directly contradicted `harness-engineering.md §3`, already quoted
+earlier in the same session.
+
+Before stating an absence as fact:
+- Search from every plausible angle — naming convention, config format, subdirectory depth — not
+  one glob pattern in one location. A CI claim needs every known CI config format checked
+  (GitHub Actions, CodeBuild/`buildspec.yml`, CircleCI, Jenkins, GitLab CI, etc.), tree-wide, not
+  root-scoped.
+- State what was searched alongside the conclusion, not just the conclusion — "checked X, Y, Z,
+  found nothing" is a claim that can be spot-checked; "nothing exists" alone cannot.
+- Cross-check any new claim against sources already established in the same session before
+  asserting it. If a doc was quoted three turns ago and the new claim contradicts it, that's a
+  signal to re-read the doc, not to trust the new search over it.
+- A claim backed by a shown, re-runnable command (grep output, test results) and a claim stated
+  as prose with no attached verification are not the same confidence level — don't present them
+  as if they were.

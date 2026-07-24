@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "atlassian": {
+    "siteUrl": "https://firsthelpfinancial.atlassian.net",
+    "projectKey": "SERV",
+    "serviceApp": "Callcenter",
+    "currentSprintJql": "project = SERV AND sprint in openSprints() ORDER BY updated DESC",
+    "confluenceSpaces": ["QA", "SE", "TE"],
+    "fields": {
+      "serviceApp": "customfield_10043",
+      "severity": "customfield_10047",
+      "environment": "customfield_10048",
+      "module": "customfield_10142"
+    }
+  },
+  "paths": {
+    "consumerRoot": "../FHF",
+    "applicationIntelligence": "docs/framework/application-intelligence",
+    "moduleIndex": "docs/modules/README.md",
+    "chainRisk": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
+    "executionHistory": "docs/evidence/execution-history.md",
+    "evidenceDir": "docs/evidence",
+    "lanes": {
+      "e2e": {
+        "root": "AG Frontend Automation/front-end-automation",
+        "package": "CypressFHF/fhf-dashboards",
+        "branch": "dev"
+      },
+      "smoke": {
+        "root": "ProdSmokeExecution/front-end-automation",
+        "package": "CypressFHF/fhf-dashboards",
+        "branch": "staging"
+      },
+      "backend": {
+        "root": "fhf-backend-automation",
+        "branch": "per-ticket"
+      }
+    }
+  },
+  "approval": {
+    "jiraWrites": true,
+    "confluenceWrites": true,
+    "applicationSpecWrites": true,
+    "evidenceExport": true,
+    "singleUse": true
+  },
+  "connectors": {
+    "atlassianMcp": {
+      "required": true,
+      "sources": ["jira", "confluence", "teamworkGraph"],
+      "authentication": "oauth"
+    },
+    "cypressCloud": {
+      "required": false,
+      "fallback": "local-junit"
+    },
+    "testRail": {
+      "required": false,
+      "fallback": "run-id-and-junit-artifacts"
+    }
+  },
+  "freshnessDays": {
+    "sprintSnapshot": 1,
+    "coverage": 7,
+    "execution": 14
+  },
+  "metricThresholds": {
+    "uiCoveragePercent": 50,
+    "jiraTraceabilityPercent": 100,
+    "maxUnmappedSprintPercent": 10,
+    "maxReviewQueuePercent": 20,
+    "maxExecutionAgeDays": 14
+  },
+  "workflow": {
+    "stages": [
+      "intake",
+      "specProposal",
+      "approved",
+      "configured",
+      "implemented",
+      "gated",
+      "executed",
+      "pr",
+      "externallyUpdated"
+    ],
+    "statuses": ["pending", "in_progress", "completed", "blocked", "skipped"],
+    "approvalRequiredStages": ["approved", "externallyUpdated"],
+    "jiraStatusStageMap": {
+      "Open": "intake",
+      "Groomed": "intake",
+      "Ready for Dev": "approved",
+      "In Development": "implemented",
+      "In Progress": "implemented",
+      "PR Review": "gated",
+      "Code Complete": "gated",
+      "Code Completed": "gated",
+      "Ready for Test": "executed",
+      "Ready For Testing": "executed",
+      "In Testing": "executed",
+      "Fix Failed": "executed",
+      "Done": "externallyUpdated",
+      "Fix Verified": "externallyUpdated",
+      "Complete": "externallyUpdated",
+      "Ready for Release": "externallyUpdated",
+      "Released": "externallyUpdated"
+    }
+  },
+  "prioritization": {
+    "severityWeights": {
+      "Show Stopper": 40,
+      "High": 30,
+      "Medium": 20,
+      "Low": 10,
+      "Unknown": 5
+    },
+    "bugWeight": 20,
+    "unmappedWeight": 15,
+    "reviewWeight": 10,
+    "noCoverageWeight": 20,
+    "partialCoverageWeight": 10
+  },
+  "moduleAliases": {
+    "ancillary": ["ancillary", "acd", "apd", "gap claim", "ancillary verification"],
+    "call-reports": ["call reports", "call recording", "agent call volume"],
+    "checks": ["checks", "insurance repair check", "lockbox"],
+    "complaints": ["complaint", "cfpb", "bbb"],
+    "contracts": ["contracts", "contract prep"],
+    "custodian": ["custodian", "exception queue"],
+    "doc-repository": ["document repository", "doc repository", "docman", "loan packages"],
+    "funding": ["funding coordinator", "funder view"],
+    "insurance": ["insurance", "total loss", "lienholder claim", "lien holder claim"],
+    "letters": ["letters", "letter tracking", "risc letter"],
+    "loss-mitigation": ["loss mitigation", "remarketing", "repossess", "rdn", "autoims", "impound", "transport", "repo invoice", "auction invoice", "loss mitigation remarketing", "recon"],
+    "post-funding": ["post funding", "post-funding"],
+    "titles": ["titles", "title release", "missing title", "re-registration", "re-reg"],
+    "unifi": ["unifi", "unifi servicing", "unifi collections", "contact log", "payix", "promise to pay", "ptp"]
+  },
+  "jiraModulePrefixes": {
+    "ancillary": ["ancillary", "acd", "apd"],
+    "call-reports": ["agent call volume", "call reports", "call recording"],
+    "checks": ["checks", "insurance repair", "lockbox"],
+    "complaints": ["complaint"],
+    "contracts": ["contract"],
+    "custodian": ["custodian"],
+    "doc-repository": ["docman", "document repository"],
+    "funding": ["funding"],
+    "insurance": ["insurance"],
+    "letters": ["letters"],
+    "loss-mitigation": ["lossmitigation", "loss mitigation", "remarketing", "repossess", "rdn", "autoims"],
+    "post-funding": ["postfunding", "post funding"],
+    "titles": ["titles"],
+    "unifi": ["unifi"]
+  },
+  "moduleSpecPaths": {
+    "ancillary": ["docs/framework/application-intelligence/modules/ancillary/00_README.md"],
+    "call-reports": ["docs/framework/application-intelligence/modules/call_reports/00_README.md"],
+    "checks": ["docs/framework/application-intelligence/modules/checks/00_README.md"],
+    "complaints": ["docs/framework/application-intelligence/modules/complaints/00_README.md"],
+    "contracts": ["docs/framework/application-intelligence/modules/custodian/06_contracts_dashboard.md"],
+    "custodian": ["docs/framework/application-intelligence/modules/custodian/00_README.md"],
+    "doc-repository": ["docs/framework/application-intelligence/modules/document_repository/00_README.md"],
+    "funding": ["docs/framework/application-intelligence/modules/funding/00_README.md"],
+    "insurance": ["docs/framework/application-intelligence/modules/insurance/00_README.md"],
+    "letters": ["docs/framework/application-intelligence/modules/letters/00_README.md"],
+    "loss-mitigation": ["docs/framework/application-intelligence/modules/loss_mitigation/00_README.md"],
+    "post-funding": ["docs/framework/application-intelligence/modules/post_funding/00_README.md"],
+    "titles": ["docs/framework/application-intelligence/modules/titles/README.md"],
+    "unifi": [
+      "docs/framework/application-intelligence/modules/unifi/collections/README.md",
+      "docs/framework/application-intelligence/modules/unifi/servicing/00_README.md"
+    ]
+  }
+}

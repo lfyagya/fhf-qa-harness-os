@@ -18,7 +18,8 @@ It is not a QA test suite. It contains no Cypress specs, no application docs, no
     rules/      — routing map, source map, session discipline, assertion precision
     skills/     — cypress-author, cypress-docs, cypress-explain (Cypress's own, not ours)
 scripts/harness/
-    generate-coverage.mjs      — scans consumer repos, writes evidence into their docs/evidence/
+    generate-coverage.mjs      — consent-gated scan; writes ignored runtime evidence into FHF/docs/evidence/
+    qa-command-center.mjs      — sprint/spec intake plus portable JSON/Markdown/HTML dashboard
     test-hooks.mjs             — hook regression tests
     check-docs-links.mjs       — docs integrity check
     loader-templates.mjs       — single source of truth for generated consumer-repo content
@@ -37,3 +38,9 @@ The FHF root's `.claude/{hooks,agents,rules,skills}/`, `.claude/settings.json`, 
 ## Governance
 
 Any change to hook topology, agent roster, or the skill-routing map requires an ADR in `docs/adr/` — see `docs/governance.md`.
+
+## Centralized QA control plane
+
+Use `docs/framework/qa-control-plane.md` for current-sprint intake, connected Atlassian context,
+application-spec proposals, three-lane evidence, and dashboard refreshes. Read-only discovery is
+autonomous; Jira, Confluence, and application-spec writes require explicit single-use approval.

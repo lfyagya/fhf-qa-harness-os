@@ -8,6 +8,9 @@ import { extname } from 'path';
 import { CY_WAIT_NUMBER_RE, SMOKE_MUTATION_RE, isSmokePath } from './lib/cypress-rule-patterns.mjs';
 import { hookContent, hookFilePath } from './lib/hook-payload.mjs';
 
+if (process.argv.includes('--cursor'))
+  process.on('exit', code => code === 0 && console.log(JSON.stringify({ permission: 'allow' })));
+
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
 

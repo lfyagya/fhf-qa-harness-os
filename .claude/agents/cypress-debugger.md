@@ -102,15 +102,16 @@ feature it tests is genuinely slow, document that; don't fake it.
   actually changed before touching the config.
 - **Deterministic reproduction of a `[BUG-NNN]` regression test raises real-bug probability** —
   the bug may have returned. Flag it loudly; never "fix" the test to make it pass again (that
-  defeats the regression and the release gate). If the human explicitly asks you to file it, call
+  defeats the regression and the release gate). Prepare the complete Bug payload, show it to the
+  owner, and require explicit single-use approval immediately before calling
   `mcp__atlassian__createJiraIssue` with `project: SERV`, `issuetype: Bug`, `summary`,
   `description` (the root cause + repro from this pass), `customfield_10043` (Service App) →
   `Callcenter` (confirmed default, don't ask), `customfield_10047` (Severity - Serv/LOS) → ask the
   human which of `Show Stopper`/`High`/`Medium`/`Low` applies, `customfield_10048` (Environment) →
   ask the human which of `Pre-Production`/`Production`/`DEV`/`QA`/`UAT` applies (genuinely varies
   per bug, never assume). Optionally `customfield_10142` (Module) if the affected dashboard module
-  is known. Never file a ticket without the explicit ask, even when the reproduction is highly
-  confident — see `.claude/rules/jira-integration.md` for the full field reference.
+  is known. Never file a ticket without approval of the exact payload, even when the reproduction
+  is highly confident — see `.claude/rules/jira-integration.md` for the full field reference.
 - After a fix, hand back to the user to re-run via you, or to `cypress-gate` for merge review —
   never self-certify a fix as done.
 

@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 // PreToolUse:Task — block forbidden agent types (Explore, general-purpose, deleted agents).
 // exit 2 = BLOCK the Task spawn.
+//
+// Also wired to SubagentStart (settings.json) to catch Workflow-tool-spawned agents, which
+// bypass this same check under PreToolUse (matcher is Task-only; Workflow's internal agent()
+// calls don't go through Task at all — see agent-spawning-gate.md). SubagentStart's real field
+// is `agent_type` (confirmed via Claude Code docs 2026-07-24 — NOT `subagent_type`, which this
+// script's fallback chain used to omit, meaning an earlier wiring attempt would have silently
+// matched nothing forever). Verified via the same docs: SubagentStart is non-blocking — exit 2
+// only "shows stderr to user", the subagent starts regardless. Don't claim BLOCKED when running
+// under SubagentStart; say what actually happened.
 import { readFileSync } from "fs";
 
 let payload = {};
@@ -10,8 +19,10 @@ try {
   if (!process.argv.includes("--deny-matched-subagent")) process.exit(0);
 }
 
+const isSubagentStart = payload.hook_event_name === "SubagentStart";
 const subagentType = String(
   payload.tool_input?.subagent_type ??
+    payload.agent_type ??
     payload.subagent_type ??
     payload.subagentType ??
     "",
@@ -47,7 +58,10 @@ if (process.argv.includes("--deny-matched-subagent")) {
 
 for (const name of FORBIDDEN) {
   if (subagentType === name) {
-    console.error(`BLOCKED: agent "${name}" is forbidden.`);
+    const verb = isSubagentStart
+      ? `WARNING: agent "${name}" is forbidden by the FHF routing roster — spawned via Workflow, so this hook cannot block it (SubagentStart is non-blocking). Flagging only.`
+      : `BLOCKED: agent "${name}" is forbidden.`;
+    console.error(verb);
     if (GENERIC.includes(name))
       console.error(
         "Use Grep/Glob/Read for lookups. See .claude/rules/agent-spawning-gate.md.",

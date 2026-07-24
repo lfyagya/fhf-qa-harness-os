@@ -63,12 +63,13 @@ rather than inventing business logic. Proceed to Step 2 immediately unless the u
 asked for scenarios only (no code yet) — don't force a separate approval round-trip for a
 solo-owner workflow; showing the plan inline is enough unless told otherwise.
 
-If the ticket has a real `jiraId` (e.g. `SERV-XXXXX`), call `mcp__atlassian__addCommentToJiraIssue`
-against that issue key once scenarios are drafted: `"Scenarios drafted: N positive / N negative /
-N edge. AC coverage: X/Y mapped."` — counts + AC coverage only, not a restated summary. Autonomous,
-no explicit ask needed (per `.claude/rules/jira-integration.md`). Never create or transition the
-ticket itself here — that's out of this step's scope, and stays `cypress-debugger`'s (Bug filing)
-or `cypress-shipper`'s (status transition on PR open) job respectively.
+If the ticket has a real `jiraId` (e.g. `SERV-XXXXX`), prepare this exact comment once scenarios
+are drafted: `"Scenarios drafted: N positive / N negative / N edge. AC coverage: X/Y mapped."`
+Show the issue key and exact comment to the owner and obtain explicit approval immediately before
+calling `mcp__atlassian__addCommentToJiraIssue`. Counts + AC coverage only, not a restated
+summary. Never create or transition the ticket itself here — that's out of this step's scope, and
+stays `cypress-debugger`'s (Bug filing) or `cypress-shipper`'s (transition proposal after PR open)
+job respectively.
 
 **If given only a module/dashboard name:** skip scenario derivation, go straight to Step 2.
 

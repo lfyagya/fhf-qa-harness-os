@@ -44,25 +44,13 @@ Planning docs and Confluence/Jira-sourced context can hallucinate or mislabel da
 
 `cy.intercept`'s captured `response.body` is the **raw HTTP payload**, before any client-side transform. A service function in `src/services/{domain}/` commonly re-maps that raw shape into a different one (renamed fields, restructured envelope) before the rest of the app ever sees it — e.g. a raw `{ items: [{ status, status_key }] }` mapped via `.map(val => ({ label: val.status, value: val.status_key }))` into the `{ label, value }` shape components actually consume. If you assert against the field names in the *component's* type instead of the *service function's pre-map return* (grep the actual `.map()`/transform call in `src/services/{domain}/`), the assertion silently checks fields that don't exist on the real intercepted body. Always trace the service function's raw-to-model mapping (or confirm there isn't one) before writing an assertion on an intercepted response's field names.
 
-## TestRail Coverage (Pre-fetched QA Case Data)
+## TestRail Coverage (broken — removed 2026-07-24)
 
-All TestRail cases are pre-fetched, classified, and ready in the smoke sub-repo — never ask
-the user to paste cases; read the relevant file directly.
-
-Base path: `C:\Users\Leapfrog\FHF\ProdSmokeExecution\front-end-automation\docs\planning\testrail-coverage\`
-
-| What you need | File to read (relative to base path) |
-|---|---|
-| Existing scenarios for a module/dashboard | `scenarios\scenarios-<module>.md` |
-| Whether a case already exists (new vs existing) / what's automated vs not | `testrail-call-center-coverage.md` |
-| Coverage gaps by module | `testrail-call-center-gap.md` |
-| Automation backlog / demand vs supply | `testrail-call-center-decision.md` |
-| Which track owns each scenario (UI vs API→DB) | `testrail-call-center-e2e-tracks.md` |
-
-Module name mapping for `scenarios/scenarios-<module>.md`:
-`ancillary` · `call-log` · `contacts-crm` · `custodian` · `doc-repository` · `insurance` ·
-`letters-delivery-manager` · `loss-mitigation` · `nls` · `payments` · `titles` ·
-`unifi-servicing`
-
-Used by `cypress-generator` (classifying a new ticket and auditing proposed scenarios against
-existing coverage) — it reads this table, doesn't restate it.
+This section used to list a pre-fetched TestRail export under
+`ProdSmokeExecution/front-end-automation/docs/planning/testrail-coverage/`. That directory does
+not exist — confirmed twice by direct filesystem check (2026-07-15, 2026-07-24). The table lived
+here **and** in `docs/framework/testing-standards/testrail-coverage-source.md` — the exact kind
+of copy-pasted drift ADR-0002 extracted that file to prevent. Removed here; the corrected,
+single-source version (with root cause and fallback instructions) lives at
+`docs/framework/testing-standards/testrail-coverage-source.md` — read that file, don't restate
+its table here again.

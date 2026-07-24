@@ -1,4 +1,4 @@
-# Jira Integration — SERV Project, Real Fields, Graduated Write Policy
+# Jira Integration — SERV Project, Real Fields, Approval-Gated Writes
 
 Grounded against the live `firsthelpfinancial.atlassian.net` instance (queried 2026-07-20) — not
 invented. Re-verify against live Jira if these values are ever suspected stale; this file is a
@@ -11,18 +11,24 @@ Project: **SERV** ("Services Team Scrum") — the only project this harness's ti
 to QA automation work: **Bug**, **Task**, **Sub-task**. This harness never touches any of the
 other 52 projects in this Jira instance.
 
-## Write policy — graduated by risk, not uniform
+## Write policy — explicit approval before every mutation
 
 | Action | Policy | Why |
 |---|---|---|
-| **Create a ticket** (Bug/Task) | **Explicit request only** — never autonomous | Highest risk: a wrongly-created ticket clutters a real, shared backlog other teams also triage |
-| **Status transition** | Autonomous, but **QA-owned stages only** (below) | Bounded risk — restricted to the slice of the workflow that's actually QA's to move |
-| **Comment** | Autonomous, **lightweight phase-completion notes only** | Lowest risk — append-only, easily correctable, doesn't restructure anything |
+| **Create a ticket** (Bug/Task) | Prepare a draft, then require explicit approval | A wrongly-created ticket clutters a real, shared backlog other teams also triage |
+| **Status transition** | Prepare the eligible transition, then require explicit approval | Even QA-owned transitions change a shared workflow |
+| **Comment** | Prepare the exact comment, then require explicit approval | Append-only is still an external write |
+| **Confluence update** | Prepare the page diff, then require explicit approval | Shared specifications must not drift from an unreviewed AI interpretation |
+| **Application-spec edit** | Prepare the local diff, then require explicit approval | Jira/Confluence context is evidence, not automatically authoritative product truth |
 
 Use the real MCP tools directly (`mcp__atlassian__createJiraIssue`,
 `mcp__atlassian__transitionJiraIssue`, `mcp__atlassian__addCommentToJiraIssue`,
 `mcp__atlassian__getTransitionsForJiraIssue`) — this file states the business rule (what/when),
 not a restated copy of their parameter schemas; introspect those directly when calling.
+
+Read-only Jira, Confluence, and Teamwork Graph calls do not need approval. For a proposed write,
+show the exact target and payload, ask once immediately before execution, and treat that approval
+as single-use. Approval for one comment, transition, page, or spec file does not authorize another.
 
 ## Creating a Task in SERV — real required fields
 
@@ -108,11 +114,12 @@ Live-verified: a ticket sitting at `In Testing` has exactly 3 available transiti
 `Fix Failed`, `Fix Verified`, `In Progress` — matching the diagram exactly.
 
 **QA-owned for Bug (confirmed 2026-07-21 — narrowest option, deliberately excludes the
-rejection path):** only `In Testing` → `Fix Verified` → `Complete`. This harness may advance a
-Bug ticket through these two steps autonomously, once tests genuinely pass — never ahead of the
-real state.
+rejection path):** only `In Testing` → `Fix Verified` → `Complete`. The harness may propose these
+two steps once tests genuinely pass, but must obtain approval before each transition and never
+advance ahead of the real state.
 
-**Never autonomous for Bug** (human decision or dev/release-management territory): `Open` →
+**Never propose as a routine QA transition for Bug** (human decision or dev/release-management
+territory): `Open` →
 `In Progress`/`Not a Bug`/`Deffered`, `In Progress` → `Code Complete` → `Ready for Testing`,
 `In Testing` → `Fix Failed` (rejecting a fix and sending it back is a human call, not a
 mechanical one, even though QA is the one making it), `In Testing` → `In Progress` (the direct
@@ -142,9 +149,11 @@ attributable to a confirmed graph until this diagram, unlike the Bug-workflow mi
 the underlying status list itself was wrong for Bug.
 
 **QA-owned for this workflow (same narrow-scope pattern as Bug — only the single confirming
-step):** only `In Testing` → `Done`. Mirrors `Fix Verified → Complete` in Bug's workflow.
+step):** only `In Testing` → `Done`. The harness may propose it after tests pass, but must obtain
+approval before the transition. It mirrors `Fix Verified → Complete` in Bug's workflow.
 
-**Never autonomous:** `Ready for Test` → `In Testing` (pickup step), `In Testing` → `Ready for
+**Never propose as a routine QA transition:** `Ready for Test` → `In Testing` (pickup step),
+`In Testing` → `Ready for
 Test` (failed-test rejection loop), `Done` → `Ready for Release` → `Released` (release
 management), everything upstream of `Ready for Test` (dev/PM workflow), `Canceled`.
 
@@ -152,10 +161,10 @@ Always call `getTransitionsForJiraIssue` first to get the real transition ID for
 *current* status regardless of issue type — transition IDs are not stable across
 tickets/workflows, never hardcode one.
 
-## Comments — lightweight phase-completion notes, autonomous
+## Comments — lightweight phase-completion proposals
 
-Post a short comment (not a restated summary of the whole work) at these points, no explicit ask
-needed:
+Prepare a short comment (not a restated summary of the whole work) at these points, then show it
+to the owner and request approval before posting:
 
 - `cypress-generator`: after scenarios are drafted from a Jira-sourced ticket — e.g. "Scenarios
   drafted: N positive / N negative / N edge. AC coverage: X/Y mapped."
@@ -163,6 +172,5 @@ needed:
   `dev`/`staging`: `<PR title>`."
 
 Never post a comment that just restates the full generated output — link to the PR/spec, state
-counts, keep it to 1-2 lines. Never post automatically for anything other than these two points;
-anything else (a debugging summary, a coverage report) stays in the conversation unless the human
-explicitly asks for it to be posted to Jira.
+counts, keep it to 1-2 lines. A debugging summary or coverage report stays in the conversation
+unless the owner approves its exact Jira comment payload.

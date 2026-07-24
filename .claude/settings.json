@@ -31,6 +31,13 @@
         ]
       }
     ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/block-generic-agents.mjs\"" }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

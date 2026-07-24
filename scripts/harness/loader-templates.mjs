@@ -2,10 +2,16 @@
 // sync-loader-shims.mjs writes these; check-loader-drift.mjs verifies against these.
 // Never duplicate this content in either script.
 
-// ponytail: absolute paths, not "../../" — sub-repos are no longer 2 levels under the
-// hooks' home directory now that hooks live in a sibling repo (fhf-harness-os), not
-// nested inside FHF. Matches the absolute-path convention already used in settings.json.
-const HARNESS_HOOKS = "C:/Users/Leapfrog/fhf-harness-os/.claude/hooks";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+// Absolute path (not "../../") — sub-repos sit at different depths under FHF relative to
+// this sibling repo, so no single relative path serves all consumers. The machine/user
+// prefix doesn't need to be a literal though — computed from this file's own location,
+// same pattern record-execution-evidence.mjs already uses one file over.
+const HARNESS_HOOKS = path
+  .resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks")
+  .replace(/\\/g, "/");
 
 export const CURSOR_HOOKS = {
   version: 1,
@@ -19,17 +25,17 @@ export const CURSOR_HOOKS = {
     ],
     preToolUse: [
       {
-        command: `node ${HARNESS_HOOKS}/protect-app-source.mjs`,
+        command: `node ${HARNESS_HOOKS}/protect-app-source.mjs --cursor`,
         matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         failClosed: true,
       },
       {
-        command: `node ${HARNESS_HOOKS}/protect-second-brain-boundary.mjs`,
+        command: `node ${HARNESS_HOOKS}/protect-second-brain-boundary.mjs --cursor`,
         matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         failClosed: true,
       },
       {
-        command: `node ${HARNESS_HOOKS}/pre-validate-cypress-rules.mjs`,
+        command: `node ${HARNESS_HOOKS}/pre-validate-cypress-rules.mjs --cursor`,
         matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         failClosed: true,
       },
@@ -97,6 +103,9 @@ This workspace contains two test lanes. Route E2E / functional / regression work
 \`AG Frontend Automation/front-end-automation\` and production smoke work to
 \`ProdSmokeExecution/front-end-automation\`. Smoke is GET-only and must never mutate production.
 
+Centralized sprint/spec/coverage workflow:
+- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
+
 Follow the lane repository's \`.github/copilot-instructions.md\` before changing tests.
 `;
 }
@@ -111,6 +120,9 @@ Canonical shared harness policy:
 This workspace contains two test lanes. Route E2E / functional / regression work to
 \`AG Frontend Automation/front-end-automation\` and production smoke work to
 \`ProdSmokeExecution/front-end-automation\`. Smoke is GET-only and must never mutate production.
+
+Centralized sprint/spec/coverage workflow:
+- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
 
 Follow the lane repository's \`GEMINI.md\` before changing tests.
 `;
@@ -351,6 +363,7 @@ export function copilotInstructions(lane) {
 
 Single source of shared harness policy:
 - \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
+- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
 
 This file contains only ${lane === "e2e" ? "E2E" : "smoke"} lane deltas.
 
@@ -426,6 +439,7 @@ export function geminiInstructions(lane) {
 
 Single source of shared harness policy:
 - \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
+- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
 
 This file contains only ${lane === "e2e" ? "E2E" : "smoke"} lane deltas.
 

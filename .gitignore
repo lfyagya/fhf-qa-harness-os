@@ -1,0 +1,11 @@
+# Local sync state — records the last content sync-loader-shims.mjs wrote to each generated
+# target, so it can tell "stale" (safe to overwrite) apart from "hand-edited since" (blocked).
+# Machine-local by nature; never shared/committed.
+.sync-manifest.json
+.sync-manifest.json.lock
+
+# Local single-use evidence-export consent ledger.
+.qa-consent-ledger.json
+.qa-consent-ledger.json.lock
+.qa-consent-ledger.json.*.tmp
+.qa-consent-ledger.json.*.bak
