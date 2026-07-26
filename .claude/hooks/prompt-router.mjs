@@ -20,7 +20,7 @@ if (DRIFT_SIGNALS.some(s => prompt.includes(s))) {
 // 2. Routing hint — first matching rule wins (mirrors .claude/rules/agent-spawning-gate.md)
 // Only 4 agents exist: cypress-generator, cypress-gate, cypress-debugger, cypress-shipper.
 const ROUTES = [
-  [/\b(command center|current sprint|sprint intake|spec (sync|freshness|delta)|centralized qa|cross-lane)\b/, 'QA control plane → follow C:/Users/Leapfrog/fhf-harness-os/docs/framework/qa-control-plane.md inline; approval-gate every Jira, Confluence, or application-spec write.'],
+  [/\b(command center|current sprint|sprint intake|spec (sync|freshness|delta)|centralized qa|cross-lane)\b/, 'QA control plane → follow fhf-harness-os/docs/framework/qa-control-plane.md inline; approval-gate every Jira, Confluence, or application-spec write.'],
   [/cloud\.cypress\.io|cypress cloud.*(fail|run)/, 'Cypress Cloud run → spawn cypress-debugger (needs the run URL).'],
   [/\b(failing|fails|red|broken|error)\b.*\b(test|spec)\b|\b(test|spec)\b.*\b(failing|fails|red|broken)\b/, 'Failing test → spawn cypress-debugger (root cause + fix + regression test, 3-strike escalation).'],
   [/\b(flaky|slow|intermittent)\b.*\b(test|spec|suite)\b/, 'Flakiness/perf → spawn cypress-debugger (Performance Audit mode).'],

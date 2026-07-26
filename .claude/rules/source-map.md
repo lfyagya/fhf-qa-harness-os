@@ -7,7 +7,7 @@ session automatically (unlike an agent's own `.md`, which only the invoked agent
 ## fhf-dashboards (App Source)
 
 ```
-C:\Users\Leapfrog\FHF\fhf-dashboards
+fhf-dashboards/          (sibling checkout in the FHF workspace)
 ```
 
 Read-only evidence source for QA. **NEVER write, edit, or create files there** — it is owned by the frontend dev team. Missing `data-cy` hook → record as a gap in the exploration report; propose upstream via PR.

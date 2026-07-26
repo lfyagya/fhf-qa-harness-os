@@ -38,8 +38,8 @@ flowchart TD
 
 Requests for current-sprint intake, Jira/Confluence/Teamwork Graph context, application-spec
 freshness proposals, cross-lane implementation state, or the QA command-center dashboard use
-`C:\Users\Leapfrog\fhf-harness-os\docs\framework\qa-control-plane.md` and
-`C:\Users\Leapfrog\fhf-harness-os\scripts\harness\qa-command-center.mjs` inline. This is a portable
+`fhf-harness-os/docs/framework/qa-control-plane.md` and
+`fhf-harness-os/scripts/harness/qa-command-center.mjs` inline. This is a portable
 harness workflow, not a fifth agent.
 
 Read-only Atlassian discovery is autonomous. Jira, Confluence, and application-spec writes are
