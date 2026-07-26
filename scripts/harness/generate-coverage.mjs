@@ -127,6 +127,33 @@ const BACKEND_LAYERS = ["client", "tests", "contract", "db", "testrail"];
 const backendState = {};
 for (const m of MODULES) backendState[m] = {};
 
+// Reference-readiness signal — deliberately NOT one of BACKEND_LAYERS and never counted in
+// backendVerdict(). It answers "is the API contract already mapped for whoever builds this,"
+// not "does automation exist" — those are different questions and collapsing them into one
+// State value would hide which one is true. Reuses qa-control-plane.json's own module→directory
+// mapping (moduleSpecPaths) rather than a second, parallel mapping that could drift from it.
+//
+// Checks module-context.yaml for a top-level `backend_automation:` key — NOT a separate file.
+// A standalone backend-automation-reference.md was tried first (2026-07-24) and reverted same
+// day: this corpus was deliberately restructured to exactly two files per module (specs/*.yaml +
+// module-context.yaml), and a third loosely-named file per module reintroduces the exact
+// proliferation that restructure eliminated. String-matched, not full YAML-parsed — presence
+// detection only, no need for a YAML dependency here.
+const CONTROL_PLANE_CONFIG_PATH = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
+const MODULE_SPEC_PATHS = fs.existsSync(CONTROL_PLANE_CONFIG_PATH)
+  ? JSON.parse(fs.readFileSync(CONTROL_PLANE_CONFIG_PATH, "utf8")).moduleSpecPaths ?? {}
+  : {};
+function hasBackendRefDoc(moduleKey) {
+  const specPaths = MODULE_SPEC_PATHS[moduleKey] ?? [];
+  const dirs = [...new Set(specPaths.map((p) => path.dirname(p)))];
+  return dirs.some((dir) => {
+    const contextFile = path.join(FHF_ROOT, dir, "module-context.yaml");
+    if (!fs.existsSync(contextFile)) return false;
+    return /^backend_automation:/m.test(fs.readFileSync(contextFile, "utf8"));
+  });
+}
+for (const m of MODULES) backendState[m].refDoc = hasBackendRefDoc(m);
+
 for (const client of walk(path.join(BACKEND_ROOT, "api"), ".py")) {
   if (path.basename(client) === "base_client.py" || path.basename(client) === "__init__.py") continue;
   const mod = backendModule(client);
@@ -183,13 +210,13 @@ lines.push(
   "",
   "> Backend uses its own rubric: typed API client → tests → API contract assertions → DB assertions → TestRail mapping.",
   "",
-  "| Module | client | tests | contract | db | TestRail | Test files | test_* | mapped cases | State |",
-  "|---|---|---|---|---|---|---|---|---|---|",
+  "| Module | client | tests | contract | db | TestRail | Test files | test_* | mapped cases | State | Ref doc |",
+  "|---|---|---|---|---|---|---|---|---|---|---|",
 );
 for (const m of displayOrder) {
   const s = backendState[m];
   const cell = (layer) => (s[layer] ? "✅" : "—");
-  lines.push(`| ${m} | ${cell("client")} | ${cell("tests")} | ${cell("contract")} | ${cell("db")} | ${cell("testrail")} | ${s.testFiles ?? 0} | ${s.testCount ?? 0} | ${s.testrailCount ?? 0} | ${backendVerdict(s)} |`);
+  lines.push(`| ${m} | ${cell("client")} | ${cell("tests")} | ${cell("contract")} | ${cell("db")} | ${cell("testrail")} | ${s.testFiles ?? 0} | ${s.testCount ?? 0} | ${s.testrailCount ?? 0} | ${backendVerdict(s)} | ${s.refDoc ? "✅" : "—"} |`);
 }
 lines.push("");
 if (unmapped.length) {
