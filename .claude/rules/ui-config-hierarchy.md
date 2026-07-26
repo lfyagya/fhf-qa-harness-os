@@ -38,8 +38,20 @@ would push config imports into every spec and break Config → Commands → Test
 were real: bodies identical **and** referencing no module config — N names for one behaviour.
 The first pass through that sweep misread the 111 as duplication, so apply the test, don't eyeball it.
 
-Enforced by `scripts/check-alias-commands.js` (smoke repo), wired into `buildspec.yml` `pre_build`.
-Rationale and the rejected alternative: `docs/adr/0005-per-module-command-wrappers.md`.
+A second class the duplicate check cannot see, because there is only ever one of each:
+a **pass-through** — a command whose body forwards its own parameters unchanged to another
+command. It contributes a name and nothing else. Three existed (2026-07-26), two of them in the
+shared tier so every module wrapper inherited the extra hop:
+`interceptDashboardApis`→`apiInterceptAll`, `waitForDashboardApis`→`apiWaitAll`, and
+`getElement`→`cy.get` (318 sites — a rename of a Cypress built-in with no added behaviour).
+
+Never alias a Cypress built-in. `cy.getElement(x)` for `cy.get(x)` forces every reader to learn
+a synonym and hides which primitive is actually running. A command wrapping a plain *function*
+(`apiInterceptAll` → `registerAllIntercepts`) is a real boundary and stays.
+
+Both classes are enforced by `scripts/check-alias-commands.js` (smoke repo), wired into
+`buildspec.yml` `pre_build`. Rationale and the rejected alternative:
+`docs/adr/0005-per-module-command-wrappers.md`.
 
 ## Directory and file naming
 
