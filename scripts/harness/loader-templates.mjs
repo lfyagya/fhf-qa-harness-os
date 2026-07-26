@@ -3,17 +3,25 @@
 // Never duplicate this content in either script.
 
 import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 import path from "node:path";
 
-// Absolute path (not "../../") — sub-repos sit at different depths under FHF relative to
-// this sibling repo, so no single relative path serves all consumers. The machine/user
-// prefix doesn't need to be a literal though — computed from this file's own location,
-// same pattern record-execution-evidence.mjs already uses one file over.
-const HARNESS_HOOKS = path
+// Absolute path (not "../../") — the FHF root and this repo sit at fixed locations on the
+// owner's machine, so no single relative path serves both. The machine/user prefix isn't a
+// literal though — computed from this file's own location, same pattern
+// record-execution-evidence.mjs already uses one file over.
+const LOCAL_HOOKS = path
   .resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks")
   .replace(/\\/g, "/");
 
-export const CURSOR_HOOKS = {
+// Lane repos (E2E/Smoke) are pushed to a shared GitHub remote and cloned by other engineers,
+// so their generated shims must not embed this machine's paths. They vendor .claude/hooks/
+// in-repo and reference it through the project-root variable both Claude Code and Cursor
+// expand at runtime. FHF root keeps LOCAL_HOOKS — it is a local workspace, never cloned.
+export const VENDORED_HOOKS = "$CLAUDE_PROJECT_DIR/.claude/hooks";
+
+export function cursorHooks(HARNESS_HOOKS = LOCAL_HOOKS) {
+  return {
   version: 1,
   hooks: {
     beforeSubmitPrompt: [
@@ -90,7 +98,26 @@ export const CURSOR_HOOKS = {
       },
     ],
   },
-};
+  };
+}
+
+export const CURSOR_HOOKS = cursorHooks();
+
+// Lane-repo settings.json: canonical harness settings with the absolute hooks directory
+// swapped for the project-root variable. Lives here rather than in sync-loader-shims.mjs so
+// check-loader-drift.mjs verifies against the same function that writes it — the two scripts
+// must never carry separate copies of shim content.
+export function portableSettings() {
+  const harnessRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const settings = fs.readFileSync(path.join(harnessRoot, ".claude", "settings.json"), "utf8");
+  if (!settings.includes(LOCAL_HOOKS)) {
+    throw new Error(
+      `Cannot build portable settings: expected hook paths under ${LOCAL_HOOKS}. ` +
+        "Harness settings.json changed shape — update portableSettings() before syncing lane repos.",
+    );
+  }
+  return settings.split(LOCAL_HOOKS).join(VENDORED_HOOKS);
+}
 
 export function parentCopilotInstructions() {
   return `# Copilot Instructions — FHF Parent Workspace
@@ -133,7 +160,7 @@ export function docsReadme(lane) {
     return `# Docs Overlay — E2E Repo
 
 Single point of contact for shared harness documentation:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
+- \`../../AGENTS.md\`
 
 All shared architecture, workflow, framework, and governance docs are maintained in parent \`FHF/docs\`.
 This repo-local \`docs/\` exists only as a pointer entry point.
@@ -148,7 +175,7 @@ E2E lane scope reminder:
   return `# Docs Overlay — Smoke Repo
 
 Single point of contact for shared harness documentation:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
+- \`../../AGENTS.md\`
 
 All shared architecture, workflow, framework, and governance docs are maintained in parent \`FHF/docs\`.
 This repo-local \`docs/\` exists only as a pointer entry point.
@@ -167,9 +194,9 @@ export function rootReadme(lane) {
 This repository is a thin E2E lane overlay.
 
 Canonical shared documentation lives in parent \`FHF\`:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\framework\\TESTS.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\modules\\README.md\`
+- \`../../AGENTS.md\`
+- \`../../docs/framework/testing-standards/TESTS.md\`
+- \`../../docs/modules/README.md\`
 
 E2E lane deltas for this repo:
 - Environment: Dev and QA
@@ -193,9 +220,9 @@ For AI/tooling entry and lane-specific overlays, use:
 This repository is a thin smoke-lane overlay.
 
 Canonical shared documentation lives in parent \`FHF\`:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\framework\\TESTS.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\modules\\README.md\`
+- \`../../AGENTS.md\`
+- \`../../docs/framework/testing-standards/TESTS.md\`
+- \`../../docs/modules/README.md\`
 
 Smoke lane deltas for this repo:
 - Environment: Production
@@ -220,8 +247,8 @@ export function architectureOverlay(lane) {
 This file is an E2E lane pointer only.
 
 Canonical architecture lives in parent \`FHF\`:
-- \`C:\\Users\\Leapfrog\\FHF\\ARCHITECTURE.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\framework\\TESTS.md\`
+- \`../../ARCHITECTURE.md\`
+- \`../../docs/framework/testing-standards/TESTS.md\`
 
 E2E-specific architectural constraints:
 - Dev/QA environments only
@@ -241,8 +268,8 @@ If a shared architecture rule changes, update parent canonical docs first.
 This file is a lane-specific pointer only.
 
 Canonical architecture lives in parent \`FHF\`:
-- \`C:\\Users\\Leapfrog\\FHF\\ARCHITECTURE.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\framework\\TESTS.md\`
+- \`../../ARCHITECTURE.md\`
+- \`../../docs/framework/testing-standards/TESTS.md\`
 
 Smoke-specific architectural constraints:
 - Production-only validation lane
@@ -263,7 +290,7 @@ export function contributingOverlay(lane) {
 This repository follows parent canonical contribution standards.
 
 Start with parent docs:
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\framework\\TESTS.md\`
+- \`../../docs/framework/testing-standards/TESTS.md\`
 
 E2E-lane mandatory deltas:
 - Dev/QA only (never production)
@@ -284,7 +311,7 @@ Lane map and tool entry points:
 This repository follows parent canonical contribution standards.
 
 Start with parent docs:
-- \`C:\\Users\\Leapfrog\\FHF\\docs\\framework\\TESTS.md\`
+- \`../../docs/framework/testing-standards/TESTS.md\`
 
 Smoke-lane mandatory deltas:
 - Production lane only
@@ -362,8 +389,8 @@ export function copilotInstructions(lane) {
   return `# Copilot Instructions — ${lane === "e2e" ? "E2E" : "Smoke"} Overlay
 
 Single source of shared harness policy:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
-- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
+- \`../../AGENTS.md\`
+- \`../../../fhf-harness-os/docs/framework/qa-control-plane.md\`
 
 This file contains only ${lane === "e2e" ? "E2E" : "smoke"} lane deltas.
 
@@ -438,8 +465,8 @@ export function geminiInstructions(lane) {
   return `# Gemini Instructions — ${lane === "e2e" ? "E2E" : "Smoke"} Overlay
 
 Single source of shared harness policy:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
-- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
+- \`../../AGENTS.md\`
+- \`../../../fhf-harness-os/docs/framework/qa-control-plane.md\`
 
 This file contains only ${lane === "e2e" ? "E2E" : "smoke"} lane deltas.
 

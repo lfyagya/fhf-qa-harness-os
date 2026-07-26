@@ -3,6 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CURSOR_HOOKS,
+  cursorHooks,
+  VENDORED_HOOKS,
+  portableSettings,
   docsReadme,
   rootReadme,
   architectureOverlay,
@@ -118,7 +121,7 @@ function checkFhfRoot() {
   checkExactText(geminiPath, parentGeminiInstructions());
 }
 
-// Sub-repos (E2E/Smoke lanes): settings.json + doc overlays only — unchanged shape.
+// Lane repos (E2E/Smoke): vendored .claude tree + portable shims + doc overlays.
 function checkSubRepo(repoPath, lane) {
   const docsDir = path.join(repoPath, "docs");
   const claudeDir = path.join(repoPath, ".claude");
@@ -138,12 +141,20 @@ function checkSubRepo(repoPath, lane) {
   requireFile(contributingPath);
   requireFile(geminiPath);
 
-  // Sub-repo settings are verbatim copies of harness settings (absolute hook paths)
+  // Lane settings are the harness settings with hook paths rewritten to $CLAUDE_PROJECT_DIR,
+  // because these repos get cloned by engineers with no fhf-harness-os checkout.
   const settingsPath = path.join(claudeDir, "settings.json");
+  checkExactText(settingsPath, portableSettings());
   if (fs.existsSync(settingsPath)) {
-    const actual = normalize(fs.readFileSync(settingsPath, "utf8"));
-    const expected = normalize(fs.readFileSync(path.join(HARNESS_ROOT, ".claude", "settings.json"), "utf8"));
-    if (actual !== expected) issues.push(`Drift detected: ${settingsPath} differs from harness settings.json`);
+    const actual = fs.readFileSync(settingsPath, "utf8");
+    if (/[A-Za-z]:[/\\]Users[/\\]/.test(actual)) {
+      issues.push(`Non-portable path in ${settingsPath}: lane repos must not embed a machine-specific path`);
+    }
+  }
+
+  // The vendored tree is what makes a fresh clone work — verify it matches canonical exactly.
+  for (const sub of CLAUDE_SUBFOLDERS) {
+    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
   }
 
   // The harness owns docs/README.md only; product/planning docs beside it are consumer content.
@@ -155,7 +166,7 @@ function checkSubRepo(repoPath, lane) {
   checkExactText(contributingPath, contributingOverlay(lane));
   checkExactText(path.join(githubDir, "copilot-instructions.md"), copilotInstructions(lane));
   checkExactText(geminiPath, geminiInstructions(lane));
-  checkExactText(path.join(cursorDir, "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  checkExactText(path.join(cursorDir, "hooks.json"), `${JSON.stringify(cursorHooks(VENDORED_HOOKS), null, 2)}\n`);
 
   const architectureDir = path.join(repoPath, "architecture");
   if (lane === "e2e" && fs.existsSync(architectureDir)) {

@@ -5,6 +5,9 @@ import { createHash } from "node:crypto";
 import { withFileLock } from "./evidence-export-policy.mjs";
 import {
   CURSOR_HOOKS,
+  cursorHooks,
+  VENDORED_HOOKS,
+  portableSettings,
   docsReadme,
   rootReadme,
   architectureOverlay,
@@ -196,17 +199,24 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, "GEMINI.md"), parentGeminiInstructions());
 }
 
-// Sub-repos (E2E/Smoke lanes) never needed agents/rules/skills/commands — hooks run via
-// absolute path regardless of CWD, so only settings.json + doc overlays are generated here.
+// Lane repos vendor the full .claude tree. They are pushed to a shared remote and cloned by
+// engineers who have no fhf-harness-os checkout, so pointing at an absolute path off this
+// machine would leave every hook broken for them. Vendored content stays generated — this
+// repo is still the only place it is authored, and check-loader-drift.mjs fails if a lane
+// copy is edited directly.
 function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, "docs", "README.md"), docsReadme(lane));
   writeText(path.join(repoPath, "README.md"), rootReadme(lane));
   writeText(path.join(repoPath, "ARCHITECTURE.md"), architectureOverlay(lane));
   writeText(path.join(repoPath, "CONTRIBUTING.md"), contributingOverlay(lane));
-  // ponytail: sub-repos get a verbatim copy of harness settings — hook commands use
-  // absolute C:/Users/Leapfrog/fhf-harness-os paths, so they run correctly from any repo CWD.
-  writeText(path.join(repoPath, ".claude", "settings.json"), harnessSettings());
-  writeText(path.join(repoPath, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  for (const sub of CLAUDE_SUBFOLDERS) {
+    copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(repoPath, ".claude", sub));
+  }
+  writeText(path.join(repoPath, ".claude", "settings.json"), portableSettings());
+  writeText(
+    path.join(repoPath, ".cursor", "hooks.json"),
+    `${JSON.stringify(cursorHooks(VENDORED_HOOKS), null, 2)}\n`,
+  );
   writeText(path.join(repoPath, ".github", "copilot-instructions.md"), copilotInstructions(lane));
   writeText(path.join(repoPath, "GEMINI.md"), geminiInstructions(lane));
 }
