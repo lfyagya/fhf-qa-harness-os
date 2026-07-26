@@ -151,23 +151,29 @@
     "titles": ["titles"],
     "unifi": ["unifi"]
   },
+  "_moduleSpecPathsNote": "Prefer each module's own module-context.yaml: consumers take path.dirname() of these entries to locate the module directory, so a specs/*.yaml target resolves one level too deep. call-reports, post-funding and contracts have no module-context.yaml of their own and point at their real spec files instead. letters has no application-intelligence directory at all, so it has no entry (consumers default to []).",
   "moduleSpecPaths": {
-    "ancillary": ["docs/framework/application-intelligence/modules/ancillary/00_README.md"],
-    "call-reports": ["docs/framework/application-intelligence/modules/call_reports/00_README.md"],
-    "checks": ["docs/framework/application-intelligence/modules/checks/00_README.md"],
-    "complaints": ["docs/framework/application-intelligence/modules/complaints/00_README.md"],
-    "contracts": ["docs/framework/application-intelligence/modules/custodian/06_contracts_dashboard.md"],
-    "custodian": ["docs/framework/application-intelligence/modules/custodian/00_README.md"],
-    "doc-repository": ["docs/framework/application-intelligence/modules/document_repository/00_README.md"],
-    "funding": ["docs/framework/application-intelligence/modules/funding/00_README.md"],
-    "insurance": ["docs/framework/application-intelligence/modules/insurance/00_README.md"],
-    "letters": ["docs/framework/application-intelligence/modules/letters/00_README.md"],
-    "loss-mitigation": ["docs/framework/application-intelligence/modules/loss_mitigation/00_README.md"],
-    "post-funding": ["docs/framework/application-intelligence/modules/post_funding/00_README.md"],
-    "titles": ["docs/framework/application-intelligence/modules/titles/README.md"],
+    "ancillary": ["docs/framework/application-intelligence/modules/ancillary/module-context.yaml"],
+    "call-reports": [
+      "docs/framework/application-intelligence/modules/call_reports/specs/agent-call-volume.yaml",
+      "docs/framework/application-intelligence/modules/call_reports/specs/call-recording.yaml"
+    ],
+    "checks": ["docs/framework/application-intelligence/modules/checks/module-context.yaml"],
+    "complaints": ["docs/framework/application-intelligence/modules/complaints/module-context.yaml"],
+    "contracts": ["docs/framework/application-intelligence/modules/custodian/specs/contracts-dashboard.yaml"],
+    "custodian": ["docs/framework/application-intelligence/modules/custodian/module-context.yaml"],
+    "doc-repository": ["docs/framework/application-intelligence/modules/document_repository/module-context.yaml"],
+    "funding": ["docs/framework/application-intelligence/modules/funding/module-context.yaml"],
+    "insurance": ["docs/framework/application-intelligence/modules/insurance/module-context.yaml"],
+    "loss-mitigation": ["docs/framework/application-intelligence/modules/loss_mitigation/module-context.yaml"],
+    "post-funding": [
+      "docs/framework/application-intelligence/modules/post_funding/specs/dealer-detail.yaml",
+      "docs/framework/application-intelligence/modules/post_funding/specs/summary.yaml"
+    ],
+    "titles": ["docs/framework/application-intelligence/modules/titles/module-context.yaml"],
     "unifi": [
-      "docs/framework/application-intelligence/modules/unifi/collections/README.md",
-      "docs/framework/application-intelligence/modules/unifi/servicing/00_README.md"
+      "docs/framework/application-intelligence/modules/unifi/collections/module-context.yaml",
+      "docs/framework/application-intelligence/modules/unifi/servicing/module-context.yaml"
     ]
   }
 }
