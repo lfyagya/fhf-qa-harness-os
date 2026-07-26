@@ -43,16 +43,23 @@ Rationale and the rejected alternative: `docs/adr/0005-per-module-command-wrappe
 
 ## Directory and file naming
 
-Directories are **camelCase** (`docRepository/`, `lossMitigation/`, `reRegistration/`) in all four
-trees — `cypress/tests`, `configs/ui`, `configs/api`, `support/commands`. The same module must use
-the same directory name in every tree.
+**Directories are kebab-case** (`doc-repository/`, `loss-mitigation/`, `re-registration/`,
+`auction-invoice/`) in all four trees — `cypress/tests`, `configs/ui`, `configs/api`,
+`support/commands` — matching the app route and the `@feature-tag` for the same module
+(`/post-funding`, `@post-funding`, `smoke/post-funding/`). One module, one spelling, everywhere.
+`_shared/` keeps its underscore prefix.
 
-Routes, `@feature-tags`, UI-coverage view names and npm script names stay **kebab-case** because
-they mirror the real app (`/post-funding`, `@post-funding`). Filesystem naming and app-facing
-identifiers are different things; do not "fix" one to match the other. (2026-07-26: a first pass
-proposed converting kebab dirs to camel on a majority count, then discovered the kebab ones were
-the ones mirroring app routes. The right question is what a name *means*, not how many share it.)
+**Files stay camelCase** (`titlesGeneral.ui.js`, `postFundingDashboard.cy.js`) — a file is named
+after the constant it exports, a directory after the route it covers. That split is deliberate,
+not drift.
 
 Spec files are `<camelCaseRoute>Dashboard.cy.js` for dashboard routes; detail/sub-pages drop the
 `Dashboard` suffix (`ancillaryProductsDetails.cy.js`). No `.smoke` infix — the `smoke/` directory
 already says that.
+
+Getting here took two wrong turns worth remembering. The first pass proposed kebab → camel on a
+majority head-count of directory names, before checking that the kebab ones were the ones
+mirroring app routes. The second kept camel for directories on the theory that filesystem and
+app-facing identifiers are different namespaces — defensible in isolation, but it left the same
+module spelled two ways depending on which tree you were in. Count names last; ask what the name
+refers to first.
