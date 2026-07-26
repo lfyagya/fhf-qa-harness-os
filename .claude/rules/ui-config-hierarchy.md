@@ -17,3 +17,42 @@ export const ANCILLARY_EXPORT_UI = Object.freeze({
 ```
 
 Partially hook-enforced (2026-07-10) — `validate-cypress-rules.mjs` (PostToolUse) flags any `data-cy` string literal in a new/edited `configs/ui/**` file that's also declared verbatim in a sibling config file outside `common.ui.js`. It only catches literal re-declarations within the same repo's `cypress/configs/ui` tree — it can't see legitimate `COMMON_UI.X` imports (no violation) and won't catch duplication across the two separate sub-repos (E2E vs Smoke), or CSS-class selectors (too many legitimately repeat, e.g. Tailwind-ish names, to check without noise). `cypress-gate` and config audits still need to cover those two gaps.
+
+Bare value is canonical; derive the bracket form from it (`export const TABLE_BODY_ROW = 'table-body-row'; export const TABLE_ROW = \`[data-cy="${TABLE_BODY_ROW}"]\`;`). Declaring both independently is two sources for one selector that can drift apart. Watch the naming when you add a bare constant next to an existing one: `FILTER_LOAN_NUMBER_FIELD` (`filter-loan-number`, the wrapper) beside `FILTER_LOAN_NUMBER_INPUT` (`input-field-loan-number`, the input) are different elements with near-identical names, and a mixup passes silently because `.should('be.visible')` is true of both.
+
+## Commands — same no-duplication rule, different test
+
+A per-module command earns its name only if its body references module-specific config.
+Thin wrappers that bind config to a shared generic are the architecture working, not
+duplication — do not collapse them:
+
+```javascript
+Cypress.Commands.add('interceptTitlesGeneralDashboardApis', () => {
+  cy.interceptDashboardApis(TITLES_GENERAL_API, { only: TITLES_GENERAL_ALIASES });
+});
+```
+
+A structural sweep of the smoke suite (912 commands, 2026-07-26) found 114 groups with an
+identical implementation *shape*. 111 were legitimate per-module bindings; collapsing them
+would push config imports into every spec and break Config → Commands → Tests. Only 3 groups
+were real: bodies identical **and** referencing no module config — N names for one behaviour.
+The first pass through that sweep misread the 111 as duplication, so apply the test, don't eyeball it.
+
+Enforced by `scripts/check-alias-commands.js` (smoke repo), wired into `buildspec.yml` `pre_build`.
+Rationale and the rejected alternative: `docs/adr/0005-per-module-command-wrappers.md`.
+
+## Directory and file naming
+
+Directories are **camelCase** (`docRepository/`, `lossMitigation/`, `reRegistration/`) in all four
+trees — `cypress/tests`, `configs/ui`, `configs/api`, `support/commands`. The same module must use
+the same directory name in every tree.
+
+Routes, `@feature-tags`, UI-coverage view names and npm script names stay **kebab-case** because
+they mirror the real app (`/post-funding`, `@post-funding`). Filesystem naming and app-facing
+identifiers are different things; do not "fix" one to match the other. (2026-07-26: a first pass
+proposed converting kebab dirs to camel on a majority count, then discovered the kebab ones were
+the ones mirroring app routes. The right question is what a name *means*, not how many share it.)
+
+Spec files are `<camelCaseRoute>Dashboard.cy.js` for dashboard routes; detail/sub-pages drop the
+`Dashboard` suffix (`ancillaryProductsDetails.cy.js`). No `.smoke` infix — the `smoke/` directory
+already says that.

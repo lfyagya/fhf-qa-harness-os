@@ -88,6 +88,29 @@ recommending from memory" below applies to closing one too). On confirming closu
 
 A subagent's final message describes what it intended to do, not necessarily what it did. Before treating a subagent's report as fact — especially citations (Cloud run numbers, doc paths, "user-approved scope" claims) or a "files touched" summary — independently verify: check the citation resolves, diff the actual files changed. Never relay a subagent's self-reported summary as a verified result without that check.
 
+## Mechanical refactors need a mechanical proof, and gates need to be wired
+
+Two failures found on the same day (2026-07-26) during a 69-site selector consolidation in the
+smoke suite:
+
+- **Prove behaviour-neutrality, don't assert it.** "I read the diff" does not cover a many-site
+  refactor. Resolve the artefacts before and after and compare *values*: for Cypress configs,
+  import every `*.ui.js` and diff every resolved string (3099 of them, that time). Zero drift is
+  a claim someone else can re-run; a read-through is not. Build the comparison before the edit —
+  if the refactor does change something, find out from the diff, not from production. The same
+  applies to renames: resolve every import (including bare `import "./x"` side-effect imports —
+  5 of 17 breaks hid there, in `e2e.js`, and would have silently unregistered whole command
+  files at runtime). Keep the throwaway script in the scratchpad unless a second refactor needs it.
+- **A check that runs nowhere is not a gate.** `check-duplicate-selectors.js` existed, passed,
+  and was invoked by no CI step, no hook and no pretest — so the clean state it reported was
+  unguarded. Any new static check gets wired into the lane's real CI (`buildspec.yml`
+  `pre_build`, which is `on-failure: ABORT`) in the same change that adds it, and gets verified
+  in both directions: passes clean, and fails on a deliberately injected violation.
+
+Corollary for tooling you change: strengthening a checker can silently *narrow* it. Consolidating
+values into `common.ui.js` removed them from that script's vocabulary, leaving it blindest for the
+most-shared selectors. After editing a check, re-run the injected-violation test, not just the clean one.
+
 ## Absence claims — the same discipline applies to this agent's own words, not just subagents'
 
 "No CI exists," "nothing implements X," "this file doesn't exist" are the highest-risk class of
