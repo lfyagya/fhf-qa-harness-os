@@ -219,7 +219,109 @@ changing any CI behaviour.
 
 ---
 
-## 7. Open, and not the agent's call
+## 7. UI Coverage — what the 36% actually measures
+
+All 284 distinct untested elements from run 155 were pulled via the Cypress Cloud MCP and
+classified. The headline number is not 64% test debt; most of it is measurement error or surface
+this lane is forbidden to touch.
+
+| # | % | Bucket | Nature |
+|---:|---:|---|---|
+| 78 | 27.5% | Date-range pair half — one control counted twice | measurement artefact |
+| 69 | 24.3% | Write-form field names (letter / settlement / cancellation / email) | un-earnable |
+| 62 | 21.8% | **No stable hook** — coverage fell back to a CSS/DOM path | app testability gap |
+| 38 | 13.4% | Write / export / mutation controls | un-earnable |
+| 16 | 5.6% | **Genuinely uncovered, stably hooked, read-safe** | **real test debt** |
+| 11 | 3.9% | react-dates calendar icon — same control, 11 DOM paths | measurement artefact |
+| 7 | 2.5% | react-datepicker library internals (2nd date lib, unfiltered) | measurement artefact |
+| 3 | 1.1% | react-select async input — unstable emotion hash in the name | measurement artefact |
+
+Rolled up: **92 measurement artefact, 114 un-earnable in a GET-only prod lane, 62 app hook gaps,
+16 real test debt.** Sixteen. Out of 284.
+
+### Why each artefact class exists
+
+- **Date ranges are one widget, two inputs.** `${fieldName}_start_date` and `${fieldName}_end_date`
+  come from a single react-dates `DateRangePicker`, emitted by five shared components
+  (`DateRangePickerTs.tsx:151-153`, `DateRangeInputPicker.tsx:161/187`, `SearchDate.jsx:42-44`,
+  `RangeDatePicker.jsx:75-76`, `dateRangePicker.jsx:68-70`). Run 155 has **69 distinct date-range
+  fields**: 3 with both halves driven, **55 with exactly one**, 11 with neither. Each of those 55
+  reports as 1 tested + 1 untested — pure double-counting, 66 phantom gaps.
+- **Unhooked controls get named by DOM path, and the path is not identity.**
+  `.SingleDatePickerInput_calendarIcon` appeared as 11 different "elements" (`.column1 > .date-picker
+  > …`, `.gap-2 > .date-picker > …`, `:nth-child(9) > .block__content > .row > …`) — while the bare
+  class was simultaneously reported **tested**. Same button, 12 rows in the report.
+- **Two date libraries, one filtered.** react-dates internals were already grouped; react-datepicker's
+  were not, so its day cells and month/year/nav controls leak in individually.
+- **Emotion/CSS-module hashes are build artefacts.** Names containing `.css-1g6gooi` or
+  `._flexContainer_dgi6c_1` change on any styling change — they cannot be stable identities, and any
+  rule written against them is pre-broken.
+
+### Config corrections applied
+
+`cypress/configs/ui-coverage.common.json` (shared-component tier, identical across both repos):
+
+- `elementFilters`: `[id$='_end_date']` — makes the start input the single representative of each
+  date-range control. Chosen over an `elementGroups` rule deliberately: one group name would collapse
+  all 69 fields into one element and hide the 11 real gaps, whereas the filter keeps per-field
+  identity. Verified safe — zero hardcoded `_end_date` ids exist in `fhf-dashboards/src`, and no field
+  is end-tested-but-start-untested.
+- `elementGroups`: `react-dates-calendar-icon`, `react-datepicker-day-cell`,
+  `react-datepicker-month-year-select`, `react-datepicker-navigation`, `async-select-filter-input`.
+
+`cypress/configs/ui-coverage.modules.json` (Smoke-lane policy — E2E drives these with a write account):
+
+- Export / download / import / packet-generation triggers. Not "no test yet" — the lane forbids
+  clicking them (GET-only ≠ safe-to-click; each pulls a full unpaginated dataset and starts a real
+  download against production).
+- Mutation controls (send email, mark sent/excluded, archive, create row, save inline edit, file
+  picker), enumerated explicitly rather than prefix-matched, so a read-safe `btn-*` added later isn't
+  silently dropped.
+- `[data-cy$='-checkbox']` — document-selection checkboxes in write-only generation widgets. The
+  suffix is the discriminator: the read-safe checkboxes the suite does exercise (`checkbox`,
+  `checkbox-hide-sms-text`, `checkbox-hide-system-messages`) carry the token bare or as a prefix and
+  are not matched. **Known limitation:** this rests on that convention; a future read-safe
+  `<x>-checkbox` would be excluded silently. Re-check on any new filter checkbox.
+
+Verified mechanically, not by reading the diff: semantic entry-set comparison before/after shows
+**0 entries lost, 9 added**; the only tested elements any new filter removes are the 3 `_end_date`
+inputs whose `_start_date` twin is also tested, so no control loses tested status.
+
+### Projected effect
+
+| | tested | untested | coverage |
+|---|---:|---:|---:|
+| Run 155 as reported | 152 | 284 | 34.9% (Cloud: 36.45%) |
+| After the corrections above | 149 | 91 | **62.1%** |
+| If the 62 unhooked elements are also excluded | 149 | 29 | **83.7%** |
+
+The third row is **not** recommended as-is. Those 62 are real app surface with no stable hook —
+excluding them would make the score look good by hiding a testability debt. They belong in
+`docs/planning/data-cy-hook-backlog.md` (the registered `selectors` owner) as upstream `data-cy`
+requests, and should stay counted until hooks land.
+
+### Then re-calibrate the gate, don't guess
+
+§4a's per-view floor was set blind. Once a run exists with this config applied, set
+`UI_COVERAGE_CRITICAL_MIN` and the view patterns from that run's real distribution — and anchor the
+patterns (`^/ancillary$`) so module floors stop swallowing nested detail routes.
+
+### Not done here
+
+- **The 69 write-form `[name=…]` fields.** They span unrelated modules
+  (`config/ui/ancillary/tableConfig.tsx`, `modules/ancillary/details/`,
+  `modules/reRegistration/details/components/`) with **no common container** — confirmed by grep. They
+  need per-widget scoped filters, which means identifying each write-only widget's root in app source.
+  A single broad `[name]` filter would remove read-safe filter inputs too.
+- **URL grouping for the 41 untested links.** Run 155 lists `/custodian/contracts/details/300019`,
+  `300023`, `300028`… individually. There is no `views` pattern for
+  `custodian/contracts/details/*` — 24 sibling module detail routes have one, Custodian Contracts
+  does not. Adding it is a one-line fix; whether per-record links should also be collapsed needs the
+  UI Coverage link-grouping semantics confirmed against Cypress's docs first, not assumed.
+
+---
+
+## 8. Open, and not the agent's call
 
 - **The 13 remaining run-155 failures are not triaged here.** Four are Impound Quick Search failing
   on an absent `[data-cy="search-icon"]` — same shape as the Recon Quick Search tests deleted as
