@@ -289,16 +289,57 @@ inputs whose `_start_date` twin is also tested, so no control loses tested statu
 
 ### Projected effect
 
-| | tested | untested | coverage |
-|---|---:|---:|---:|
-| Run 155 as reported | 152 | 284 | 34.9% (Cloud: 36.45%) |
-| After the corrections above | 149 | 91 | **62.1%** |
-| If the 62 unhooked elements are also excluded | 149 | 29 | **83.7%** |
+**The score includes links.** `(tested_elements + tested_links) / (all elements + all links)` —
+confirmed to the decimal in both directions: 51% = (149+35)/(171+6+149+35), and the original
+36.45% = (152+35)/(285+41+152+35). This is why the naive element-only arithmetic (34.9%) never
+matched Cloud's 36.45%; the gap was links, not rounding.
 
-The third row is **not** recommended as-is. Those 62 are real app surface with no stable hook —
-excluding them would make the score look good by hiding a testability debt. They belong in
-`docs/planning/data-cy-hook-backlog.md` (the registered `selectors` owner) as upstream `data-cy`
-requests, and should stay counted until hooks land.
+| Stage | tested el. | untested el. | untested links | coverage |
+|---|---:|---:|---:|---:|
+| Run 155 as originally reported | 152 | 285 | 41 | 36.45% |
+| Predicted after the first corrections | 149 | 91 | — | 62.1% ❌ |
+| **Actual** after the first corrections | 149 | 195 | 40 | **43.91%** |
+| **Actual** after §7a/7b corrections | 149 | 171 | **6** | **50.97%** |
+| Projected after §7d groups | 149 | ~150 | 6 | **~54%** |
+
+**The 62.1% prediction was wrong, and the error is worth naming.** It projected the *classification*
+rather than the *config*: it assumed all 114 un-earnable elements would be filtered, when the
+selectors written only targeted a subset. Two lessons carried into §7d — project from the rules you
+actually wrote, and never validate against a report whose `is_partial_report` flag is set.
+
+The remaining ~150 is deliberately not driven lower by filtering. The unhooked elements are real app
+surface; excluding them would buy a nicer number by hiding testability debt. They belong in
+`docs/planning/data-cy-hook-backlog.md` (the registered `selectors` owner) as SH-14/SH-15/TI-03, and
+stay counted until hooks land.
+
+### 7d. Second grouping pass — index-varying families
+
+The re-analysis exposed families that were invisible while the bigger artefacts dominated. Two have
+stable anchors and were grouped; two do not and became hook requests.
+
+**Grouped:**
+
+- `.checklist-section label` → `rereg-checklist-document-label`. The Re-Registration document
+  checklist rendered as up to **20** separate entries — `:nth-child(5..15) > label` (11),
+  `._fill_dgi6c_6 > :nth-child(1..5) > label` (5), `.checklist-section > ._flexContainer_dgi6c_1 >
+  :nth-child(1..4) > label` (4) — for one data-driven list. `.checklist-section` is the stable anchor
+  (`ReRegistrationChecklist.tsx:390`, `ServicingReRegistrationChecklist.tsx:51`); the intermediate
+  `_flexContainer_dgi6c_1` / `_fill_dgi6c_6` are CSS-module hashes that change on any build and must
+  never appear in a rule.
+- `input[type='radio'][id^='radio']` → `radio-filter-option`. `DropdownRadio.jsx:58` and
+  `Radio.jsx:24` emit `id={`radio${i}`}`. Run 155 had `#radio0`/`#radio1` tested and
+  `#radio2`/`#radio3`/`#radio4` untested purely by list position — position is not identity
+  (`assertion-precision.md` rule 6). One radio group is one control.
+
+**Not grouped, on purpose:**
+
+- **Switch toggles** (~7 identities for one component). `.switch-wrapper .relative` would collapse
+  every toggle in the app into one control — too coarse to mean anything. Filed as **SH-15**.
+- **Letter-form text inputs** (~27: `.make > .text-field__control`, `.buyerName > …`,
+  `.streetAddress1 > …`, `:nth-child(N) > .text-field > .text-field__control`, and the `.error >
+  .text-field__control` variants). A rule on `.text-field__control` would sweep in the ~30 *tested*
+  `input-field-*` controls too, since `elementGroups` is first-match-wins. These need **SH-14**'s
+  container hook before they can be addressed at all — which is the concrete cost of that gap.
 
 ### Then re-calibrate the gate, don't guess
 
@@ -341,11 +382,17 @@ record id became its own entry — that is why run 155's untested-links list is 
 `/custodian/contracts/details/300019`, `300023`, `300028`, `300050`, … Added, positioned before the
 `https://*/:path*` host-consolidation catch-all.
 
-Stated rather than assumed: whether a `views` pattern also collapses the per-record entries in the
-untested-**links** list is **not documented**. `docs.cypress.io/ui-coverage/configuration/views`
-covers URL→view grouping for coverage metrics and says nothing about link-level reporting, and there
-is no `linkFilters` property in the schema. The view grouping itself is correct and consistent with
-its siblings either way; confirm the link effect against the next run.
+**Answered by evidence: `views` patterns DO group untested links.** After the config was applied in
+Cloud, untested links fell **41 → 6** and `/custodian/contracts/details/*` now appears as a single
+grouped entry. Worth recording how this was nearly got wrong: an intermediate re-analysis showed
+41 → 40 with `/custodian/contracts` still holding 36, which read as "views don't affect links" — it
+was an incomplete re-analysis, not a result. The docs are silent on link-level reporting and there is
+no `linkFilters` property, so this behaviour is established here empirically, from a settled report
+rather than a mid-flight one.
+
+Remaining untested links are 6 genuinely unvisited destinations, not per-record noise:
+`/collection/call/main/id/*`, `/collection/lookup/get-payment-history-print-view/applicationId`,
+`/custodian/contracts/details/*`, two `/repo/index/assignment/id/*`, and `/tci`.
 
 ### 7c. `AQ_PROFILE` is dead config
 
