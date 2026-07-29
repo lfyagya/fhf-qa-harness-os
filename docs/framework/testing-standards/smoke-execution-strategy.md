@@ -306,18 +306,68 @@ requests, and should stay counted until hooks land.
 `UI_COVERAGE_CRITICAL_MIN` and the view patterns from that run's real distribution — and anchor the
 patterns (`^/ancillary$`) so module floors stop swallowing nested detail routes.
 
-### Not done here
+### 7a. The write-form fields — half reachable, half a hook request
 
-- **The 69 write-form `[name=…]` fields.** They span unrelated modules
-  (`config/ui/ancillary/tableConfig.tsx`, `modules/ancillary/details/`,
-  `modules/reRegistration/details/components/`) with **no common container** — confirmed by grep. They
-  need per-widget scoped filters, which means identifying each write-only widget's root in app source.
-  A single broad `[name]` filter would remove read-safe filter inputs too.
-- **URL grouping for the 41 untested links.** Run 155 lists `/custodian/contracts/details/300019`,
-  `300023`, `300028`… individually. There is no `views` pattern for
-  `custodian/contracts/details/*` — 24 sibling module detail routes have one, Custodian Contracts
-  does not. Adding it is a one-line fix; whether per-record links should also be collapsed needs the
-  UI Coverage link-grouping semantics confirmed against Cypress's docs first, not assumed.
+Resolved against source rather than pattern-guessed. `withWidgetContainer.jsx:58` renders
+`widgetWrapper--${className}` on every widget's content container, and `components/hoc/constants.js:88-145`
+names the nine document/email widgets: Re-Reg Letter, Re-Reg Checklist, Cover Letter, Other Owner
+Addendum, Cancellation Packet, Payoff Notice Letter, Letter of Guarantee, Email Auction, Email.
+Scoping the filter to those nine wrappers (`input`, `textarea`, `select`) covers roughly half the
+write-form fields — **27 of 68 mapped to a wrapped renderer.**
+
+The other half cannot be reached by config, and it matters why:
+
+- **27 fields render in components that use no widget container at all** — Ancillary details
+  `GeneralInformation.tsx` / `AncillaryProvider.tsx`, Titles Missing-Titles `Letter60Day.jsx` /
+  `Letter90Day.jsx` / `PayoffNotice.tsx`, Titles Release `LienReleaseLetter.jsx` / `ReleaseNotice.jsx`,
+  Titles General `GeneralReleaseNotice.jsx`. Four of the five Titles letter components were checked
+  individually: none is wrapped. No ancestor exists to scope to.
+- **14 field names resolve to no source literal at all** — the `products[0].*` formik array fields,
+  and the document codes `PAYOFF_NOTICE`, `VALID_PHOTO_ID`, `POI`, `POA`, `FHF_AUTH`, `PAPER_TITLE`,
+  `DMV`. Those seven are one checkbox per document type returned by the API, so the `name` is data,
+  not contract, and shifts with the document list.
+
+Both went to the `selectors` owner (`docs/planning/data-cy-hook-backlog.md`) as **SH-14** and
+**TI-03** — not papered over with a broad `[name]` filter, which would also remove read-safe
+dashboard filter inputs. Several other findings from this pass were already logged there and were
+deliberately not duplicated: **SH-07** already requests field-keyed date-range start/end hooks,
+**SH-02** the react-select input, **SH-06** the month/year selects, **TI-01** the Re-Registration
+acknowledgement checkboxes.
+
+### 7b. Custodian Contracts had no view pattern
+
+Twenty-four sibling module detail routes have one; `custodian/contracts/details/*` did not, so every
+record id became its own entry — that is why run 155's untested-links list is 20+ rows of
+`/custodian/contracts/details/300019`, `300023`, `300028`, `300050`, … Added, positioned before the
+`https://*/:path*` host-consolidation catch-all.
+
+Stated rather than assumed: whether a `views` pattern also collapses the per-record entries in the
+untested-**links** list is **not documented**. `docs.cypress.io/ui-coverage/configuration/views`
+covers URL→view grouping for coverage metrics and says nothing about link-level reporting, and there
+is no `linkFilters` property in the schema. The view grouping itself is correct and consistent with
+its siblings either way; confirm the link effect against the next run.
+
+### 7c. `AQ_PROFILE` is dead config
+
+`buildspec.yml` exports `AQ_PROFILE="aq-config-smoke"` and `run-parallel.sh:112` passes it as a
+Cloud run tag — but the UI Coverage config has **no `profiles` array**, so nothing matches it and the
+tag has no effect.
+
+Per Cypress's docs, `profiles` selects config by exact, case-sensitive match against a run tag, and
+a profile **replaces** rather than merges most settings (`accessibility` and `uiCoverage` merge one
+level deep). That makes it the right mechanism for the §2 tiering, and worth knowing before the gate
+tier ships: a `@critical` gate run (~80 tests) measured against the full element denominator will
+score terribly for a reason that has nothing to do with quality. Either exempt gate-tier runs from
+the coverage gate, or give them a profile. Do not compare a gate run's score to a sweep run's.
+
+### Schema note
+
+Verified against `docs.cypress.io/ui-coverage/configuration/*`: the real top-level properties are
+`views`, `viewFilters`, `elementFilters`, `significantAttributes`, `attributeFilters`, `uiCoverage`
+(containing `elements`, `elementGroups`, `additionalInteractionCommands`,
+`allowedInteractionCommands`), and `profiles`. There is no link-filtering property. `uiCoverage.elements`
+assigns stable identity/names to elements whose attributes change between snapshots — it explicitly
+does **not** mark anything tested or change counts, so it is not a lever on the 62 unhooked elements.
 
 ---
 
