@@ -355,10 +355,75 @@ tag has no effect.
 
 Per Cypress's docs, `profiles` selects config by exact, case-sensitive match against a run tag, and
 a profile **replaces** rather than merges most settings (`accessibility` and `uiCoverage` merge one
-level deep). That makes it the right mechanism for the §2 tiering, and worth knowing before the gate
-tier ships: a `@critical` gate run (~80 tests) measured against the full element denominator will
-score terribly for a reason that has nothing to do with quality. Either exempt gate-tier runs from
-the coverage gate, or give them a profile. Do not compare a gate run's score to a sweep run's.
+level deep).
+
+**Decision: exempt gate runs from the coverage gate. Do not add a profile. Replace the dead
+`AQ_PROFILE` with a tier tag.** Four reasons, in order of weight:
+
+1. **A profile cannot fix the gate score, because the score is not a config problem.** UI Coverage's
+   denominator comes from elements found in DOM snapshots of the views a run visits — not from which
+   tests ran. A gate run still loads all ~40 dashboards, so it discovers nearly the full element set
+   while interacting with almost none. ~12% would be *arithmetically correct* and answer a question
+   nobody asked. No configuration option changes that. It is a **gating** decision, not a measurement
+   one.
+2. **Profiles vary config within one Cloud project; both real projects are single-lane and already
+   have their own config file.** Prod smoke is `r5k1ro` (this repo), E2E is `nptdoe`
+   (`AG Frontend Automation`, `cypress.config.js:39`), and each carries its own
+   `ui-coverage.{common,modules,config}.json` trio. There is nothing to vary.
+3. **A profile would actively break run-to-run comparability.** `aq-config-smoke` is passed only by
+   `run-parallel.sh:112` (the CI path). The manual per-module scripts tag
+   `smoke,staging,<module>` (`run-smoke-suite-record.sh`) and carry no profile tag at all — which is
+   why runs 141–155 never matched it. A profile would therefore score CI runs under one config and
+   manual runs under another, so the *same code* would report different coverage depending on how it
+   was launched. That is worse than no profile.
+4. **The one place profiles would genuinely fit is `8ezjbp`** — the local scratch project *both*
+   lanes record to (`cy:run:record:local` in each repo, tagged `smoke,local,staging` and
+   `e2e,local,dev`). One project, two lanes, and Smoke's read-only exclusions must not apply to E2E
+   runs. But coverage on a local scratch project is noise by design. Revisit only if that project
+   ever becomes a reporting surface — the lane tags needed to key the profiles are already being
+   passed.
+
+### How to configure it
+
+Three small changes, all in this repo. They depend on §6 change 2 (`SMOKE_TIER`) landing first.
+
+1. **Gate the coverage check on tier** — `buildspec.yml` `post_build`, wrap the existing block:
+
+   ```bash
+   if [ "${SMOKE_TIER:-gate}" = "full" ]; then
+     export CYPRESS_PROJECT_ID="r5k1ro"
+     ...
+     node scripts/check-ui-coverage.js
+   else
+     echo "── Tier=$SMOKE_TIER — UI Coverage gate is a sweep-tier check, skipped ──"
+   fi
+   ```
+
+   Coverage becomes a property of the sweep, which is the cadence it belongs on. It also removes the
+   §4a failure mode from every push, leaving the calibration work to be done once against sweep data.
+
+2. **Replace the dead profile tag with a tier tag**, so Cloud runs stay filterable and the coverage
+   trend can be read per-tier — `run-parallel.sh`:
+
+   ```bash
+   -AQ_PROFILE="${AQ_PROFILE:-aq-config-smoke}"
+   +SMOKE_TIER="${SMOKE_TIER:-gate}"
+   ...
+   -  --tag "$ENV,@smoke,$AQ_PROFILE" \
+   +  --tag "$ENV,@smoke,smoke-$SMOKE_TIER" \
+   ```
+
+   A tag for filtering, not a profile for config. Drop `AQ_PROFILE` from `buildspec.yml:151` in the
+   same change.
+
+3. **Normalise the tag vocabulary across all three entry points.** Today `run-parallel.sh` emits
+   `$ENV,@smoke,…` (with an `@`) while `run-smoke-suite-record.sh` emits `smoke,staging,<module>`
+   (without). Pick one spelling of the lane tag and one of the env tag, so Cloud filters and any
+   future profile key mean the same thing regardless of launch path. This is the prerequisite that
+   reason 3 above turned up — worth doing on its own merits.
+
+**Standing rule either way: never compare a gate run's coverage score to a sweep run's.** They have
+different denominators by construction.
 
 ### Schema note
 
