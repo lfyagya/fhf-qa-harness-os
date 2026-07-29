@@ -5,6 +5,8 @@ import { createHash } from "node:crypto";
 import { withFileLock } from "./evidence-export-policy.mjs";
 import {
   CURSOR_HOOKS,
+  HARNESS_CONFIG_TEXT,
+  claudeSettingsText,
   cursorHooks,
   VENDORED_HOOKS,
   portableSettings,
@@ -51,6 +53,9 @@ const pendingWrites = [];
 const pendingDeletes = [];
 const transaction = `${process.pid}.${Date.now()}`;
 const transactionDirs = new Set();
+const FIRST_SYNC_GENERATED = new Set([
+  path.join(HARNESS_ROOT, ".claude", "settings.json"),
+]);
 
 function hash(content) {
   return createHash("sha256").update(content).digest("hex");
@@ -61,6 +66,7 @@ function guardWrite(filePath, newContent) {
   if (FORCE || !fs.existsSync(filePath)) return true;
   const currentHash = hash(fs.readFileSync(filePath, "utf8"));
   const lastSynced = manifest[filePath];
+  if (!lastSynced && FIRST_SYNC_GENERATED.has(filePath)) return true;
   if (!lastSynced || currentHash !== lastSynced) {
     blocked.push(filePath);
     return false;
@@ -186,7 +192,11 @@ function publishSync() {
 }
 
 function harnessSettings() {
-  return fs.readFileSync(path.join(HARNESS_ROOT, ".claude", "settings.json"), "utf8");
+  return claudeSettingsText();
+}
+
+function syncHarnessRoot() {
+  writeText(path.join(HARNESS_ROOT, ".claude", "settings.json"), harnessSettings());
 }
 
 function syncFhfRoot() {
@@ -194,6 +204,7 @@ function syncFhfRoot() {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(FHF_ROOT, ".claude", sub));
   }
   writeText(path.join(FHF_ROOT, ".claude", "settings.json"), harnessSettings());
+  writeText(path.join(FHF_ROOT, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(path.join(FHF_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
   writeText(path.join(FHF_ROOT, ".github", "copilot-instructions.md"), parentCopilotInstructions());
   writeText(path.join(FHF_ROOT, "GEMINI.md"), parentGeminiInstructions());
@@ -212,19 +223,28 @@ function syncSubRepo(repoPath, lane) {
   for (const sub of CLAUDE_SUBFOLDERS) {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(repoPath, ".claude", sub));
   }
-  writeText(path.join(repoPath, ".claude", "settings.json"), portableSettings());
+  writeText(path.join(repoPath, ".claude", "settings.json"), portableSettings(lane));
+  writeText(path.join(repoPath, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(
     path.join(repoPath, ".cursor", "hooks.json"),
-    `${JSON.stringify(cursorHooks(VENDORED_HOOKS), null, 2)}\n`,
+    `${JSON.stringify(cursorHooks(VENDORED_HOOKS, lane), null, 2)}\n`,
   );
   writeText(path.join(repoPath, ".github", "copilot-instructions.md"), copilotInstructions(lane));
   writeText(path.join(repoPath, "GEMINI.md"), geminiInstructions(lane));
+}
+
+function removeEmptyLegacyCodexDirectory(repoPath) {
+  const directory = path.join(repoPath, ".codex");
+  if (fs.existsSync(directory) && fs.readdirSync(directory).length === 0) {
+    fs.rmdirSync(directory);
+  }
 }
 
 withFileLock(MANIFEST_PATH, () => {
   manifest = fs.existsSync(MANIFEST_PATH)
     ? JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"))
     : {};
+  syncHarnessRoot();
   syncFhfRoot();
   syncSubRepo(SUB_REPOS.e2e, "e2e");
   syncSubRepo(SUB_REPOS.smoke, "smoke");
@@ -237,9 +257,16 @@ withFileLock(MANIFEST_PATH, () => {
     process.exitCode = 1;
   } else {
     preflight = false;
+    syncHarnessRoot();
     syncFhfRoot();
     syncSubRepo(SUB_REPOS.e2e, "e2e");
     syncSubRepo(SUB_REPOS.smoke, "smoke");
+    removeEmptyLegacyCodexDirectory(FHF_ROOT);
+    removeEmptyLegacyCodexDirectory(SUB_REPOS.e2e);
+    removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
+    for (const file of Object.keys(manifest)) {
+      if (/[\\/]\.codex[\\/]hooks\.json$/i.test(file)) delete manifest[file];
+    }
     publishSync();
     console.log("Synced loader shims for FHF root, E2E repo, and Smoke repo.");
   }

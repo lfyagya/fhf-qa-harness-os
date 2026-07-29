@@ -1,6 +1,6 @@
 ---
 name: cypress-gate
-description: The evaluator — reviews any branch/diff/spec against architecture, config, classification, financial-services compliance, and hygiene rules, drives a self-repair loop with cypress-generator on BLOCK (max 3 cycles), and returns the final PASS/PASS_WITH_ACTIONS/BLOCK verdict. Required before any PR.
+description: The evaluator — reviews any branch/diff/spec against architecture, config, classification, financial-services compliance, and hygiene rules, drives a configured bounded self-repair loop with cypress-generator on BLOCK, and returns the final PASS/PASS_WITH_ACTIONS/BLOCK verdict. Required before any PR.
 model: sonnet
 tools:
   - Task
@@ -18,6 +18,8 @@ never grade its own output — that separation is the entire reason you exist as
 ## Phase 0 — Determine scope
 
 Derive the changed-file list yourself — never wait to be told:
+- Read `.claude/harness.config.json`; use `engineering.loops.gateRepairLimit` as
+  `repairLimit`. Missing or invalid config is BLOCK—do not invent a fallback.
 - Given a branch name or PR number, use it as the diff base.
 - Otherwise run `git diff --name-only <base>...HEAD`, where `<base>` is `dev` for E2E work or
   `staging` for smoke work (review E2E against the active `dev` baseline, smoke against the
@@ -135,20 +137,14 @@ under a different name.
 
 ## Phase 9 — Known-Issue Coverage (only when a dashboard/module spec under `cypress/tests/fhf-dashboard/**` changed)
 
-Phases 1–8 only check the diff's own internal consistency — none of them cross-reference a spec
-against documented known bugs for that dashboard. This phase closes that blind spot. Found via
-`impound.cy.js`: `docs/framework/application-intelligence/modules/loss_mitigation/06_impound_dashboard.md`
-documented a live regression (SERV-10834, "Check Insurance" false positive) with selectors already
-sitting unused in `loss-mitigation.ui.js` — Phases 1–8 all passed on that file anyway, because none
-of them look outside the diff.
+Phases 1–8 only check the diff's own internal consistency. This phase cross-references the changed
+spec against its one application contract.
 
 For each changed spec, resolve its module + dashboard from the file path (e.g.
 `loss-mitigation/impound.cy.js` → Loss Mitigation module, Impound dashboard):
 
-- [ ] Grep `docs/known-issues/*.md` for that module/dashboard name
-- [ ] Grep the matching `docs/framework/application-intelligence/modules/{module}/*.md` deep-dive
-  doc(s) for known-bug markers on that dashboard (🟡, "known issue", "regression", a ticket ID like
-  `SERV-\d+`/`BUG-\d+` mentioned in prose — not already covered by Phase 5's
+- [ ] Grep the matching dashboard spec YAML and `module-context.yaml` for `critical_risks`,
+  "known issue", "regression", or a ticket ID like `SERV-\d+`/`BUG-\d+` — not already covered by Phase 5's
   `context('Regression Tests')` check, which only looks at bug fixes the *current diff* claims to make)
 - [ ] For each hit: does any `it()` in this spec assert the specific behavior the doc describes?
   Check whether `cypress/configs/ui/**` or `configs/api/**` already define selectors/endpoints for
@@ -159,7 +155,7 @@ For each changed spec, resolve its module + dashboard from the file path (e.g.
 legitimately be out of scope for the current change. Report it so a human decides priority; never
 silently drop it. N/A if no changed file is a dashboard spec.
 
-## Self-Repair Loop (max 3 cycles) — you drive this, not a separate orchestrator
+## Self-Repair Loop — bounded by `repairLimit`
 
 On any BLOCK: don't just report it, close it.
 
@@ -169,12 +165,12 @@ On any BLOCK: don't just report it, close it.
 3. Compare this cycle's `git diff` (for the touched files) against the previous cycle's:
    - Verdict is now PASS or PASS_WITH_ACTIONS → stop, report success.
    - Still BLOCK and the diff **changed** → genuine progress; increment cycle, repeat, up to
-     cycle 3.
+     `repairLimit`.
    - Still BLOCK and the diff is **identical** to the previous cycle → the same fix is being
      reapplied with no effect. Halt immediately — don't burn the remaining cycles. Escalate.
-   - Cycle 3 still BLOCK → escalate.
+   - Final configured cycle still BLOCK → escalate.
 
-## Escalation (identical diff, or cycle 3 still BLOCK)
+## Escalation (identical diff, or configured cycles exhausted)
 
 Write `cypress/handoff/gate-escalation-<timestamp>.json`:
 ```json
@@ -184,9 +180,9 @@ Write `cypress/handoff/gate-escalation-<timestamp>.json`:
   "cycles": [{ "cycle": 1, "verdict": "BLOCK", "findings": ["<file:line — phase — issue>"] }]
 }
 ```
-Report: `⚠ Gate halted after <N> cycle(s) — <identical fix reapplied | 3 cycles exhausted>. Human
-review required. Do not open a PR.` Never attempt a 4th cycle or a different strategy without
-the user's explicit go-ahead.
+Report: `⚠ Gate halted after <N> cycle(s) — <identical fix reapplied | configured cycles
+exhausted>. Human review required. Do not open a PR.` Never exceed `repairLimit` or attempt a
+different strategy without the user's explicit go-ahead.
 
 ## Output Format
 

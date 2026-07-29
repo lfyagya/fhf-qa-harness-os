@@ -41,8 +41,14 @@ try {
   assert.equal(fs.readFileSync(guarded, "utf8"), "owner content\n");
   assert.equal(fs.existsSync(manifest), false);
 
+  const legacyCodexDirs = [
+    path.join(root, ".codex"),
+    path.join(root, "ProdSmokeExecution", "front-end-automation", ".codex"),
+  ];
+  legacyCodexDirs.forEach((directory) => fs.mkdirSync(directory, { recursive: true }));
   const initialized = run(["--force"]);
   assert.equal(initialized.status, 0, initialized.stderr);
+  legacyCodexDirs.forEach((directory) => assert.equal(fs.existsSync(directory), false));
   const beforeTarget = fs.readFileSync(guarded, "utf8");
   const beforeManifest = fs.readFileSync(manifest, "utf8");
 

@@ -1,14 +1,28 @@
 #!/usr/bin/env node
-// Stop hook 1 — advisory: print git state at session end.
-// exit 0 always (non-blocking).
-import { execSync } from 'child_process';
+// Stop hook 1 — enforce configured same-failure escalation once.
+import { readFileSync } from 'fs';
+import { engineeringConfig } from './lib/harness-config.mjs';
+import { readFailureState, writeFailureState } from './lib/failure-state.mjs';
+import { emitEmpty, emitStopFollowup } from './lib/hook-runtime.mjs';
 
-let gitState = 'unknown';
-try {
-  const out = execSync('git status --short', { encoding: 'utf8', timeout: 5000 }).trim();
-  const lines = out.split('\n').filter(Boolean);
-  gitState = lines.length === 0 ? 'clean — nothing uncommitted' : `${lines.length} uncommitted change(s) — agent work stays uncommitted until owner reviews`;
-} catch { gitState = 'git not available'; }
+let payload = {};
+try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch {}
 
-console.log(`[session-end] ${gitState}`);
+const engineering = engineeringConfig();
+const failure = readFailureState(payload);
+if (
+  failure.count >= engineering.loops.sameFailureLimit &&
+  failure.escalationIssued !== true
+) {
+  writeFailureState(payload, { ...failure, escalationIssued: true });
+  emitStopFollowup(
+    payload,
+    `The same ${failure.toolName ?? 'tool'} failure reached the configured limit ` +
+      `(${engineering.loops.sameFailureLimit}). Do not retry it. Summarize the evidence and ` +
+      'escalate to the owner.',
+  );
+  process.exit(0);
+}
+
+emitEmpty(payload);
 process.exit(0);

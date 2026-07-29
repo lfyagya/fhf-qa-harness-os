@@ -58,14 +58,26 @@ verify that PID is no longer running before explicitly removing the reported sta
 
 `config/qa-control-plane.json` owns:
 
-- Atlassian project, JQL, field IDs, allowed Confluence spaces, and connector fallbacks.
+- Atlassian project, JQL, field IDs, allowed Confluence spaces, and connector policy.
 - All three repository roots, package roots, and target branches.
 - Approval policy and the ordered nine-stage ticket lifecycle.
 - Freshness limits and measurable gates for traceability, unmapped work, review backlog,
   execution age, and Cypress UI Coverage.
 - Module aliases, Jira Module prefixes, application-spec targets, and prioritization weights.
+- Context, memory, harness, and bounded-loop engineering under `engineering`.
+- Documentation ownership and source precedence.
 
 The config contains no credentials, OAuth tokens, account IDs, or Atlassian cloud IDs.
+
+Documentation changes start with `documentation.owners`. Update or delete; do not create a second
+report for the same concern. `scripts/harness/check-docs-links.mjs` validates owners and links.
+The `engineering.memory` policy permits Obsidian indexing for retrieval, but never fact write-back
+or precedence over repository evidence.
+
+`engineering.harness.adapters` maps this tool-neutral policy to verified runtime capabilities.
+Claude Code and Cursor receive generated lifecycle enforcement. Codex, Copilot, and Gemini receive
+instruction adapters only where no verified equivalent hook contract exists; the harness records
+that capability gap instead of generating unsupported configuration.
 
 ## Ticket lifecycle
 
@@ -99,6 +111,17 @@ The Cypress lanes retain Config → Commands → Tests and the generator → gat
 backend lane retains typed API clients → tests → API assertions → DB assertions. Coverage is
 reported with separate rubrics rather than forcing these architectures into one score.
 
+### Cypress Cloud evidence
+
+Cloud evidence follows `connectors.cypressCloud.queryOrder`: MCP for conversational lookup, the
+official `cy-cloud` CLI for terminal and Test Replay depth, then local JUnit when Cloud is
+unavailable. Cloud CLI setup requires the organization integration, the configured minimum Node
+version, the global `@cypress/cloud` package, and local OAuth; CI tokens stay in the external secret
+environment. Agents read `projectId` from the selected lane's `cypress.config.js`.
+
+The E2E lane may use full read diagnostics. Production smoke and root sessions are metadata-only
+unless the owner explicitly opts in: no replay download/cache and no failure screenshot download.
+
 ## Approval boundary
 
 Read-only discovery is autonomous. Exporting generated evidence into the sibling FHF workspace
@@ -112,7 +135,7 @@ and payload immediately before the write.
 - `contract` stdout — portable Jira/Graph/Confluence interchange example.
 - `spec-delta-proposals.md` — ticket-to-module/lane/spec candidates; proposal only.
 - `qa-workflow-state.json` — per-ticket lifecycle status, evidence, and approval references.
-- `coverage-computed.json` and `.md` — repository-derived structural coverage.
+- `coverage-computed.json` — repository-derived structural coverage.
 - `qa-command-center.json`, `.md`, and `.html` — shared data, AI-readable report, and portable
   human dashboard.
 

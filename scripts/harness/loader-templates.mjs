@@ -6,472 +6,238 @@ import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
 
-// Absolute path (not "../../") — the FHF root and this repo sit at fixed locations on the
-// owner's machine, so no single relative path serves both. The machine/user prefix isn't a
-// literal though — computed from this file's own location, same pattern
-// record-execution-evidence.mjs already uses one file over.
-const LOCAL_HOOKS = path
-  .resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks")
-  .replace(/\\/g, "/");
+const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const HARNESS_CONFIG = JSON.parse(
+  fs.readFileSync(path.join(HARNESS_ROOT, "config", "qa-control-plane.json"), "utf8"),
+);
+const ENGINEERING = HARNESS_CONFIG.engineering;
+const HOOKS = ENGINEERING.harness.hooks;
+const ADAPTERS = ENGINEERING.harness.adapters;
+const BOUNDARIES = ENGINEERING.harness.boundaries;
 
-// Lane repos (E2E/Smoke) are pushed to a shared GitHub remote and cloned by other engineers,
-// so their generated shims must not embed this machine's paths. They vendor .claude/hooks/
-// in-repo and reference it through the project-root variable both Claude Code and Cursor
-// expand at runtime. FHF root keeps LOCAL_HOOKS — it is a local workspace, never cloned.
-export const VENDORED_HOOKS = "$CLAUDE_PROJECT_DIR/.claude/hooks";
+if (ADAPTERS.cursor.promptRouting !== "session-context") {
+  throw new Error("Cursor prompt routing must use the session-context capability fallback");
+}
+if (ADAPTERS.cursor.compatibleHookDeduplication !== "identical-command") {
+  throw new Error("Cursor/Claude compatible hooks must deduplicate by identical command");
+}
+if (ADAPTERS.codex.instructionFile !== "AGENTS.md" || ADAPTERS.codex.hookCapability !== "instruction-only") {
+  throw new Error("Codex must use the verified AGENTS.md instruction-only adapter");
+}
 
-export function cursorHooks(HARNESS_HOOKS = LOCAL_HOOKS) {
+export const HARNESS_CONFIG_TEXT = `${JSON.stringify(HARNESS_CONFIG, null, 2)}\n`;
+
+export const VENDORED_HOOKS = "project-hooks";
+
+const cursorWriteMatcher = "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch";
+const cursorPostWriteMatcher = "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch";
+
+function hookCommand(root, script, args = "") {
+  if (root === VENDORED_HOOKS) {
+    const loader = "const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)";
+    return `node -e "${loader}" "${script}"${args ? ` ${args}` : ""}`;
+  }
+  return `node "${root}/${script}"${args ? ` ${args}` : ""}`;
+}
+
+function cursorCommand(root, script, { matcher, failClosed, loopLimit, args = "" } = {}) {
   return {
-  version: 1,
-  hooks: {
-    beforeSubmitPrompt: [
-      {
-        command: `node ${HARNESS_HOOKS}/prompt-router.mjs`,
-        matcher: "UserPromptSubmit",
-        failClosed: false,
-      },
-    ],
-    preToolUse: [
-      {
-        command: `node ${HARNESS_HOOKS}/protect-app-source.mjs --cursor`,
-        matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
-        failClosed: true,
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/protect-second-brain-boundary.mjs --cursor`,
-        matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
-        failClosed: true,
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/pre-validate-cypress-rules.mjs --cursor`,
-        matcher: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
-        failClosed: true,
-      },
-    ],
-    beforeShellExecution: [
-      {
-        command: `node ${HARNESS_HOOKS}/manual-task-guard.mjs`,
-        failClosed: false,
-      },
-    ],
-    subagentStart: [
-      {
-        command: `node ${HARNESS_HOOKS}/block-generic-agents.mjs --deny-matched-subagent`,
-        matcher: "generalPurpose|general-purpose|explore|Explore|documentation-writer|test-execution-planner|cypress-bug-hunter|cypress-cloud-investigator|cypress-e2e-automation|cypress-explorer|cypress-performance-auditor|cypress-runner|cypress-test-automation|cypress-ui-coverage-analyst|pr-creator|pre-merge-qa-gate|qa-ticket-router|spec-generation-loop|test-design-reviewer",
-        failClosed: true,
-      },
-    ],
-    postToolUse: [
-      {
-        command: `node ${HARNESS_HOOKS}/validate-cypress-rules.mjs`,
-        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/scenario-file-guard.mjs`,
-        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/scenario-content-guard.mjs`,
-        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/artifact-duplication-guard.mjs`,
-        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/coverage-strategy-guard.mjs`,
-        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/sync-reminder.mjs`,
-        matcher: "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
-      },
-    ],
-    stop: [
-      {
-        command: `node ${HARNESS_HOOKS}/session-end-reminder.mjs`,
-        failClosed: false,
-      },
-      {
-        command: `node ${HARNESS_HOOKS}/spec-sweep-stop-hook.mjs`,
-        failClosed: false,
-      },
-    ],
-  },
+    command: hookCommand(root, script, args),
+    ...(matcher ? { matcher } : {}),
+    ...(failClosed === undefined ? {} : { failClosed }),
+    ...(loopLimit === undefined ? {} : { loop_limit: loopLimit }),
   };
 }
 
-export const CURSOR_HOOKS = cursorHooks();
+export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
+  const productionArtifactGuard = lane === "e2e"
+    ? []
+    : HOOKS.preReadExceptE2e.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, {
+          matcher: "Read|Bash|read|bash",
+          failClosed: true,
+        }));
 
-// Lane-repo settings.json: canonical harness settings with the absolute hooks directory
-// swapped for the project-root variable. Lives here rather than in sync-loader-shims.mjs so
-// check-loader-drift.mjs verifies against the same function that writes it — the two scripts
-// must never carry separate copies of shim content.
-export function portableSettings() {
-  const harnessRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-  const settings = fs.readFileSync(path.join(harnessRoot, ".claude", "settings.json"), "utf8");
-  if (!settings.includes(LOCAL_HOOKS)) {
-    throw new Error(
-      `Cannot build portable settings: expected hook paths under ${LOCAL_HOOKS}. ` +
-        "Harness settings.json changed shape — update portableSettings() before syncing lane repos.",
-    );
+  return {
+    version: 1,
+    hooks: {
+      sessionStart: HOOKS.sessionStart.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
+      preToolUse: [
+        ...HOOKS.preWrite.map((script) =>
+          cursorCommand(HARNESS_HOOKS, script, {
+            matcher: cursorWriteMatcher,
+            failClosed: true,
+          })),
+        ...HOOKS.preShell.map((script) =>
+          cursorCommand(HARNESS_HOOKS, script, {
+            matcher: "Shell|Bash|shell|bash",
+            failClosed: true,
+          })),
+        ...productionArtifactGuard,
+      ],
+      subagentStart: HOOKS.subagentStart.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, {
+          matcher: ENGINEERING.harness.forbiddenAgents.flatMap((name) =>
+            name === "general-purpose"
+              ? [name, "generalPurpose"]
+              : name === "explore"
+                ? [name, "Explore"]
+                : [name]).join("|"),
+          failClosed: true,
+          args: "--deny-matched-subagent",
+        })),
+      postToolUse: HOOKS.postWrite.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, { matcher: cursorPostWriteMatcher })),
+      postToolUseFailure: HOOKS.postToolFailure.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
+      preCompact: HOOKS.preCompact.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
+      sessionEnd: HOOKS.sessionEnd.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
+      stop: HOOKS.stop.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, {
+          failClosed: false,
+          ...(script === "spec-sweep-stop-hook.mjs"
+            ? { loopLimit: ENGINEERING.loops.specSweepLimit }
+            : {}),
+        })),
+    },
+  };
+}
+
+export const CURSOR_HOOKS = cursorHooks(VENDORED_HOOKS, "root");
+
+function claudeCommand(root, script) {
+  return { type: "command", command: hookCommand(root, script) };
+}
+
+function claudeGroup(root, scripts) {
+  return scripts.map((script) => claudeCommand(root, script));
+}
+
+export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
+  const preToolUse = [
+    { matcher: "Edit|Write", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
+    { matcher: "Bash", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
+    { matcher: "Task", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
+  ];
+  if (lane !== "e2e") {
+    preToolUse.push({
+      matcher: "Read|Bash",
+      hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preReadExceptE2e),
+    });
   }
-  return settings.split(LOCAL_HOOKS).join(VENDORED_HOOKS);
+
+  return {
+    $schema: "https://json.schemastore.org/claude-code-settings.json",
+    effortLevel: ENGINEERING.context.effortLevel,
+    env: ENGINEERING.context.autoCompact.enabled
+      ? {
+          [ADAPTERS.claudeCode.autoCompactWindowEnv]:
+            String(ENGINEERING.context.autoCompact.windowTokens),
+        }
+      : { DISABLE_AUTO_COMPACT: "1" },
+    hooks: {
+      SessionStart: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionStart) }],
+      UserPromptSubmit: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.prompt) }],
+      PreToolUse: preToolUse,
+      SubagentStart: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.subagentStart) }],
+      Stop: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.stop) }],
+      PreCompact: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preCompact) }],
+      SessionEnd: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionEnd) }],
+      PostToolUse: [{
+        matcher: "Edit|Write",
+        hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postWrite),
+      }],
+      PostToolUseFailure: [{
+        hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postToolFailure),
+      }],
+    },
+    autoCompactEnabled: ENGINEERING.context.autoCompact.enabled,
+    skillListingMaxDescChars: ENGINEERING.context.skillListing.maxDescriptionChars,
+    skillListingBudgetFraction: ENGINEERING.context.skillListing.budgetFraction,
+    skillOverrides: ADAPTERS.claudeCode.skillOverrides,
+    permissions: ADAPTERS.claudeCode.permissions,
+    sandbox: {
+      filesystem: {
+        denyWrite: BOUNDARIES.applicationSource.denyWriteByLane[lane],
+      },
+    },
+  };
+}
+
+export function claudeSettingsText(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
+  return `${JSON.stringify(claudeSettings(HARNESS_HOOKS, lane), null, 2)}\n`;
+}
+
+export function portableSettings(lane) {
+  return claudeSettingsText(VENDORED_HOOKS, lane);
 }
 
 export function parentCopilotInstructions() {
   return `# Copilot Instructions — FHF Parent Workspace
 
-Canonical shared harness policy:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\CLAUDE.md\`
-
-This workspace contains two test lanes. Route E2E / functional / regression work to
-\`AG Frontend Automation/front-end-automation\` and production smoke work to
-\`ProdSmokeExecution/front-end-automation\`. Smoke is GET-only and must never mutate production.
-
-Centralized sprint/spec/coverage workflow:
-- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
-
-Follow the lane repository's \`.github/copilot-instructions.md\` before changing tests.
+Read the workspace-root \`CLAUDE.md\`, then the selected lane's
+\`.github/copilot-instructions.md\`. Do not preload FHF documentation.
 `;
 }
 
 export function parentGeminiInstructions() {
   return `# Gemini Instructions — FHF Parent Workspace
 
-Canonical shared harness policy:
-- \`C:\\Users\\Leapfrog\\FHF\\AGENTS.md\`
-- \`C:\\Users\\Leapfrog\\FHF\\CLAUDE.md\`
-
-This workspace contains two test lanes. Route E2E / functional / regression work to
-\`AG Frontend Automation/front-end-automation\` and production smoke work to
-\`ProdSmokeExecution/front-end-automation\`. Smoke is GET-only and must never mutate production.
-
-Centralized sprint/spec/coverage workflow:
-- \`C:\\Users\\Leapfrog\\fhf-harness-os\\docs\\framework\\qa-control-plane.md\`
-
-Follow the lane repository's \`GEMINI.md\` before changing tests.
+Read the workspace-root \`CLAUDE.md\`, then the selected lane's \`GEMINI.md\`.
+Do not preload FHF documentation.
 `;
 }
 
 export function docsReadme(lane) {
-  if (lane === "e2e") {
-    return `# Docs Overlay — E2E Repo
+  return `# ${lane === "e2e" ? "E2E" : "Smoke"} Docs Pointer
 
-Single point of contact for shared harness documentation:
-- \`../../AGENTS.md\`
-
-All shared architecture, workflow, framework, and governance docs are maintained in parent \`FHF/docs\`.
-This repo-local \`docs/\` exists only as a pointer entry point.
-
-E2E lane scope reminder:
-- Environment: Dev/QA
-- Mutations: allowed with cleanup
-- Baseline branch: \`dev\`
-`;
-  }
-
-  return `# Docs Overlay — Smoke Repo
-
-Single point of contact for shared harness documentation:
-- \`../../AGENTS.md\`
-
-All shared architecture, workflow, framework, and governance docs are maintained in parent \`FHF/docs\`.
-This repo-local \`docs/\` exists only as a pointer entry point.
-
-Smoke lane scope reminder:
-- Environment: Production
-- Mutations: forbidden (GET-only)
-- Baseline branch: \`staging\`
+Shared documentation is routed by \`../../docs/README.md\`. Read only the path required by the task.
 `;
 }
 
 export function rootReadme(lane) {
-  if (lane === "e2e") {
-    return `# FHF E2E Repo Overlay
+  const isE2e = lane === "e2e";
+  return `# FHF ${isE2e ? "E2E" : "Smoke"} Lane
 
-This repository is a thin E2E lane overlay.
-
-Canonical shared documentation lives in parent \`FHF\`:
-- \`../../AGENTS.md\`
-- \`../../docs/framework/testing-standards/TESTS.md\`
-- \`../../docs/modules/README.md\`
-
-E2E lane deltas for this repo:
-- Environment: Dev and QA
-- Mutations: Allowed (with cleanup)
-- Baseline branch: \`dev\`
-- Never run E2E against production
-
-Local package scope:
-- Root package: \`CypressFHF/fhf-dashboards/\`
-- E2E specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/e2e/\`
-
-For AI/tooling entry and lane-specific overlays, use:
-- \`AGENTS.md\`
-- \`CLAUDE.md\`
-- \`docs/README.md\`
-`;
-  }
-
-  return `# FHF Smoke Repo Overlay
-
-This repository is a thin smoke-lane overlay.
-
-Canonical shared documentation lives in parent \`FHF\`:
-- \`../../AGENTS.md\`
-- \`../../docs/framework/testing-standards/TESTS.md\`
-- \`../../docs/modules/README.md\`
-
-Smoke lane deltas for this repo:
-- Environment: Production
-- Mutations: Forbidden (GET-only)
-- Baseline branch: \`staging\`
-
-Local package scope:
-- Root package: \`CypressFHF/fhf-dashboards/\`
-- Smoke specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/\`
-
-For AI/tooling entry and lane-specific overlays, use:
-- \`AGENTS.md\`
-- \`CLAUDE.md\`
-- \`docs/README.md\`
+Read \`CLAUDE.md\`, then \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
+Path: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/${isE2e ? "e2e" : "smoke"}/\`.
+${isE2e ? "Dev/QA mutations require synthetic data and cleanup; never run against production." : "Production smoke is GET-only and must never trigger a side effect."}
 `;
 }
 
 export function architectureOverlay(lane) {
-  if (lane === "e2e") {
-    return `# E2E Architecture Overlay
+  return `# ${lane === "e2e" ? "E2E" : "Smoke"} Architecture Pointer
 
-This file is an E2E lane pointer only.
-
-Canonical architecture lives in parent \`FHF\`:
-- \`../../ARCHITECTURE.md\`
-- \`../../docs/framework/testing-standards/TESTS.md\`
-
-E2E-specific architectural constraints:
-- Dev/QA environments only
-- Mutations allowed with cleanup discipline
-- Command-first test layering: Config -> Commands -> Tests
-- Never execute E2E mutation suites against production
-
-Implementation location in this repo:
-- \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/e2e/\`
-
-If a shared architecture rule changes, update parent canonical docs first.
-`;
-  }
-
-  return `# Smoke Architecture Overlay
-
-This file is a lane-specific pointer only.
-
-Canonical architecture lives in parent \`FHF\`:
-- \`../../ARCHITECTURE.md\`
-- \`../../docs/framework/testing-standards/TESTS.md\`
-
-Smoke-specific architectural constraints:
-- Production-only validation lane
-- Read-only assertions (no POST/PUT/PATCH/DELETE)
-- Command-first test layering: Config -> Commands -> Tests
-
-Implementation location in this repo:
-- \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/\`
-
-If a shared architecture rule changes, update parent canonical docs first.
+Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\`.
 `;
 }
 
 export function contributingOverlay(lane) {
-  if (lane === "e2e") {
-    return `# Contributing (E2E Overlay)
+  return `# Contributing (${lane === "e2e" ? "E2E" : "Smoke"})
 
-This repository follows parent canonical contribution standards.
-
-Start with parent docs:
-- \`../../docs/framework/testing-standards/TESTS.md\`
-
-E2E-lane mandatory deltas:
-- Dev/QA only (never production)
-- Mutations allowed only with explicit cleanup
-- No hardcoded selectors/endpoints/credentials
-- No \`cy.wait(number)\`; use \`cy.apiWait()\` or visibility assertions
-- \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`
-- \`testIsolation: true\` on every describe block
-
-Lane map and tool entry points:
-- \`AGENTS.md\`
-- \`CLAUDE.md\`
+Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\` before changing tests.
 `;
-  }
+}
 
-  return `# Contributing (Smoke Overlay)
+function toolInstructions(tool, lane) {
+  const isE2e = lane === "e2e";
+  const sharedRouter = tool === "Copilot" ? "../../../CLAUDE.md" : "../../CLAUDE.md";
+  return `# ${tool} Instructions — ${isE2e ? "E2E" : "Smoke"}
 
-This repository follows parent canonical contribution standards.
-
-Start with parent docs:
-- \`../../docs/framework/testing-standards/TESTS.md\`
-
-Smoke-lane mandatory deltas:
-- Production lane only
-- Read-only tests only (GET-only; no POST/PUT/PATCH/DELETE)
-- No hardcoded selectors/endpoints/credentials
-- No \`cy.wait(number)\`; use \`cy.apiWait()\` or visibility assertions
-- \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`
-- \`testIsolation: true\` on every describe block
-
-Lane map and tool entry points:
-- \`AGENTS.md\`
-- \`CLAUDE.md\`
+Read \`${sharedRouter}\`, then the repository's \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
+${isE2e
+  ? "Use Dev/QA only. Mutations require synthetic data and cleanup; never run against production."
+  : "Production smoke is GET-only. Never mutate, submit, export, download, upload, or send."}
 `;
 }
 
 export function copilotInstructions(lane) {
-  const laneBlock =
-    lane === "e2e"
-      ? `## Lane
-
-- Type: E2E / functional / regression
-- Environment: Dev and QA
-- Mutations: Allowed
-- Baseline branch: \`dev\`
-
----
-
-## Non-Negotiables
-
-- Use command-first architecture: Config -> Commands -> Tests.
-- Never use \`cy.wait(number)\`.
-- Never hardcode selectors, endpoints, routes, credentials, or secrets.
-- Always call \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`.
-- Always register intercepts before \`cy.visit()\`.
-- Always use \`cy.apiWait()\` before API-dependent assertions.
-- Always keep \`testIsolation: true\`.
-- Never run mutation tests on production.
-- Never use real customer data.
-
----
-
-## Paths
-
-- Package root: \`CypressFHF/fhf-dashboards/\`
-- E2E specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/e2e/\``
-      : `## Lane
-
-- Type: Smoke / availability / auth / structure
-- Environment: Production
-- Mutations: Forbidden (GET-only)
-- Baseline branch: \`staging\`
-
----
-
-## Non-Negotiables
-
-- Use command-first architecture: Config -> Commands -> Tests.
-- Never use \`cy.wait(number)\`.
-- Never hardcode selectors, endpoints, routes, credentials, or secrets.
-- Always call \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`.
-- Always register intercepts before \`cy.visit()\`.
-- Always use \`cy.apiWait()\` before API-dependent assertions.
-- Always keep \`testIsolation: true\`.
-- Never use POST/PUT/PATCH/DELETE in smoke.
-- Never assert volatile data values in smoke.
-- Deterministic production failures are incidents, not test-fix work.
-
----
-
-## Paths
-
-- Package root: \`CypressFHF/fhf-dashboards/\`
-- Smoke specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/\``;
-
-  return `# Copilot Instructions — ${lane === "e2e" ? "E2E" : "Smoke"} Overlay
-
-Single source of shared harness policy:
-- \`../../AGENTS.md\`
-- \`../../../fhf-harness-os/docs/framework/qa-control-plane.md\`
-
-This file contains only ${lane === "e2e" ? "E2E" : "smoke"} lane deltas.
-
----
-
-${laneBlock}
-`;
+  return toolInstructions("Copilot", lane);
 }
 
-// Gemini CLI reads GEMINI.md at the project root, same role CLAUDE.md plays for Claude Code.
-// Same "thin overlay, canonical source elsewhere" shape as copilotInstructions — never restate
-// the non-negotiables independently here, mirror them from the same laneBlock content.
 export function geminiInstructions(lane) {
-  const laneBlock =
-    lane === "e2e"
-      ? `## Lane
-
-- Type: E2E / functional / regression
-- Environment: Dev and QA
-- Mutations: Allowed
-- Baseline branch: \`dev\`
-
----
-
-## Non-Negotiables
-
-- Use command-first architecture: Config -> Commands -> Tests.
-- Never use \`cy.wait(number)\`.
-- Never hardcode selectors, endpoints, routes, credentials, or secrets.
-- Always call \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`.
-- Always register intercepts before \`cy.visit()\`.
-- Always use \`cy.apiWait()\` before API-dependent assertions.
-- Always keep \`testIsolation: true\`.
-- Never run mutation tests on production.
-- Never use real customer data.
-
----
-
-## Paths
-
-- Package root: \`CypressFHF/fhf-dashboards/\`
-- E2E specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/e2e/\``
-      : `## Lane
-
-- Type: Smoke / availability / auth / structure
-- Environment: Production
-- Mutations: Forbidden (GET-only)
-- Baseline branch: \`staging\`
-
----
-
-## Non-Negotiables
-
-- Use command-first architecture: Config -> Commands -> Tests.
-- Never use \`cy.wait(number)\`.
-- Never hardcode selectors, endpoints, routes, credentials, or secrets.
-- Always call \`cy.ensureAuthenticated()\` in both \`before()\` and \`beforeEach()\`.
-- Always register intercepts before \`cy.visit()\`.
-- Always use \`cy.apiWait()\` before API-dependent assertions.
-- Always keep \`testIsolation: true\`.
-- Never use POST/PUT/PATCH/DELETE in smoke.
-- Never assert volatile data values in smoke.
-- Deterministic production failures are incidents, not test-fix work.
-
----
-
-## Paths
-
-- Package root: \`CypressFHF/fhf-dashboards/\`
-- Smoke specs: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/\``;
-
-  return `# Gemini Instructions — ${lane === "e2e" ? "E2E" : "Smoke"} Overlay
-
-Single source of shared harness policy:
-- \`../../AGENTS.md\`
-- \`../../../fhf-harness-os/docs/framework/qa-control-plane.md\`
-
-This file contains only ${lane === "e2e" ? "E2E" : "smoke"} lane deltas.
-
----
-
-${laneBlock}
-`;
+  return toolInstructions("Gemini", lane);
 }

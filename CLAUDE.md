@@ -12,7 +12,7 @@ It is not a QA test suite. It contains no Cypress specs, no application docs, no
 
 ```
 .claude/
-    hooks/      — the 14 deterministic gates (PreToolUse/PostToolUse/Stop/UserPromptSubmit)
+    hooks/      — the 15 deterministic gates (PreToolUse/PostToolUse/Stop/UserPromptSubmit)
     agents/     — 4 agents, one per harness phase: cypress-generator (build), cypress-gate
                   (evaluator), cypress-debugger (diagnose/fix), cypress-shipper (ship/report)
     rules/      — routing map, source map, session discipline, assertion precision

@@ -49,6 +49,7 @@ function validateConfig(config) {
     ["workflow.stages", config.workflow?.stages],
     ["workflow.statuses", config.workflow?.statuses],
     ["connectors.atlassianMcp.sources", config.connectors?.atlassianMcp?.sources],
+    ["connectors.cypressCloud.queryOrder", config.connectors?.cypressCloud?.queryOrder],
   ];
   for (const [name, value] of requiredArrays) {
     if (!Array.isArray(value) || value.length === 0) throw new Error(`Config ${name} must be a non-empty array.`);
@@ -726,7 +727,11 @@ function buildCommandCenter(snapshot, coverage, workflow, config) {
         status: snapshot?.source?.confluencePages ? "available" : "unknown",
         items: snapshot?.source?.confluencePages ?? 0,
       },
-      cypressCloud: { status: "unknown", fallback: config.connectors.cypressCloud.fallback },
+      cypressCloud: {
+        status: "unknown",
+        providers: config.connectors.cypressCloud.queryOrder,
+        fallback: config.connectors.cypressCloud.fallback,
+      },
       testRail: {
         status: execution.runs.some((run) => run.testRailRunId) ? "available" : "unknown",
         fallback: config.connectors.testRail.fallback,

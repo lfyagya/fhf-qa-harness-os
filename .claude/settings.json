@@ -1,11 +1,27 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "effortLevel": "high",
+  "env": {
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "70000"
+  },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-context.mjs\""
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/prompt-router.mjs\"" }
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"prompt-router.mjs\""
+          }
         ]
       }
     ],
@@ -13,36 +29,89 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/protect-app-source.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/protect-second-brain-boundary.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/pre-validate-cypress-rules.mjs\"" }
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-app-source.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-second-brain-boundary.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"pre-validate-cypress-rules.mjs\""
+          }
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/manual-task-guard.mjs\"" }
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"manual-task-guard.mjs\""
+          }
         ]
       },
       {
         "matcher": "Task",
         "hooks": [
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/block-generic-agents.mjs\"" }
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-prod-data.mjs\""
+          }
         ]
       }
     ],
     "SubagentStart": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/block-generic-agents.mjs\"" }
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\""
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/session-end-reminder.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/spec-sweep-stop-hook.mjs\"" }
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-end-reminder.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"spec-sweep-stop-hook.mjs\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\""
+          }
         ]
       }
     ],
@@ -50,18 +119,45 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/validate-cypress-rules.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/scenario-file-guard.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/scenario-content-guard.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/artifact-duplication-guard.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/coverage-strategy-guard.mjs\"" },
-          { "type": "command", "command": "node \"C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/sync-reminder.mjs\"" }
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-cypress-rules.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-file-guard.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-content-guard.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"artifact-duplication-guard.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"coverage-strategy-guard.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"sync-reminder.mjs\""
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"failure-loop-guard.mjs\""
+          }
         ]
       }
     ]
   },
   "autoCompactEnabled": true,
-  "autoCompactWindow": 70000,
   "skillListingMaxDescChars": 240,
   "skillListingBudgetFraction": 0.015,
   "skillOverrides": {
@@ -78,7 +174,6 @@
     "verify": "name-only"
   },
   "permissions": {
-    "defaultMode": "auto",
     "allow": [
       "Bash(npm run lint*)",
       "Bash(npm run check*)",
@@ -89,6 +184,17 @@
       "Bash(grep -r* cypress/*)",
       "Bash(find cypress/*)"
     ],
-    "deny": ["WebSearch"]
+    "deny": [
+      "WebSearch"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "denyWrite": [
+        "./CypressFHF/fhf-dashboards/src",
+        "./AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards/src",
+        "./ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards/src"
+      ]
+    }
   }
 }

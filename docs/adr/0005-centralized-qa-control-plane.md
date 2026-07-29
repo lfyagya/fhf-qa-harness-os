@@ -36,7 +36,8 @@ workspace requires an explicit, single-use consent reference and runtime outputs
 
 ## Consequences
 
-- `qa-control-plane.json` is the canonical non-secret configuration.
+- `qa-control-plane.json` is the canonical non-secret configuration. Its `engineering` section
+  owns context, memory, harness topology, and bounded-loop policy.
 - `qa-command-center.mjs` is the single runner for snapshot validation, classification, reporting,
   lifecycle evidence, metric gates, prioritization, and self-test behavior.
 - The `contract` command prints the Jira, Teamwork Graph, and Confluence interchange shape without
@@ -47,6 +48,7 @@ workspace requires an explicit, single-use consent reference and runtime outputs
   silently synchronized from Jira or Confluence.
 - Jira rules and the generator/debugger/shipper instructions must prepare proposed writes and wait
   for approval.
-- Loader templates and entry documents point every supported AI surface to the same workflow.
+- Loader templates generate Claude, Cursor, and vendored config projections from that file;
+  tool-native settings are adapters, not independent configuration.
 - No scheduler, database, server, or new agent is introduced. Those are reconsidered only if the
   explicit refresh workflow proves insufficient.

@@ -1,3 +1,8 @@
+---
+paths:
+  - ".claude/agents/cypress-debugger.md"
+  - ".claude/agents/cypress-shipper.md"
+---
 # Jira Integration — SERV Project, Real Fields, Approval-Gated Writes
 
 Grounded against the live `firsthelpfinancial.atlassian.net` instance (queried 2026-07-20) — not

@@ -46,7 +46,7 @@ const HEADER = [
   "# Execution & Risk History — Append-Only Ledger",
   "",
   "> **Written by `node scripts/harness/record-execution-evidence.mjs` — never hand-edit.**",
-  "> Coverage evidence (`coverage-computed.md`) answers \"does a test exist?\". This answers \"when it ran, what happened?\" — failure patterns, flakiness, timing, per module. Populated after `cypress-debugger` investigates a Cypress Cloud run (see that agent's \"Cloud Investigation\" step).",
+  "> Coverage evidence (`coverage-computed.json`) answers \"does a test exist?\". This answers \"when it ran, what happened?\" — failure patterns, flakiness, timing, per module. Populated after `cypress-debugger` investigates a Cypress Cloud run (see that agent's \"Cloud Investigation\" step).",
   "",
   "| Date | Module | Lane | Run | Passed | Failed | Flaky | Failure Categories | Notes |",
   "|---|---|---|---|---|---|---|---|---|",

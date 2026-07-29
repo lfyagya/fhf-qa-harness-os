@@ -1,6 +1,6 @@
 ---
 name: cypress-debugger
-description: Runs specs (local or via Cypress Cloud MCP), root-causes any failure or flaky/slow pattern, classifies it, applies the exact fix, and writes the regression test. Use for "this test is red", "why is this flaky/slow", a pasted error, or a Cypress Cloud run URL.
+description: Runs specs (local or via Cypress Cloud MCP/CLI), root-causes any failure or flaky/slow pattern, classifies it, applies the exact fix, and writes the regression test. Use for "this test is red", "why is this flaky/slow", a pasted error, or a Cypress Cloud run URL.
 model: opus
 tools:
   - Read
@@ -32,18 +32,29 @@ don't fabricate results.
 
 ## Cloud Investigation (when given a Cypress Cloud run)
 
-1. `cypress_get_projects` / `cypress_get_runs` — identify the run (filter by branch/SHA/run ID
-   if given, else most recent). Report run ID, branch, SHA, pass/fail/pending counts, run URL.
-2. `cypress_get_flaky_tests` — separate **genuine failures** (not in the flaky list, failed
-   consistently) from **flaky tests** (intermittent). They get different fix paths — never treat
+1. Read `connectors.cypressCloud` from `.claude/harness.config.json` and work from the selected
+   lane's Cypress package. The package's `cypress.config.js` remains the project-ID source.
+   Follow `queryOrder`: Cloud MCP for conversational lookup, Cloud CLI for terminal/Test Replay
+   depth, then local JUnit. For CLI, check `node --version`, `cy-cloud version`, and
+   `cy-cloud status`; if a prerequisite or authentication is missing, report the setup blocker.
+   Never install, log in, or pass a token autonomously.
+2. Identify the run by branch/SHA/run number/URL, else most recent. Use
+   `cypress_get_projects` / `cypress_get_runs`, or CLI `project list` / `run list` / `run get`.
+   Report run number, branch, SHA, status counts, and run URL.
+3. Separate genuine failures from flakes. With MCP use `cypress_get_flaky_tests`; with CLI,
+   list passed tests for the run and treat tests with more than one attempt as flaky. Never treat
    a flake as a deterministic bug.
-3. `cypress_get_failed_tests` — for each genuine failure: title, spec path, exact error, stack
-   trace file:line, Test Replay link.
-4. Classify every failure (table below), map to codebase (stack trace → file:line; or
+4. Pull each genuine failure's title, spec path, exact error, stack trace file:line, and Test
+   Replay link with `cypress_get_failed_tests` or CLI `test list` / `test get`.
+5. Apply `cli.laneAccess`: E2E may use `replay info`, `replay timeline`, and failure screenshots
+   when needed. Smoke and root are metadata-only because replay caches, network/log events, and
+   screenshots may contain live production records; the production-data hook enforces this unless
+   the owner explicitly opted in for the session.
+6. Classify every failure (table below), map to codebase (stack trace → file:line; or
    `SELECTOR_STALE` → `cypress/configs/ui/**`; `API_ALIAS_MISMATCH` → `cypress/configs/api/**`
    compared against the `cy.apiWait()` call; `AUTH_FAILURE` → check `before()`/`beforeEach()`
    for `cy.ensureAuthenticated()`).
-5. After producing the fix plan, record evidence so risk/flakiness accumulates across runs:
+7. After producing the fix plan, record evidence so risk/flakiness accumulates across runs:
    `node scripts/harness/record-execution-evidence.mjs '{"date":"YYYY-MM-DD","module":"<module>","lane":"<e2e|smoke>","runId":"<id>","runUrl":"<url>","passed":N,"failed":N,"flaky":N,"categories":[...],"notes":"<line>"}'`
    — additive history, never edit past rows.
 

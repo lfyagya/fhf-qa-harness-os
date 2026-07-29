@@ -1,8 +1,8 @@
-# Source Map — Evidence References (Read-Only)
-
-Two independent read-only evidence sources QA agents pull from. Never duplicate either
-table into an agent file — reference this rule instead, since it's loaded into every
-session automatically (unlike an agent's own `.md`, which only the invoked agent reads).
+---
+paths:
+  - "CypressFHF/fhf-dashboards/cypress/**"
+---
+# Source Map — App Evidence
 
 ## fhf-dashboards (App Source)
 
@@ -12,11 +12,11 @@ fhf-dashboards/          (sibling checkout in the FHF workspace)
 
 Read-only evidence source for QA. **NEVER write, edit, or create files there** — it is owned by the frontend dev team. Missing `data-cy` hook → record as a gap in the exploration report; propose upstream via PR.
 
-Deep-dive companion (per-concern detail, worked examples, known traps): `docs/framework/application-intelligence/`. Escalate to it when discovering how a specific piece of the app actually works, or mapping a module's full UI→API→DB chain — not as a first stop before grepping the table below.
+Use `docs/framework/application-intelligence/` only after the source lookup needs product context.
 
 Source shows *intended* behavior; tests verify *actual* behavior. When they diverge, the divergence IS the bug — never resolve it by adjusting tests.
 
-Planning docs and Confluence/Jira-sourced context can hallucinate or mislabel dashboard/module names. Before citing a sub-module list from a planning doc, verify the names against live nav or `src/constants/routes.js` — don't repeat a planning doc's naming as fact unchecked.
+Verify planning/Jira/Confluence names against live source before citing them.
 
 ### Evidence map — grep here first, browser second
 
@@ -43,14 +43,3 @@ Planning docs and Confluence/Jira-sourced context can hallucinate or mislabel da
 ### Raw API response vs. client-side model — don't assert against the wrong shape
 
 `cy.intercept`'s captured `response.body` is the **raw HTTP payload**, before any client-side transform. A service function in `src/services/{domain}/` commonly re-maps that raw shape into a different one (renamed fields, restructured envelope) before the rest of the app ever sees it — e.g. a raw `{ items: [{ status, status_key }] }` mapped via `.map(val => ({ label: val.status, value: val.status_key }))` into the `{ label, value }` shape components actually consume. If you assert against the field names in the *component's* type instead of the *service function's pre-map return* (grep the actual `.map()`/transform call in `src/services/{domain}/`), the assertion silently checks fields that don't exist on the real intercepted body. Always trace the service function's raw-to-model mapping (or confirm there isn't one) before writing an assertion on an intercepted response's field names.
-
-## TestRail Coverage (broken — removed 2026-07-24)
-
-This section used to list a pre-fetched TestRail export under
-`ProdSmokeExecution/front-end-automation/docs/planning/testrail-coverage/`. That directory does
-not exist — confirmed twice by direct filesystem check (2026-07-15, 2026-07-24). The table lived
-here **and** in `docs/framework/testing-standards/testrail-coverage-source.md` — the exact kind
-of copy-pasted drift ADR-0002 extracted that file to prevent. Removed here; the corrected,
-single-source version (with root cause and fallback instructions) lives at
-`docs/framework/testing-standards/testrail-coverage-source.md` — read that file, don't restate
-its table here again.

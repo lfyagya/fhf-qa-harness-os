@@ -1,4 +1,59 @@
-# UI Config Hierarchy — No Duplication
+---
+paths:
+  - "CypressFHF/fhf-dashboards/cypress/**"
+---
+# Contract-First Cypress Architecture
+
+Read `ai-pilot.md` before starting a new or intentionally migrated domain. An approved scenario,
+published contract, controlled state, and required evidence are entry criteria; missing selectors
+or state are a testability proposal, not an automation shortcut.
+
+Automation mirrors the application's **public domain contract**, not its internal component,
+hook, service, or migration-era folder structure. A domain contract has five stable parts:
+
+1. **Route** - a named application route, published by the application and consumed through
+   `cypress/configs/app/routes.js`.
+2. **Access** - the role/group precondition required to reach the surface.
+3. **API** - named request contracts (method, endpoint, alias, status) in the domain API config.
+4. **UI** - supported `data-cy` hooks in the domain UI config.
+5. **Scenario** - the approved user outcome, traceability, and assertions.
+
+New or deliberately migrated domains use this shape:
+
+```text
+cypress/
+  configs/
+    app/routes.js                         # application-published route contract
+    ui/{module}/{surface}.ui.js           # data-cy contract only
+    api/{module}/{surface}.api.js          # request contract only
+    scenarios/{module}/{surface}.scenarios.js
+  fixtures/{module}/{surface}/             # deterministic response/request data
+  support/commands/
+    common/                                # proven cross-domain behaviour only
+    modules/{module}/
+      {surface}.setup.commands.js          # intercept/stub ownership
+      {surface}.navigate.commands.js
+      {surface}.interact.commands.js
+      {surface}.assert.commands.js
+  tests/fhf-dashboard/{e2e|smoke}/{module}/ # thin orchestration only
+```
+
+The application publishes route and selector contracts; Cypress consumes a checked-in generated
+or validated representation. Cypress must never import application source directly, duplicate
+application implementation details, or rely on a redirect as proof that a route is current.
+
+**Layer ownership is strict:** specs call domain commands; domain commands own
+`cy.apiIntercept()` / `cy.apiInterceptAll()` / `cy.intercept()` and waits; configs own constants;
+fixtures own deterministic stub bodies. A spec may select a named fixture through a setup command,
+but it must not register a raw intercept or embed a large stub payload. A missing stable `data-cy`
+hook is an application testability backlog item, not a reason to normalize CSS or text-selector
+fallbacks.
+
+Legacy layouts are migration candidates, not a second standard. Do not reorganize an untouched
+working module opportunistically. Apply this structure whenever a domain is added or intentionally
+refactored, then retire the old path only after its imports and command ownership are migrated.
+
+# Selector Hierarchy - No Duplication
 
 Selectors live in a strict two-level hierarchy. Never duplicate a `data-cy` value across module configs.
 
@@ -50,8 +105,7 @@ a synonym and hides which primitive is actually running. A command wrapping a pl
 (`apiInterceptAll` → `registerAllIntercepts`) is a real boundary and stays.
 
 Both classes are enforced by `scripts/check-alias-commands.js` (smoke repo), wired into
-`buildspec.yml` `pre_build`. Rationale and the rejected alternative:
-`docs/adr/0005-per-module-command-wrappers.md`.
+`buildspec.yml` `pre_build`.
 
 ## Directory and file naming
 

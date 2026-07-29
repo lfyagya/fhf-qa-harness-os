@@ -1,3 +1,7 @@
+---
+paths:
+  - "CypressFHF/fhf-dashboards/cypress/**"
+---
 # Assertion Precision — Scope Before You Assert
 
 Any `data-cy`-less assertion (`cy.contains()`, a CSS-class selector, a body-wide exclusion filter like `:not(#some-id)`) is a bet that exactly one matching element exists where you expect it. That bet fails in two directions — both are regressions to catch before merge, not after a Cloud run:

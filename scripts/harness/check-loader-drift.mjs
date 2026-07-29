@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CURSOR_HOOKS,
+  HARNESS_CONFIG_TEXT,
+  claudeSettingsText,
   cursorHooks,
   VENDORED_HOOKS,
   portableSettings,
@@ -99,6 +101,13 @@ function dirsMatch(srcDir, destDir, prefix) {
   }
 }
 
+function checkHarnessRoot() {
+  checkExactText(
+    path.join(HARNESS_ROOT, ".claude", "settings.json"),
+    claudeSettingsText(),
+  );
+}
+
 // FHF root: full generated .claude tree must match this repo's canonical .claude/ exactly.
 function checkFhfRoot() {
   const claudeDir = path.join(FHF_ROOT, ".claude");
@@ -106,13 +115,15 @@ function checkFhfRoot() {
   const copilotPath = path.join(FHF_ROOT, ".github", "copilot-instructions.md");
   const geminiPath = path.join(FHF_ROOT, "GEMINI.md");
   requireFile(path.join(claudeDir, "settings.json"));
+  requireFile(path.join(claudeDir, "harness.config.json"));
   requireFile(cursorHooksPath);
   requireFile(copilotPath);
   requireFile(geminiPath);
   const actualSettings = path.join(claudeDir, "settings.json");
   if (fs.existsSync(actualSettings)) {
-    checkExactText(actualSettings, fs.readFileSync(path.join(HARNESS_ROOT, ".claude", "settings.json"), "utf8"));
+    checkExactText(actualSettings, claudeSettingsText());
   }
+  checkExactText(path.join(claudeDir, "harness.config.json"), HARNESS_CONFIG_TEXT);
   for (const sub of CLAUDE_SUBFOLDERS) {
     dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
   }
@@ -134,6 +145,7 @@ function checkSubRepo(repoPath, lane) {
 
   requireFile(path.join(docsDir, "README.md"));
   requireFile(path.join(claudeDir, "settings.json"));
+  requireFile(path.join(claudeDir, "harness.config.json"));
   requireFile(path.join(cursorDir, "hooks.json"));
   requireFile(path.join(githubDir, "copilot-instructions.md"));
   requireFile(readmePath);
@@ -144,7 +156,8 @@ function checkSubRepo(repoPath, lane) {
   // Lane settings are the harness settings with hook paths rewritten to $CLAUDE_PROJECT_DIR,
   // because these repos get cloned by engineers with no fhf-harness-os checkout.
   const settingsPath = path.join(claudeDir, "settings.json");
-  checkExactText(settingsPath, portableSettings());
+  checkExactText(settingsPath, portableSettings(lane));
+  checkExactText(path.join(claudeDir, "harness.config.json"), HARNESS_CONFIG_TEXT);
   if (fs.existsSync(settingsPath)) {
     const actual = fs.readFileSync(settingsPath, "utf8");
     if (/[A-Za-z]:[/\\]Users[/\\]/.test(actual)) {
@@ -166,7 +179,7 @@ function checkSubRepo(repoPath, lane) {
   checkExactText(contributingPath, contributingOverlay(lane));
   checkExactText(path.join(githubDir, "copilot-instructions.md"), copilotInstructions(lane));
   checkExactText(geminiPath, geminiInstructions(lane));
-  checkExactText(path.join(cursorDir, "hooks.json"), `${JSON.stringify(cursorHooks(VENDORED_HOOKS), null, 2)}\n`);
+  checkExactText(path.join(cursorDir, "hooks.json"), `${JSON.stringify(cursorHooks(VENDORED_HOOKS, lane), null, 2)}\n`);
 
   const architectureDir = path.join(repoPath, "architecture");
   if (lane === "e2e" && fs.existsSync(architectureDir)) {
@@ -227,6 +240,7 @@ function checkHandMaintainedPointers() {
   }
 }
 
+checkHarnessRoot();
 checkFhfRoot();
 checkSubRepo(SUB_REPOS.e2e, "e2e");
 checkSubRepo(SUB_REPOS.smoke, "smoke");

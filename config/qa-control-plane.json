@@ -5,7 +5,11 @@
     "projectKey": "SERV",
     "serviceApp": "Callcenter",
     "currentSprintJql": "project = SERV AND sprint in openSprints() ORDER BY updated DESC",
-    "confluenceSpaces": ["QA", "SE", "TE"],
+    "confluenceSpaces": [
+      "QA",
+      "SE",
+      "TE"
+    ],
     "fields": {
       "serviceApp": "customfield_10043",
       "severity": "customfield_10047",
@@ -47,12 +51,53 @@
   "connectors": {
     "atlassianMcp": {
       "required": true,
-      "sources": ["jira", "confluence", "teamworkGraph"],
+      "sources": [
+        "jira",
+        "confluence",
+        "teamworkGraph"
+      ],
       "authentication": "oauth"
     },
     "cypressCloud": {
       "required": false,
-      "fallback": "local-junit"
+      "queryOrder": [
+        "cloud-mcp",
+        "cloud-cli",
+        "local-junit"
+      ],
+      "fallback": "local-junit",
+      "cli": {
+        "documentation": "https://docs.cypress.io/cloud/integrations/cloud-cli",
+        "package": "@cypress/cloud",
+        "command": "cy-cloud",
+        "installation": "global",
+        "minimumNodeVersion": "22.21.0",
+        "projectIdSource": "cypress.config.js",
+        "authentication": {
+          "local": "oauth",
+          "ciTokenEnv": "CYPRESS_CLOUD_TOKEN",
+          "credentialsInConfig": false
+        },
+        "laneAccess": {
+          "e2e": "full-read",
+          "smoke": "metadata-only",
+          "root": "metadata-only"
+        },
+        "guard": {
+          "safeNoNetworkFlags": [
+            "--help",
+            "--schema"
+          ],
+          "inlineCredentialPatterns": [
+            "\\b(?:cy-cloud|npx\\s+(?:--yes\\s+)?@cypress/cloud)\\s+login\\b[^\\r\\n;&|]*--token(?:\\s|=)",
+            "\\bCYPRESS_CLOUD_TOKEN\\s*="
+          ],
+          "productionSensitivePatterns": [
+            "\\b(?:cy-cloud|npx\\s+(?:--yes\\s+)?@cypress/cloud)\\s+replay\\s+(?:info|timeline)\\b",
+            "\\b(?:cy-cloud|npx\\s+(?:--yes\\s+)?@cypress/cloud)\\s+test\\s+get\\b[^\\r\\n;&|]*--screenshot(?:\\s|=|$)"
+          ]
+        }
+      }
     },
     "testRail": {
       "required": false,
@@ -83,8 +128,17 @@
       "pr",
       "externallyUpdated"
     ],
-    "statuses": ["pending", "in_progress", "completed", "blocked", "skipped"],
-    "approvalRequiredStages": ["approved", "externallyUpdated"],
+    "statuses": [
+      "pending",
+      "in_progress",
+      "completed",
+      "blocked",
+      "skipped"
+    ],
+    "approvalRequiredStages": [
+      "approved",
+      "externallyUpdated"
+    ],
     "jiraStatusStageMap": {
       "Open": "intake",
       "Groomed": "intake",
@@ -120,60 +174,567 @@
     "partialCoverageWeight": 10
   },
   "moduleAliases": {
-    "ancillary": ["ancillary", "acd", "apd", "gap claim", "ancillary verification"],
-    "call-reports": ["call reports", "call recording", "agent call volume"],
-    "checks": ["checks", "insurance repair check", "lockbox"],
-    "complaints": ["complaint", "cfpb", "bbb"],
-    "contracts": ["contracts", "contract prep"],
-    "custodian": ["custodian", "exception queue"],
-    "doc-repository": ["document repository", "doc repository", "docman", "loan packages"],
-    "funding": ["funding coordinator", "funder view"],
-    "insurance": ["insurance", "total loss", "lienholder claim", "lien holder claim"],
-    "letters": ["letters", "letter tracking", "risc letter"],
-    "loss-mitigation": ["loss mitigation", "remarketing", "repossess", "rdn", "autoims", "impound", "transport", "repo invoice", "auction invoice", "loss mitigation remarketing", "recon"],
-    "post-funding": ["post funding", "post-funding"],
-    "titles": ["titles", "title release", "missing title", "re-registration", "re-reg"],
-    "unifi": ["unifi", "unifi servicing", "unifi collections", "contact log", "payix", "promise to pay", "ptp"]
+    "ancillary": [
+      "ancillary",
+      "acd",
+      "apd",
+      "gap claim",
+      "ancillary verification"
+    ],
+    "call-reports": [
+      "call reports",
+      "call recording",
+      "agent call volume"
+    ],
+    "checks": [
+      "checks",
+      "insurance repair check",
+      "lockbox"
+    ],
+    "complaints": [
+      "complaint",
+      "cfpb",
+      "bbb"
+    ],
+    "contracts": [
+      "contracts",
+      "contract prep"
+    ],
+    "custodian": [
+      "custodian",
+      "exception queue"
+    ],
+    "doc-repository": [
+      "document repository",
+      "doc repository",
+      "docman",
+      "loan packages"
+    ],
+    "funding": [
+      "funding coordinator",
+      "funder view"
+    ],
+    "insurance": [
+      "insurance",
+      "total loss",
+      "lienholder claim",
+      "lien holder claim"
+    ],
+    "letters": [
+      "letters",
+      "letter tracking",
+      "risc letter"
+    ],
+    "loss-mitigation": [
+      "loss mitigation",
+      "remarketing",
+      "repossess",
+      "rdn",
+      "autoims",
+      "impound",
+      "transport",
+      "repo invoice",
+      "auction invoice",
+      "loss mitigation remarketing",
+      "recon"
+    ],
+    "post-funding": [
+      "post funding",
+      "post-funding"
+    ],
+    "titles": [
+      "titles",
+      "title release",
+      "missing title",
+      "re-registration",
+      "re-reg"
+    ],
+    "unifi": [
+      "unifi",
+      "unifi servicing",
+      "unifi collections",
+      "contact log",
+      "payix",
+      "promise to pay",
+      "ptp"
+    ]
   },
   "jiraModulePrefixes": {
-    "ancillary": ["ancillary", "acd", "apd"],
-    "call-reports": ["agent call volume", "call reports", "call recording"],
-    "checks": ["checks", "insurance repair", "lockbox"],
-    "complaints": ["complaint"],
-    "contracts": ["contract"],
-    "custodian": ["custodian"],
-    "doc-repository": ["docman", "document repository"],
-    "funding": ["funding"],
-    "insurance": ["insurance"],
-    "letters": ["letters"],
-    "loss-mitigation": ["lossmitigation", "loss mitigation", "remarketing", "repossess", "rdn", "autoims"],
-    "post-funding": ["postfunding", "post funding"],
-    "titles": ["titles"],
-    "unifi": ["unifi"]
+    "ancillary": [
+      "ancillary",
+      "acd",
+      "apd"
+    ],
+    "call-reports": [
+      "agent call volume",
+      "call reports",
+      "call recording"
+    ],
+    "checks": [
+      "checks",
+      "insurance repair",
+      "lockbox"
+    ],
+    "complaints": [
+      "complaint"
+    ],
+    "contracts": [
+      "contract"
+    ],
+    "custodian": [
+      "custodian"
+    ],
+    "doc-repository": [
+      "docman",
+      "document repository"
+    ],
+    "funding": [
+      "funding"
+    ],
+    "insurance": [
+      "insurance"
+    ],
+    "letters": [
+      "letters"
+    ],
+    "loss-mitigation": [
+      "lossmitigation",
+      "loss mitigation",
+      "remarketing",
+      "repossess",
+      "rdn",
+      "autoims"
+    ],
+    "post-funding": [
+      "postfunding",
+      "post funding"
+    ],
+    "titles": [
+      "titles"
+    ],
+    "unifi": [
+      "unifi"
+    ]
   },
   "_moduleSpecPathsNote": "Prefer each module's own module-context.yaml: consumers take path.dirname() of these entries to locate the module directory, so a specs/*.yaml target resolves one level too deep. call-reports, post-funding and contracts have no module-context.yaml of their own and point at their real spec files instead. letters has no application-intelligence directory at all, so it has no entry (consumers default to []).",
   "moduleSpecPaths": {
-    "ancillary": ["docs/framework/application-intelligence/modules/ancillary/module-context.yaml"],
+    "ancillary": [
+      "docs/framework/application-intelligence/modules/ancillary/module-context.yaml"
+    ],
     "call-reports": [
       "docs/framework/application-intelligence/modules/call_reports/specs/agent-call-volume.yaml",
       "docs/framework/application-intelligence/modules/call_reports/specs/call-recording.yaml"
     ],
-    "checks": ["docs/framework/application-intelligence/modules/checks/module-context.yaml"],
-    "complaints": ["docs/framework/application-intelligence/modules/complaints/module-context.yaml"],
-    "contracts": ["docs/framework/application-intelligence/modules/custodian/specs/contracts-dashboard.yaml"],
-    "custodian": ["docs/framework/application-intelligence/modules/custodian/module-context.yaml"],
-    "doc-repository": ["docs/framework/application-intelligence/modules/document_repository/module-context.yaml"],
-    "funding": ["docs/framework/application-intelligence/modules/funding/module-context.yaml"],
-    "insurance": ["docs/framework/application-intelligence/modules/insurance/module-context.yaml"],
-    "loss-mitigation": ["docs/framework/application-intelligence/modules/loss_mitigation/module-context.yaml"],
+    "checks": [
+      "docs/framework/application-intelligence/modules/checks/module-context.yaml"
+    ],
+    "complaints": [
+      "docs/framework/application-intelligence/modules/complaints/module-context.yaml"
+    ],
+    "contracts": [
+      "docs/framework/application-intelligence/modules/custodian/specs/contracts-dashboard.yaml"
+    ],
+    "custodian": [
+      "docs/framework/application-intelligence/modules/custodian/module-context.yaml"
+    ],
+    "doc-repository": [
+      "docs/framework/application-intelligence/modules/document_repository/module-context.yaml"
+    ],
+    "funding": [
+      "docs/framework/application-intelligence/modules/funding/module-context.yaml"
+    ],
+    "insurance": [
+      "docs/framework/application-intelligence/modules/insurance/module-context.yaml"
+    ],
+    "loss-mitigation": [
+      "docs/framework/application-intelligence/modules/loss_mitigation/module-context.yaml"
+    ],
     "post-funding": [
       "docs/framework/application-intelligence/modules/post_funding/specs/dealer-detail.yaml",
       "docs/framework/application-intelligence/modules/post_funding/specs/summary.yaml"
     ],
-    "titles": ["docs/framework/application-intelligence/modules/titles/module-context.yaml"],
+    "titles": [
+      "docs/framework/application-intelligence/modules/titles/module-context.yaml"
+    ],
     "unifi": [
       "docs/framework/application-intelligence/modules/unifi/collections/module-context.yaml",
       "docs/framework/application-intelligence/modules/unifi/servicing/module-context.yaml"
     ]
+  },
+  "engineering": {
+    "context": {
+      "mode": "route-on-demand",
+      "duplicateMatchLimit": 5,
+      "effortLevel": "high",
+      "autoCompact": {
+        "enabled": true,
+        "windowTokens": 70000
+      },
+      "skillListing": {
+        "maxDescriptionChars": 240,
+        "budgetFraction": 0.015
+      },
+      "topicDriftSignals": [
+        "also can you",
+        "while we're here",
+        "one more thing",
+        "and also",
+        "by the way",
+        "oh and"
+      ],
+      "routes": [
+        {
+          "id": "documentation",
+          "priority": 10,
+          "match": "\\b(documentation|docs?|context noise|duplicate docs?|source of truth)\\b",
+          "hint": "Documentation task → read docs/README.md, then the one path in .claude/harness.config.json documentation.owners. Update or delete; do not create another report."
+        },
+        {
+          "id": "qa-control-plane",
+          "priority": 90,
+          "match": "\\b(command center|current sprint|sprint intake|spec (sync|freshness|delta)|centralized qa|cross-lane)\\b",
+          "hint": "QA control plane → follow the repository's QA control-plane guide when available; otherwise use repository-local rules. Approval-gate every Jira, Confluence, or application-spec write."
+        },
+        {
+          "id": "cloud-failure",
+          "priority": 100,
+          "match": "cloud\\.cypress\\.io|cypress cloud.*(fail|run)",
+          "hint": "Cypress Cloud run → spawn cypress-debugger; it follows connectors.cypressCloud.queryOrder and laneAccess."
+        },
+        {
+          "id": "test-failure",
+          "priority": 100,
+          "match": "\\b(failing|fails|red|broken|error)\\b.*\\b(test|spec)\\b|\\b(test|spec)\\b.*\\b(failing|fails|red|broken)\\b",
+          "hint": "Failing test → spawn cypress-debugger (root cause + fix + regression test, configured escalation limit)."
+        },
+        {
+          "id": "test-flake",
+          "priority": 100,
+          "match": "\\b(flaky|slow|intermittent)\\b.*\\b(test|spec|suite)\\b",
+          "hint": "Flakiness/performance → spawn cypress-debugger."
+        },
+        {
+          "id": "jira-implementation",
+          "priority": 95,
+          "match": "\\bacceptance criteria\\b|\\bserv-\\d+",
+          "hint": "Jira ticket → spawn cypress-generator (scenarios + spec, one pass)."
+        },
+        {
+          "id": "legacy-migration",
+          "priority": 95,
+          "match": "\\b(migrate|migration)\\b.*\\b(actions|page.?object)",
+          "hint": "Legacy migration → spawn cypress-generator."
+        },
+        {
+          "id": "pre-merge",
+          "priority": 95,
+          "match": "\\b(pre-?merge|ready to (commit|merge))\\b",
+          "hint": "Pre-merge → spawn cypress-gate for the verdict."
+        },
+        {
+          "id": "pull-request",
+          "priority": 95,
+          "match": "\\b(open (a )?pr|pull request)\\b",
+          "hint": "Open a PR → spawn cypress-shipper."
+        },
+        {
+          "id": "test-explanation",
+          "priority": 80,
+          "match": "\\b(explain|how does|review)\\b.*\\b(test|spec)\\b",
+          "hint": "Explain/review only, no edits → cypress-explain skill. Need a merge verdict instead → spawn cypress-gate."
+        },
+        {
+          "id": "coverage-report",
+          "priority": 85,
+          "match": "\\bui coverage|coverage gap|automation (backlog|roadmap)|risk matrix\\b",
+          "hint": "Coverage/backlog/risk report → spawn cypress-shipper; use coverage-computed.json, the chain ledger, and the planning ledger."
+        },
+        {
+          "id": "new-test",
+          "priority": 95,
+          "match": "\\b(write|create|add|new|generate)\\b.*\\b(test|spec|suite)\\b",
+          "hint": "New test → spawn cypress-generator."
+        },
+        {
+          "id": "api-interception",
+          "priority": 70,
+          "match": "\\b(intercept|api alias|api wait)\\b",
+          "hint": "API interception detail → read docs/framework/testing-standards/api-layer-guide.md."
+        },
+        {
+          "id": "api-contract",
+          "priority": 70,
+          "match": "\\b(response contract|schema assertion|api validation)\\b",
+          "hint": "API contract detail → read docs/framework/testing-standards/api-validation-guide.md."
+        },
+        {
+          "id": "test-data",
+          "priority": 70,
+          "match": "\\b(test data|fixture|seed data|cleanup strategy)\\b",
+          "hint": "Test data detail → read docs/framework/testing-standards/test-data-management.md."
+        },
+        {
+          "id": "test-organization",
+          "priority": 70,
+          "match": "\\b(file naming|folder structure|test organization)\\b",
+          "hint": "Test path detail → read docs/framework/testing-standards/test-organization.md."
+        },
+        {
+          "id": "coverage-presence",
+          "priority": 90,
+          "match": "\\b(current coverage|coverage state|test presence)\\b",
+          "hint": "Current test presence → read docs/evidence/coverage-computed.json only."
+        },
+        {
+          "id": "full-chain",
+          "priority": 75,
+          "match": "\\b(full.?chain|ui.?api.?db|chain status)\\b",
+          "hint": "Full-chain evidence → read docs/planning/coverage/fullstack-chain-risk-matrix.md, then only the target module contract."
+        },
+        {
+          "id": "planning",
+          "priority": 60,
+          "match": "\\b(priority|estimate|capacity|sequence|scope|impact measurement|planning)\\b",
+          "hint": "Planning question → read docs/planning/roadmap/effort-breakdown-by-module-and-subdashboard.md only."
+        },
+        {
+          "id": "selector-gap",
+          "priority": 75,
+          "match": "\\b(data-cy|selector hook|test hook)\\b",
+          "hint": "Frontend testability gap → read docs/planning/data-cy-hook-backlog.md only."
+        },
+        {
+          "id": "application-contract",
+          "priority": 65,
+          "match": "\\b(application contract|product behavior|module context|route.*permission|api.*database)\\b",
+          "hint": "Product behavior → read docs/modules/README.md, then only the target application-intelligence module contract."
+        }
+      ]
+    },
+    "memory": {
+      "authority": "working-tree-config-and-generated-evidence",
+      "sessionScope": "one-job",
+      "handoffFile": "cypress/handoff/session-latest.json",
+      "handoffMaxAgeHours": 24,
+      "preserveExactly": [
+        "ticket-ids",
+        "module-and-spec",
+        "selectors",
+        "endpoints",
+        "evidence-paths"
+      ],
+      "factExtractors": [
+        {
+          "name": "ticket-ids",
+          "match": "\\bSERV-\\d+\\b",
+          "flags": "gi"
+        },
+        {
+          "name": "module-and-spec",
+          "match": "(?:[a-z0-9_. -]+[\\\\/])*[a-z0-9_.-]+\\.cy\\.(?:js|ts)|\\b(?:module|dashboard)\\s*[:=]?\\s*[a-z][a-z0-9_-]{2,30}\\b",
+          "flags": "gi"
+        },
+        {
+          "name": "selectors",
+          "match": "\\[data-cy(?:\\^|\\$|\\*)?=[\"'][^\"']+[\"']\\]|\\bdata-cy[=:][\"']?[a-z0-9_-]+",
+          "flags": "gi"
+        },
+        {
+          "name": "endpoints",
+          "match": "\\/api\\/[a-z0-9_./:{}-]+",
+          "flags": "gi"
+        },
+        {
+          "name": "evidence-paths",
+          "match": "(?:docs\\/evidence|reports\\/junit|cypress\\/handoff)\\/[a-z0-9_./-]+",
+          "flags": "gi"
+        }
+      ],
+      "obsidian": {
+        "authority": "derived-only",
+        "writeBack": false
+      }
+    },
+    "harness": {
+      "agents": [
+        "cypress-generator",
+        "cypress-gate",
+        "cypress-debugger",
+        "cypress-shipper"
+      ],
+      "skills": [
+        "cypress-explain",
+        "cypress-docs"
+      ],
+      "boundaries": {
+        "applicationSource": {
+          "mode": "read-only",
+          "pathPatterns": [
+            "fhf-dashboards[\\\\/]src(?:[\\\\/]|$)"
+          ],
+          "denyWriteByLane": {
+            "root": [
+              "./CypressFHF/fhf-dashboards/src",
+              "./AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards/src",
+              "./ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards/src"
+            ],
+            "e2e": [
+              "./CypressFHF/fhf-dashboards/src"
+            ],
+            "smoke": [
+              "./CypressFHF/fhf-dashboards/src"
+            ]
+          }
+        }
+      },
+      "hooks": {
+        "sessionStart": [
+          "session-context.mjs"
+        ],
+        "prompt": [
+          "prompt-router.mjs"
+        ],
+        "preWrite": [
+          "protect-app-source.mjs",
+          "protect-second-brain-boundary.mjs",
+          "pre-validate-cypress-rules.mjs"
+        ],
+        "preShell": [
+          "manual-task-guard.mjs"
+        ],
+        "preSubagent": [
+          "block-generic-agents.mjs"
+        ],
+        "preReadExceptE2e": [
+          "protect-prod-data.mjs"
+        ],
+        "subagentStart": [
+          "block-generic-agents.mjs"
+        ],
+        "postWrite": [
+          "validate-cypress-rules.mjs",
+          "scenario-file-guard.mjs",
+          "scenario-content-guard.mjs",
+          "artifact-duplication-guard.mjs",
+          "coverage-strategy-guard.mjs",
+          "sync-reminder.mjs"
+        ],
+        "postToolFailure": [
+          "failure-loop-guard.mjs"
+        ],
+        "preCompact": [
+          "memory-checkpoint.mjs"
+        ],
+        "sessionEnd": [
+          "memory-checkpoint.mjs"
+        ],
+        "stop": [
+          "session-end-reminder.mjs",
+          "spec-sweep-stop-hook.mjs"
+        ]
+      },
+      "adapters": {
+        "claudeCode": {
+          "autoCompactWindowEnv": "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+          "skillOverrides": {
+            "statusline-setup": "name-only",
+            "keybindings-help": "name-only",
+            "fewer-permission-prompts": "name-only",
+            "claude-api": "name-only",
+            "update-config": "name-only",
+            "simplify": "name-only",
+            "init": "name-only",
+            "security-review": "name-only",
+            "loop": "name-only",
+            "run": "name-only",
+            "verify": "name-only"
+          },
+          "permissions": {
+            "allow": [
+              "Bash(npm run lint*)",
+              "Bash(npm run check*)",
+              "Bash(npm run files:manage)",
+              "Bash(npm run folders:manage)",
+              "Bash(npm run cy:run*)",
+              "Bash(npx cypress*)",
+              "Bash(grep -r* cypress/*)",
+              "Bash(find cypress/*)"
+            ],
+            "deny": [
+              "WebSearch"
+            ]
+          }
+        },
+        "cursor": {
+          "promptRouting": "session-context",
+          "compatibleHookDeduplication": "identical-command"
+        },
+        "codex": {
+          "instructionFile": "AGENTS.md",
+          "hookCapability": "instruction-only"
+        }
+      },
+      "genericAgents": [
+        "general-purpose",
+        "explore"
+      ],
+      "forbiddenAgents": [
+        "general-purpose",
+        "explore",
+        "documentation-writer",
+        "test-execution-planner",
+        "cypress-bug-hunter",
+        "cypress-cloud-investigator",
+        "cypress-e2e-automation",
+        "cypress-explorer",
+        "cypress-performance-auditor",
+        "cypress-runner",
+        "cypress-test-automation",
+        "cypress-ui-coverage-analyst",
+        "pr-creator",
+        "pre-merge-qa-gate",
+        "qa-ticket-router",
+        "spec-generation-loop",
+        "test-design-reviewer"
+      ],
+      "projection": ".claude/harness.config.json",
+      "sync": "scripts/harness/sync-loader-shims.mjs",
+      "verify": [
+        "scripts/harness/check-loader-drift.mjs",
+        "scripts/harness/check-docs-links.mjs",
+        "scripts/harness/test-hooks.mjs",
+        "scripts/harness/test-adapter-contract.mjs"
+      ]
+    },
+    "loops": {
+      "sameFailureLimit": 3,
+      "gateRepairLimit": 3,
+      "specSweepLimit": 3,
+      "phaseBoundary": "owner-approval",
+      "terminalStates": [
+        "completed",
+        "blocked",
+        "escalated"
+      ]
+    }
+  },
+  "documentation": {
+    "sourcePrecedence": [
+      "live-source-api-db",
+      "application-contract",
+      "generated-repository-evidence",
+      "approved-planning-decision",
+      "jira-confluence-intent",
+      "obsidian-derived-index"
+    ],
+    "owners": {
+      "application": "docs/framework/application-intelligence",
+      "test-standards": "docs/framework/testing-standards/TESTS.md",
+      "coverage": "docs/evidence/coverage-computed.json",
+      "chain": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
+      "planning": "docs/planning/roadmap/effort-breakdown-by-module-and-subdashboard.md",
+      "selectors": "docs/planning/data-cy-hook-backlog.md",
+      "smoke-execution": "docs/framework/testing-standards/smoke-execution-strategy.md"
+    }
   }
 }

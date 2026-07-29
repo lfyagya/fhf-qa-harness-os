@@ -103,6 +103,17 @@ if (isSpec && !content.includes('testIsolation: true'))
 if (isSpec && HARDCODED_CREDENTIAL_RE.test(content))
   violations.push('Possible hardcoded credential — use Cypress.env() + { log: false }');
 
+// Commands, rather than specs, own network interception. This keeps endpoint aliases,
+// deterministic stubs, and wait sequencing reusable and prevents a spec from bypassing the
+// Config -> Commands -> Tests boundary.
+if (isSpec && /\bcy\.(?:apiIntercept(?:All)?|intercept)\s*\(/.test(content))
+  violations.push('Spec registers a raw intercept - move interception/stubbing into a domain setup or intercept command; specs call that command only');
+
+// A literal path in cy.visit() creates a second route registry. Named route constants are the
+// Cypress representation of the application-published route contract.
+if (isSpec && /\bcy\.visit\(\s*['"]\//.test(content))
+  violations.push('Spec contains a literal route in cy.visit() - use a named route contract/config constant through a navigation command');
+
 if (violations.length > 0) {
   console.error('CYPRESS RULE VIOLATIONS — ' + filePath);
   violations.forEach(v => console.error('  ✗ ' + v));

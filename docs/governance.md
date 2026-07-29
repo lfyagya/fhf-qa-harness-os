@@ -1,6 +1,6 @@
 # Governance — When an ADR Is Required
 
-Adapted from paper-os's Governance principle (`docs/_archive/paper-os/HARNESS.md` in FHF, and `ADR-0001-architecture-correction.md`): every change has one owner, and structural changes leave a record — but scoped down to what a solo-owner harness actually needs, not a full ownership-matrix/versioning process.
+Every change has one owner, and structural harness changes leave a short decision record.
 
 ## An ADR is required for
 

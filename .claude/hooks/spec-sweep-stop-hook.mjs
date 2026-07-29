@@ -2,21 +2,27 @@
 // Stop hook 2 — THE GATE. Sweeps changed .cy.js files in BOTH sub-repos for violations.
 // Specs live in the sub-repos (separate git repos) — never in the parent, so each
 // git diff must run inside a sub-repo root.
-// exit 2 = reopen the turn so Claude can fix (up to 8 retries), stderr fed to Claude.
+// exit 2 = reopen the turn so Claude can fix (bounded by harness config), stderr fed to Claude.
 // exit 0 = clean; writes a handoff artifact only when specs were actually checked.
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
-import { join, resolve } from 'path';
+import { join } from 'path';
 import { checkSpecContent, isSmokePath, SMOKE_MUTATION_RE } from './lib/cypress-rule-patterns.mjs';
+import { loadHarnessConfig } from './lib/harness-config.mjs';
+import { emitEmpty } from './lib/hook-runtime.mjs';
+import { mergeHandoff } from './lib/memory-state.mjs';
 
+let payload = {};
+try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch {}
 const ROOT = process.env.CLAUDE_CWD ?? process.cwd();
+const config = loadHarnessConfig();
+const engineering = config.engineering;
 const REPOS = [
-  join(ROOT, 'AG Frontend Automation', 'front-end-automation'),
-  join(ROOT, 'ProdSmokeExecution', 'front-end-automation'),
+  ...['e2e', 'smoke'].map((lane) => join(ROOT, config.paths.lanes[lane].root)),
   ROOT, // parent itself, in case a session is opened inside a sub-repo (ROOT is then that repo)
 ];
 const RETRY_FILE = join(ROOT, '.claude', 'hooks', '.sweep-retries');
-const MAX_RETRIES = 8;
+const MAX_RETRIES = engineering.loops.specSweepLimit;
 
 let retries = 0;
 try { retries = parseInt(readFileSync(RETRY_FILE, 'utf8'), 10) || 0; } catch {}
@@ -39,6 +45,7 @@ for (const repo of new Set(REPOS)) {
 
 if (changedSpecs.length === 0) {
   resetRetries();
+  emitEmpty(payload);
   process.exit(0); // nothing swept — no handoff litter
 }
 
@@ -53,13 +60,16 @@ for (const abs of changedSpecs) {
 
 if (allViolations.length === 0) {
   resetRetries();
-  writeHandoff();
+  writeHandoff('completed');
+  emitEmpty(payload);
   process.exit(0);
 }
 
 if (retries >= MAX_RETRIES) {
   console.error(`Spec sweep: max retries (${MAX_RETRIES}) reached — manual review required.`);
   resetRetries();
+  writeHandoff('escalated');
+  emitEmpty(payload);
   process.exit(0); // let through after max retries to avoid infinite loop
 }
 
@@ -81,12 +91,14 @@ function resetRetries() {
   try { writeFileSync(RETRY_FILE, '0'); } catch {}
 }
 
-function writeHandoff() {
+function writeHandoff(terminalState) {
   // ponytail: single overwritten file — timestamped files accumulated 90+ litter entries
   try {
-    const handoffDir = join(ROOT, 'cypress', 'handoff');
-    if (!existsSync(handoffDir)) mkdirSync(handoffDir, { recursive: true });
-    writeFileSync(join(handoffDir, 'session-latest.json'),
-      JSON.stringify({ clean: true, sweptAt: new Date().toISOString(), checkedSpecs: changedSpecs }, null, 2));
+    mergeHandoff(payload, engineering.memory, {
+      clean: terminalState === 'completed',
+      terminalState,
+      sweptAt: new Date().toISOString(),
+      checkedSpecs: [...new Set(changedSpecs)],
+    });
   } catch {}
 }
