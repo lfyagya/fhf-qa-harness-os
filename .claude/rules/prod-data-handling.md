@@ -37,8 +37,9 @@ numbers, invoice numbers, dealer names, balances. The existing "no PII" line in 
 
 The same guard blocks Cloud CLI `replay info`, `replay timeline`, and `test get --screenshot` in
 smoke/root sessions. Replay downloads a local database containing DOM, network, and console data;
-the screenshot contains the production frame. E2E remains full-read. `--help` and `--schema` are
-safe because they do not fetch Cloud data.
+the screenshot contains the production frame. E2E remains full-read: prefix
+`FHF_LANE=e2e` on the CLI command from the consumer root, or run from the E2E package cwd.
+`--help` and `--schema` are safe because they do not fetch Cloud data.
 
 ## Live prod browsing — same rule, and mask BEFORE you screenshot
 

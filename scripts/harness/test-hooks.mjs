@@ -171,6 +171,31 @@ expect("protect-prod-data blocks Cloud CLI Test Replay in production contexts",
   run("protect-prod-data.mjs", { tool_name: "Bash", tool_input: { command: "cy-cloud replay timeline --testId abc --commands --network --logs" } }), 2);
 expect("protect-prod-data blocks Cloud CLI failure screenshot downloads",
   run("protect-prod-data.mjs", { tool_name: "Bash", tool_input: { command: "npx @cypress/cloud test get --testId abc --screenshot ./screenshots" } }), 2);
+
+expect("protect-prod-data allows E2E Test Replay when FHF_LANE=e2e is prefixed",
+  run("protect-prod-data.mjs", {
+    tool_name: "Bash",
+    tool_input: { command: "FHF_LANE=e2e cy-cloud replay timeline --testId abc --commands --network --logs" },
+  }), 0);
+expect("protect-prod-data allows E2E Test Replay from E2E package cwd",
+  run("protect-prod-data.mjs", {
+    tool_name: "Bash",
+    cwd: "C:/work/AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards",
+    tool_input: {
+      working_directory: "C:/work/AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards",
+      command: "cy-cloud replay timeline --testId abc --commands --network --logs",
+    },
+  }), 0);
+expect("protect-prod-data still blocks Test Replay under smoke package cwd",
+  run("protect-prod-data.mjs", {
+    tool_name: "Bash",
+    cwd: "C:/work/ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards",
+    tool_input: {
+      working_directory: "C:/work/ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards",
+      command: "cy-cloud replay timeline --testId abc --commands --network --logs",
+    },
+  }), 2);
+
 expect("protect-prod-data allows Cloud CLI metadata",
   run("protect-prod-data.mjs", { tool_name: "Bash", tool_input: { command: "cy-cloud test list --projectId abc --runNumber 1 --status failed" } }), 0);
 expect("protect-prod-data allows no-network Cloud CLI schemas",

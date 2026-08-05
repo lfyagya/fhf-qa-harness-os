@@ -96,7 +96,26 @@
             "\\b(?:cy-cloud|npx\\s+(?:--yes\\s+)?@cypress/cloud)\\s+replay\\s+(?:info|timeline)\\b",
             "\\b(?:cy-cloud|npx\\s+(?:--yes\\s+)?@cypress/cloud)\\s+test\\s+get\\b[^\\r\\n;&|]*--screenshot(?:\\s|=|$)"
           ]
-        }
+        },
+        "e2eReplayRecipe": "FHF_LANE=e2e cy-cloud replay timeline --testId <id> --aroundFailure 5 --commands --network --logs"
+      },
+      "preflightScript": "scripts/execution/cloud-access-doctor.mjs",
+      "projects": {
+        "e2e": "nptdoe",
+        "smoke": "r5k1ro"
+      },
+      "smartOrchestration": {
+        "rerunOptimization": {
+          "docs": "https://docs.cypress.io/cloud/features/smart-orchestration/rerun-optimization",
+          "cloudSetting": "Run only failed specs",
+          "ownerAction": "Enable in Cypress Cloud Smart Orchestration for projects nptdoe and r5k1ro",
+          "ciEnv": {
+            "groupId": "CYPRESS_RERUN_GROUP_ID",
+            "forceAll": "CYPRESS_RERUN_ALL_TESTS"
+          }
+        },
+        "specPrioritization": true,
+        "autoCancellation": "optional-plan-dependent"
       }
     },
     "testRail": {
@@ -399,7 +418,7 @@
           "id": "cloud-failure",
           "priority": 100,
           "match": "cloud\\.cypress\\.io|cypress cloud.*(fail|run)",
-          "hint": "Cypress Cloud run → spawn cypress-debugger; it follows connectors.cypressCloud.queryOrder and laneAccess."
+          "hint": "Cypress Cloud run → spawn cypress-debugger at the standard tier; pull E2E `cy-cloud replay timeline --aroundFailure 5 --commands --network --logs` before fixing. Frontier escalation requires verified evidence that the standard diagnosis is insufficient. Follow connectors.cypressCloud.queryOrder and laneAccess."
         },
         {
           "id": "test-failure",
@@ -508,6 +527,12 @@
           "priority": 65,
           "match": "\\b(application contract|product behavior|module context|route.*permission|api.*database)\\b",
           "hint": "Product behavior → read docs/modules/README.md, then only the target application-intelligence module contract."
+        },
+        {
+          "id": "triage-night-brief",
+          "priority": 90,
+          "match": "\\b(night brief|triage runbook|failed.?spec.?only|re-?run optimization|studio ai)\\b",
+          "hint": "Cloud triage / re-run / Studio policy → read docs/framework/triage-runbook.md and docs/framework/execution-strategy.md; for failures spawn cypress-debugger (E2E replay timeline mandatory). Studio AI: .claude/rules/studio-ai-policy.md."
         }
       ]
     },
@@ -734,7 +759,10 @@
       "chain": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
       "planning": "docs/planning/roadmap/effort-breakdown-by-module-and-subdashboard.md",
       "selectors": "docs/planning/data-cy-hook-backlog.md",
-      "smoke-execution": "docs/framework/testing-standards/smoke-execution-strategy.md"
+      "smoke-execution": "docs/framework/testing-standards/smoke-execution-strategy.md",
+      "product": "Test-Case-Automation-Using-Claude-Agents/specs",
+      "execution": "docs/framework/execution-strategy.md",
+      "triage": "docs/framework/triage-runbook.md"
     }
   }
 }

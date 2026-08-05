@@ -18,6 +18,11 @@
 // Shell state does not persist between agent Bash calls, so the agent cannot set this for
 // itself — only the human launching the session can. That is the point.
 //
+// Lane-aware Cloud CLI (2026-08-05): connectors.cypressCloud.cli.laneAccess grants E2E
+// full-read. When FHF_LANE=e2e (or the tool cwd is the E2E package), allow
+// `cy-cloud replay info|timeline` and `test get --screenshot`. Smoke and root stay
+// metadata-only unless FHF_ALLOW_PROD_DATA=1.
+//
 // This guards INGEST (agent reading). It does NOT fix EGRESS — screenshots are still
 // base64-inlined into HTML reports (cypress.config.js embeddedScreenshots/inlineAssets),
 // still uploaded as CodeBuild artifacts and emailed (buildspec.yml), and Test Replay still
@@ -40,7 +45,9 @@ process.on('exit', code => code === 0 && emitAllow(payload));
 
 if (process.env.FHF_ALLOW_PROD_DATA === '1') process.exit(0);
 
-const cloudGuard = loadHarnessConfig().connectors?.cypressCloud?.cli?.guard ?? {};
+const harness = loadHarnessConfig();
+const cloudGuard = harness.connectors?.cypressCloud?.cli?.guard ?? {};
+const laneAccess = harness.connectors?.cypressCloud?.cli?.laneAccess ?? {};
 const CLOUD_SAFE_FLAGS = cloudGuard.safeNoNetworkFlags ?? [];
 const CLOUD_SENSITIVE = (cloudGuard.productionSensitivePatterns ?? [])
   .map((source) => new RegExp(source, 'i'));
@@ -58,9 +65,49 @@ function deny(what, detail) {
   console.error('never to read, transcribe, or summarise customer records.');
   console.error('If you need it, ask the owner; they re-launch with FHF_ALLOW_PROD_DATA=1.');
   console.error('The agent must not set this itself.');
+  console.error('For E2E Test Replay only: set FHF_LANE=e2e on the shell command, or run from');
+  console.error('the E2E package cwd (AG Frontend Automation/.../fhf-dashboards).');
   console.error('Safe alternatives: reports/junit/*.xml, the Cypress Cloud MCP or CLI');
   console.error('run/spec/test metadata lists, or the terminal run log.');
   process.exit(2);
+}
+
+function e2ePackageMarkers(config) {
+  const e2e = config?.paths?.lanes?.e2e;
+  const markers = ['AG Frontend Automation'];
+  if (e2e?.root) markers.push(String(e2e.root).replace(/\\/g, '/'));
+  if (e2e?.package) markers.push(String(e2e.package).replace(/\\/g, '/'));
+  return markers.filter(Boolean);
+}
+
+function smokePackageMarkers(config) {
+  const smoke = config?.paths?.lanes?.smoke;
+  const markers = ['ProdSmokeExecution'];
+  if (smoke?.root) markers.push(String(smoke.root).replace(/\\/g, '/'));
+  return markers.filter(Boolean);
+}
+
+/** E2E full-read context: explicit lane env, or cwd under the E2E package and not smoke. */
+export function isE2eFullReadContext(payloadObj = {}, command = '', env = process.env, config = harness) {
+  // Inline env on the command itself (agents cannot persist shell env across Bash calls).
+  if (/\bFHF_LANE\s*=\s*e2e\b/i.test(command)) return true;
+  if (String(env.FHF_LANE || '').toLowerCase() === 'e2e') return true;
+  if (String(laneAccess.e2e || '') !== 'full-read') return false;
+
+  const cwd = String(
+    payloadObj?.cwd
+    || payloadObj?.tool_input?.working_directory
+    || env.CURSOR_PROJECT_DIR
+    || env.CLAUDE_PROJECT_DIR
+    || process.cwd()
+    || '',
+  ).replace(/\\/g, '/');
+  const haystack = `${cwd}\n${command}`.replace(/\\/g, '/');
+
+  const inSmoke = smokePackageMarkers(config).some((m) => haystack.includes(m.replace(/\\/g, '/')));
+  if (inSmoke) return false;
+
+  return e2ePackageMarkers(config).some((m) => haystack.includes(m.replace(/\\/g, '/')));
 }
 
 const toolName = payload?.tool_name ?? payload?.name ?? '';
@@ -71,25 +118,49 @@ if (filePath && PROD_ARTIFACT.test(filePath) && !SAFE.test(filePath)) {
   deny(filePath);
 }
 
-// ── Bash — close the `cat`/`base64` bypass ──
-// Listing and counting stay allowed (ls, find, wc, stat, du): knowing a file exists is not
-// reading its contents. Only content extraction is blocked.
-if (/^bash$/i.test(toolName) || payload?.tool_input?.command) {
+// ── Shell — protected artifact references default-deny ──
+// Only single, metadata-only commands may name a production artifact. Content readers,
+// interpreters, redirects, substitutions, pipes, and chained commands are denied.
+if (/^(?:bash|shell)$/i.test(toolName) || payload?.tool_input?.command) {
   const cmd = String(hookInput(payload).command ?? '');
-  const EXTRACT = /\b(cat|bat|less|more|head|tail|strings|xxd|od|base64|open|start|cp|copy|mv|curl|scp|type)\b/i;
   const normalised = cmd.replace(/\\/g, '/');
   const lowerCmd = cmd.toLowerCase();
   const isNoNetworkInspection = !/[;&|]/.test(cmd) && CLOUD_SAFE_FLAGS
     .some((flag) => lowerCmd.includes(String(flag).toLowerCase()));
-  if (!isNoNetworkInspection && CLOUD_SENSITIVE.some((pattern) => pattern.test(cmd))) {
+  const e2eFullRead = isE2eFullReadContext(payload, cmd);
+  if (
+    !isNoNetworkInspection
+    && !e2eFullRead
+    && CLOUD_SENSITIVE.some((pattern) => pattern.test(cmd))
+  ) {
     deny(
       'that Cypress Cloud CLI command',
       'Test Replay and downloaded failure screenshots can contain live production customer data.',
     );
   }
-  if (EXTRACT.test(cmd) && PROD_ARTIFACT.test(normalised) && !SAFE.test(normalised)) {
+  if (
+    PROD_ARTIFACT.test(normalised) &&
+    !isMetadataOnlyCommand(cmd)
+  ) {
     deny('that command', `Command: ${cmd.slice(0, 200)}`);
   }
 }
 
 process.exit(0);
+
+function isMetadataOnlyCommand(command) {
+  const value = command.trim();
+  if (!value || /[\r\n;&|><`$]/.test(value)) return false;
+  const executable = value.match(/^([a-z-]+)/i)?.[1]?.toLowerCase();
+  return new Set([
+    'dir',
+    'du',
+    'get-childitem',
+    'get-item',
+    'gci',
+    'gi',
+    'ls',
+    'stat',
+    'test-path',
+  ]).has(executable);
+}

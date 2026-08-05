@@ -18,15 +18,18 @@ that follows the command-first architecture. `cypress-gate` reviews your output;
 your own work.
 
 Full framework standards: `docs/framework/testing-standards/TESTS.md`. Read it before generating anything.
+Read `.claude/harness.config.json` and apply `qualityAssurance`; missing or invalid policy is a
+blocker, not a reason to invent defaults.
 
 ## Step 0 — Determine the lane
 
 | Signal | Lane | Environment | Mutations |
 |---|---|---|---|
 | "smoke", "availability", "production", or no interaction depth implied | Smoke | Production | Never — GET-only |
-| "filter", "sort", "tab", "expand", "inline edit", "E2E", or explicit workflow depth | E2E | Dev/QA | Read interactions only, no record creation |
+| "filter", "sort", "tab", "expand", "E2E", or explicit workflow depth | E2E | Dev/QA | Read interactions or controlled synthetic mutations with verified cleanup |
 
-If genuinely ambiguous, default to Smoke (the safer lane) and say so — don't ask.
+If the lane is genuinely ambiguous, preserve it as unknown and obtain the missing decision; do not
+silently turn an unspecified workflow into Smoke or E2E coverage.
 
 ## Step 1 — Understand the ask
 
@@ -42,6 +45,9 @@ edge — one scenario per distinct behavior, `then` describing an observable UI 
   priority: 'critical'|'high'|'medium'|'low', testType: 'smoke'|'e2e',
   riskCategory: 'money-flow|data-integrity|daily-workflow|integration-api|state-transition|compliance-regulatory|cosmetic-low-risk',
   impact: '[one line: what breaks, and for whom, if this silently fails]',
+  productSpec: '[exact path from moduleSpecPaths]', productSpecStatus: 'draft'|'approved'|'...',
+  applicationEvidence: ['[exact implementation source path]'],
+  assertions: ['[observable required outcome]', '[prohibited outcome when applicable]'],
 }
 ```
 
@@ -96,11 +102,13 @@ style nit — point to the existing shared source (`_shared/base-paths.js`, `ord
 flag that one is needed. Never approve a new `*.actions.js` file or page-object wrapper under
 any verdict — command-first only.
 
-## Step 3 — Gather evidence (source-first, browser only for real gaps)
+## Step 3 — Gather evidence (contract first, implementation next, browser only for real gaps)
 
-The frontend codebase — **fhf-dashboards**, read-only — is the source of truth. Grep it before
-navigating anything; it's cheaper and more accurate. Full evidence map, selector stability
-ranking, and portal/Yup-schema traps: `.claude/rules/source-map.md`.
+Resolve the exact team product contract from `.claude/harness.config.json` `moduleSpecPaths`, then
+read its declared component/common-data dependencies. Its status and unknowns qualify every
+coverage claim. The read-only **fhf-dashboards** source verifies current implementation; it does
+not replace product intent. Full evidence map, selector stability ranking, and portal/Yup-schema
+traps: `.claude/rules/source-map.md`.
 
 1. **Source pass.** Selectors (`data-cy` in both `src/components/{domain}/` and
    `src/modules/{domain}/`), routes (`src/constants/routes.js`), endpoints
@@ -108,6 +116,8 @@ ranking, and portal/Yup-schema traps: `.claude/rules/source-map.md`.
    cases), permissions (`src/config/oktaAccessGroups.ts` + `useHasAccess` call sites).
 2. **Gap list.** What source can't prove: conditional renders on live data, timing, whether a
    selector is genuinely missing at runtime.
+Studio AI / `cy.prompt` limits: `.claude/rules/studio-ai-policy.md` — E2E scratch discovery only; never smoke/prod; never commit `cy.prompt(`; translate into Config→Commands→Tests.
+
 3. **`cy.prompt()` discovery pass — only if the gap list is non-empty and the dashboard is
    genuinely unfamiliar.** Write a temporary `cypress/tests/scratch/[dashboard]-prompt-draft.cy.js`,
    run it (`npm run cy:open`), capture every `data-cy` found and every CSS/XPath fallback (flag
@@ -167,7 +177,6 @@ describe('[Dashboard] — [Feature]', { testIsolation: true }, function () {
 
   beforeEach(() => {
     cy.ensureAuthenticated();
-    cy.visit('/');
     cy.intercept[Dashboard]Apis();   // ALWAYS before navigateTo — never after; registers aliases fresh each test
     cy.navigateTo[Dashboard]();
   });
@@ -184,10 +193,10 @@ describe('[Dashboard] — [Feature]', { testIsolation: true }, function () {
 `apply[Dashboard]Filter(options)`, `clear[Dashboard]Filters`, `expand[Dashboard]Row(index)`,
 `switchTo[Dashboard]Tab(name)`.
 
-**Schema contract block** (place in `beforeEach` or the first relevant `it()`, once per new
-alias):
+**Schema contract block** (place in `beforeEach` or the first relevant `it()`, once per new API
+config entry):
 ```javascript
-cy.apiWait('@alias').then(({ response }) => {
+cy.apiWait(DASHBOARD_API.LIST).then(({ response }) => {
   expect(response.status).to.equal(200);
   expect(response.body).to.have.property('<pagination_field>');
   expect(response.body).to.have.property('data').and.be.an('array');
@@ -199,20 +208,20 @@ Use `include.all.keys` (subset check), never `deep.equal` — the API may add fi
 being a failure. Never invent field names; if no sample response is available, leave a
 `// TODO: add field names from live response` comment and flag it.
 
-**State-contract block** (before/after pair — required for every filter/sort/search/clear test;
-proves the interaction had the correct *direction* of effect, not specific values):
+**Interaction-contract block** (required for every filter/sort/search/clear test; prove the
+request, returned records, and rendered records correspond — a smaller count alone proves no
+filter rule):
 ```javascript
-cy.apiWait('@alias').then(({ response: before }) => {
-  const baselineCount = before.body.<pagination_field>;
-  // --- perform the interaction here ---
-  cy.apiWait('@alias').then(({ response: after }) => {
-    expect(after.body.<pagination_field>).<relationship>(baselineCount); // lessThan / equal / at.least(0)
-    cy.get(<ROW_SELECTOR>).should('have.length', after.body.data.length);
-  });
+cy.apply[Dashboard]Filter(knownFilter);
+cy.apiWait(DASHBOARD_API.LIST).then(({ request, response }) => {
+  expect(request.query.<filter_field>).to.equal(knownFilter);
+  expect(response.body.data.every(item => <source-verified predicate>)).to.equal(true);
+  cy.get(<ROW_SELECTOR>).should('have.length', response.body.data.length);
+  // Assert the rendered identity/value for each returned record when pagination/virtualization permits.
 });
 ```
-Relationship by interaction: apply filter → `lessThan`; clear filter → `equal`; search no-match →
-`equal(0)`; sort → `equal` (order changed, count didn't); date range → `lessThanOrEqual`.
+For sort, prove monotonic order of known returned values. For clear, prove the filter parameter is
+absent/reset and the rendered rows map to that response. Never assume a filter must reduce count.
 
 ## Non-negotiable constraints
 
@@ -233,9 +242,10 @@ ALWAYS Object.freeze()                On every exported config object
 ALWAYS ≥1 .should() per it()          No assertion-free test blocks
 ```
 
-Smoke tests are read-only structural checks on stable data — deterministic, no live-value
-assertions. E2E tests may read dynamic data from the live table (never hardcode test values) and
-use a graceful skip (`cy.step('⚠️ No valid X found. Skipping.')`) when live data is absent.
+Smoke tests are GET-only and may compare a live read response to its rendered DOM without retaining
+customer payloads. E2E persistent workflows require a synthetic owned identity, known baseline,
+exact request/result, prohibited outcome, and verified cleanup. Missing required state fails with
+diagnostics or is excluded before execution with an owned reason; it never logs "Skipping" and passes.
 
 ## Bug-fix regression block
 
@@ -251,6 +261,7 @@ the debugger first.
 
 ## Before handing off to cypress-gate
 
+- [ ] `node .harness/verify.mjs change` passes from the selected repository root
 - [ ] `testIsolation: true` present
 - [ ] `cy.ensureAuthenticated()` in `before()` and `beforeEach()`
 - [ ] No `cy.wait(number)` anywhere
