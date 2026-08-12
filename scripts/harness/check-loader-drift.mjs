@@ -16,16 +16,27 @@ import {
   geminiInstructions,
   parentCopilotInstructions,
   parentGeminiInstructions,
+  consumerVerifierReadme,
+  CONSUMER_VERIFIER_TEXT,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const HARNESS_ROOT = path.resolve(__dirname, "..", "..");
-const FHF_ROOT = path.resolve(HARNESS_ROOT, "..", "FHF");
+const FHF_ROOT = process.env.FHF_SYNC_TARGET_ROOT
+  ? path.resolve(process.env.FHF_SYNC_TARGET_ROOT)
+  : path.resolve(HARNESS_ROOT, "..", "FHF");
+const SKIP_E2E = process.argv.includes("--skip-e2e");
+const ONLY_E2E = process.argv.includes("--only-e2e");
+const ONLY_BACKEND = process.argv.includes("--only-backend");
+const ONLY_ROOT = process.argv.includes("--only-root");
 
 const SUB_REPOS = {
   e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation"),
   smoke: path.join(FHF_ROOT, "ProdSmokeExecution", "front-end-automation"),
+  backend: process.env.FHF_SYNC_BACKEND_TARGET
+    ? path.resolve(process.env.FHF_SYNC_BACKEND_TARGET)
+    : path.join(FHF_ROOT, "fhf-backend-automation"),
 };
 
 const CLAUDE_SUBFOLDERS = ["hooks", "agents", "rules", "skills"];
@@ -40,20 +51,6 @@ function requireFile(filePath) {
 
 function normalize(text) {
   return text.replace(/\r\n/g, "\n");
-}
-
-function checkAllowedEntries(dirPath, allowed) {
-  if (!fs.existsSync(dirPath)) {
-    issues.push(`Missing required directory: ${dirPath}`);
-    return;
-  }
-
-  const entries = fs.readdirSync(dirPath, { withFileTypes: true }).map((d) => d.name);
-  for (const entry of entries) {
-    if (!allowed.includes(entry)) {
-      issues.push(`Unexpected entry in ${dirPath}: ${entry}`);
-    }
-  }
 }
 
 function checkExactText(actualPath, expectedText) {
@@ -101,6 +98,13 @@ function dirsMatch(srcDir, destDir, prefix) {
   }
 }
 
+function checkConsumerVerifier(repoPath) {
+  requireFile(path.join(repoPath, ".harness", "verify.mjs"));
+  requireFile(path.join(repoPath, ".harness", "README.md"));
+  checkExactText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme());
+}
+
 function checkHarnessRoot() {
   checkExactText(
     path.join(HARNESS_ROOT, ".claude", "settings.json"),
@@ -130,9 +134,12 @@ function checkFhfRoot() {
   checkExactText(cursorHooksPath, `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
   checkExactText(copilotPath, parentCopilotInstructions());
   checkExactText(geminiPath, parentGeminiInstructions());
+  checkConsumerVerifier(FHF_ROOT);
 }
 
 // Lane repos (E2E/Smoke): vendored .claude tree + portable shims + doc overlays.
+// Only named generated files are owned. Sibling .cursor/* and .github/* files are
+// consumer content and must not be treated as drift. architecture/ is never generated.
 function checkSubRepo(repoPath, lane) {
   const docsDir = path.join(repoPath, "docs");
   const claudeDir = path.join(repoPath, ".claude");
@@ -142,19 +149,20 @@ function checkSubRepo(repoPath, lane) {
   const architecturePath = path.join(repoPath, "ARCHITECTURE.md");
   const contributingPath = path.join(repoPath, "CONTRIBUTING.md");
   const geminiPath = path.join(repoPath, "GEMINI.md");
+  const skipOwnerDocs = lane === "backend";
 
   requireFile(path.join(docsDir, "README.md"));
   requireFile(path.join(claudeDir, "settings.json"));
   requireFile(path.join(claudeDir, "harness.config.json"));
   requireFile(path.join(cursorDir, "hooks.json"));
   requireFile(path.join(githubDir, "copilot-instructions.md"));
-  requireFile(readmePath);
-  requireFile(architecturePath);
-  requireFile(contributingPath);
   requireFile(geminiPath);
+  if (!skipOwnerDocs) {
+    requireFile(readmePath);
+    requireFile(architecturePath);
+    requireFile(contributingPath);
+  }
 
-  // Lane settings are the harness settings with hook paths rewritten to $CLAUDE_PROJECT_DIR,
-  // because these repos get cloned by engineers with no fhf-harness-os checkout.
   const settingsPath = path.join(claudeDir, "settings.json");
   checkExactText(settingsPath, portableSettings(lane));
   checkExactText(path.join(claudeDir, "harness.config.json"), HARNESS_CONFIG_TEXT);
@@ -165,33 +173,22 @@ function checkSubRepo(repoPath, lane) {
     }
   }
 
-  // The vendored tree is what makes a fresh clone work — verify it matches canonical exactly.
   for (const sub of CLAUDE_SUBFOLDERS) {
     dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
   }
 
-  // The harness owns docs/README.md only; product/planning docs beside it are consumer content.
-  checkAllowedEntries(cursorDir, ["hooks.json"]);
-  checkAllowedEntries(githubDir, ["copilot-instructions.md", "workflows"]);
   checkExactText(path.join(docsDir, "README.md"), docsReadme(lane));
-  checkExactText(readmePath, rootReadme(lane));
-  checkExactText(architecturePath, architectureOverlay(lane));
-  checkExactText(contributingPath, contributingOverlay(lane));
+  if (!skipOwnerDocs) {
+    checkExactText(readmePath, rootReadme(lane));
+    checkExactText(architecturePath, architectureOverlay(lane));
+    checkExactText(contributingPath, contributingOverlay(lane));
+  }
   checkExactText(path.join(githubDir, "copilot-instructions.md"), copilotInstructions(lane));
   checkExactText(geminiPath, geminiInstructions(lane));
   checkExactText(path.join(cursorDir, "hooks.json"), `${JSON.stringify(cursorHooks(VENDORED_HOOKS, lane), null, 2)}\n`);
-
-  const architectureDir = path.join(repoPath, "architecture");
-  if (lane === "e2e" && fs.existsSync(architectureDir)) {
-    checkAllowedEntries(architectureDir, ["README.md"]);
-  }
+  checkConsumerVerifier(repoPath);
 }
 
-// AGENTS.md is hand-maintained prose (by design — see harness-engineering.md §9), but its agent
-// table is a *factual claim* about what's in .claude/agents/. Nothing else checks that claim
-// against reality — this is exactly the blind spot that let it list the retired 13-agent roster
-// silently until a human caught it by hand (2026-07-20). One-directional pointers from templates
-// TO AGENTS.md don't substitute for a check OF it.
 function checkAgentsRoster() {
   const agentsDir = path.join(HARNESS_ROOT, ".claude", "agents");
   const agentsMdPath = path.join(FHF_ROOT, "AGENTS.md");
@@ -202,9 +199,6 @@ function checkAgentsRoster() {
     .filter((f) => f.endsWith(".md"))
     .map((f) => f.replace(/\.md$/, ""));
 
-  // Scope to table rows only (lines starting with "|") — prose explicitly documenting a
-  // retired name (e.g. "cypress-bug-hunter no longer exists") is correct content, not a claim
-  // that it's active, and must not be flagged as one.
   const text = fs.readFileSync(agentsMdPath, "utf8");
   const tableRows = text.split("\n").filter((line) => line.trim().startsWith("|"));
   const mentioned = new Set(
@@ -224,14 +218,27 @@ function checkAgentsRoster() {
 }
 
 function checkHandMaintainedPointers() {
-  const files = [
+  if (ONLY_ROOT) return;
+  const required = [
     path.join(SUB_REPOS.e2e, "AGENTS.md"),
     path.join(SUB_REPOS.smoke, "AGENTS.md"),
+  ];
+  const optional = [
     path.join(SUB_REPOS.e2e, "architecture", "README.md"),
   ];
   const stale = /FHF[\\/]docs[\\/]architecture[\\/](?:CENTRALIZED-HARNESS|HARNESS)\.md/i;
-  for (const file of files) {
+  for (const file of required) {
+    if (ONLY_E2E && !file.startsWith(SUB_REPOS.e2e)) continue;
+    if (ONLY_BACKEND && !file.startsWith(SUB_REPOS.backend)) continue;
+    if (SKIP_E2E && file.startsWith(SUB_REPOS.e2e)) continue;
     requireFile(file);
+    if (!fs.existsSync(file)) continue;
+    const text = fs.readFileSync(file, "utf8");
+    if (stale.test(text)) {
+      issues.push(`Stale harness pointer in ${file}: references removed FHF/docs/architecture content`);
+    }
+  }
+  for (const file of optional) {
     if (!fs.existsSync(file)) continue;
     const text = fs.readFileSync(file, "utf8");
     if (stale.test(text)) {
@@ -240,11 +247,26 @@ function checkHandMaintainedPointers() {
   }
 }
 
-checkHarnessRoot();
-checkFhfRoot();
-checkSubRepo(SUB_REPOS.e2e, "e2e");
-checkSubRepo(SUB_REPOS.smoke, "smoke");
-checkAgentsRoster();
+if (
+  (SKIP_E2E && (ONLY_E2E || ONLY_ROOT)) ||
+  [ONLY_E2E, ONLY_BACKEND, ONLY_ROOT].filter(Boolean).length > 1
+) {
+  throw new Error("Use only one scoped drift-check mode.");
+}
+if (ONLY_ROOT) {
+  checkFhfRoot();
+  checkAgentsRoster();
+} else if (ONLY_BACKEND) {
+  checkSubRepo(SUB_REPOS.backend, "backend");
+} else if (ONLY_E2E) {
+  checkSubRepo(SUB_REPOS.e2e, "e2e");
+} else {
+  checkHarnessRoot();
+  checkFhfRoot();
+  if (!SKIP_E2E) checkSubRepo(SUB_REPOS.e2e, "e2e");
+  checkSubRepo(SUB_REPOS.smoke, "smoke");
+  checkAgentsRoster();
+}
 checkHandMaintainedPointers();
 
 if (issues.length) {
@@ -255,4 +277,14 @@ if (issues.length) {
   process.exit(1);
 }
 
-console.log("Harness loader shims are clean and centralized.");
+console.log(
+  ONLY_BACKEND
+    ? "Backend harness loader shims are clean and centralized."
+    : ONLY_E2E
+    ? "E2E harness loader shims are clean and centralized."
+    : ONLY_ROOT
+    ? "FHF-root harness loader shims are clean and centralized."
+    : SKIP_E2E
+      ? "Harness loader shims are clean and centralized (E2E skipped)."
+      : "Harness loader shims are clean and centralized.",
+);

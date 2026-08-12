@@ -176,7 +176,7 @@ Grounding check before finalizing: every selector is a config constant (not inli
 matches the API config exactly, no `cy.wait(number)`, `cy.ensureAuthenticated()` present in the
 parent `describe`'s `beforeEach()`. `BUG-NNN` must match the real ticket ID.
 
-Before handoff, run `node .harness/verify.mjs change` from the selected repository root. A failure
+Before handoff, run `node .harness/verify.mjs` from the selected repository root. A failure
 is part of the diagnosis; do not claim the fix is ready.
 
 ## Output Format

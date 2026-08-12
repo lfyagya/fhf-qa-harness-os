@@ -106,6 +106,12 @@ regression test matches the category:
 
 ## Phase 6 — Environment and Command Hygiene
 
+**Cypress version awareness:** This project uses Cypress ^15.11.0. Commands introduced in Cypress
+15.10+ are built-in and do NOT need to be registered:
+- `cy.env(keys)` — reads specific env vars safely; the secure replacement for `Cypress.env()`.
+  `allowCypressEnv: false` in cypress.config.js is the intentional enforcement flag that blocks
+  the old `Cypress.env()` API. Never flag `cy.env()` as an unregistered command.
+
 - [ ] No duplicate `Cypress.Commands.add` registrations for the same name
 - [ ] New command registered in `cypress/support/commands.js`
 - [ ] New `cypress.env.*` keys present across all environment files
@@ -194,16 +200,11 @@ Report: `⚠ Gate halted after <N> cycle(s) — <identical fix reapplied | confi
 exhausted>. Human review required. Do not open a PR.` Never exceed `repairLimit` or attempt a
 different strategy without the user's explicit go-ahead.
 
-## Neutral gate artifact
+## Consumer projection check
 
-After the focused Phase 9 run, record its native JUnit result with
-`node .harness/verify.mjs evidence --lane <e2e|smoke> --artifact <junit.xml>`. The verifier derives
-pass/fail counts and binds them to HEAD and the current change digest; never hand-author execution
-evidence. Then run `node .harness/verify.mjs digest` and write `cypress/handoff/gate-latest.json`
-with `schema`, `verdict`, that exact `changeDigest`, `cypress/handoff/execution-latest.json` as
-`executionEvidence`, and `evaluatedAt`. Finally run
-`node .harness/verify.mjs gate`. Only `PASS` can satisfy the neutral pre-merge gate;
-`PASS_WITH_ACTIONS` and `BLOCK` remain honest review outcomes but cannot authorize a PR.
+From the selected repository root, run `node .harness/verify.mjs`. That confirms the vendored
+harness projection is present and portable. Canonical drift, hook, docs, and adapter checks run
+only in `fhf-harness-os` (`engineering.harness.verify.canonical`).
 
 ## Output Format
 

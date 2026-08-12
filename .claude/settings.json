@@ -1,9 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "effortLevel": "high",
-  "env": {
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "70000"
-  },
+  "env": {},
   "hooks": {
     "SessionStart": [
       {
@@ -58,6 +56,15 @@
           {
             "type": "command",
             "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"context-read-guard.mjs\""
           }
         ]
       },

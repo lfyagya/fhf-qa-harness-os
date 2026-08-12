@@ -93,6 +93,10 @@ writeFileSync(goodSpec, [
   "  it('y', () => { cy.apiWait('@a'); });",
   "});",
 ].join("\n"));
+const smallRead = path.join(tmp, "small-read.js");
+writeFileSync(smallRead, "export const ok = true;\n");
+const largeRead = path.join(tmp, "large-read.js");
+writeFileSync(largeRead, "export const value = true;\n".repeat(200));
 
 const directInterceptSpec = path.join(specDir, "direct-intercept.cy.js");
 writeFileSync(directInterceptSpec, [
@@ -112,6 +116,18 @@ writeFileSync(literalRouteSpec, [
 ].join("\n"));
 
 // PreToolUse - blockers (exit 2)
+expect("context read guard blocks unbounded large reads",
+  run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: largeRead } }), 2);
+expect("context read guard allows bounded reads",
+  run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: largeRead, limit: 120 } }), 0);
+expect("context read guard allows small reads",
+  run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: smallRead } }), 0);
+expect("context read guard emits runtime-neutral JSON",
+  run("context-read-guard.mjs", {
+    hook_event_name: "preToolUse",
+    tool_name: "Read",
+    input: { path: largeRead, limit: 120 },
+  }), cursorAllows);
 expect("protect-app-source blocks fhf-dashboards/src write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/Users/Leapfrog/FHF/fhf-dashboards/src/App.tsx" } }), 2);
 expect("protect-app-source allows CypressFHF package write",

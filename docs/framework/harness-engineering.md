@@ -36,7 +36,8 @@ runtime adapters never require a sibling checkout.
 - `documentation.owners` identifies the one document owner for each concern.
 - `moduleSpecPaths` identifies product-contract context per module.
 - Root instructions stay thin; detailed context is loaded on demand.
-- Claude compaction uses the documented `CLAUDE_CODE_AUTO_COMPACT_WINDOW` environment projection.
+- Claude uses its adaptive auto-compact window unless `autoCompact.windowTokens` explicitly overrides it.
+- Read output is bounded before it enters context; large files must be read in configured line chunks.
 - Cursor receives the same routing contract at session start because its prompt hook cannot inject
   arbitrary context per prompt.
 
@@ -125,10 +126,16 @@ reports route to `cypress-shipper`.
 1. Change `config/qa-control-plane.json` for policy, topology, budgets, routing, memory, or limits.
 2. Change hook/script code only for executable behavior.
 3. Run `scripts/harness/sync-loader-shims.mjs`.
-4. Run every command in `engineering.harness.verify`.
+4. Run every command in `engineering.harness.verify.canonical` from this repo.
 5. Do not commit generated or agent-authored work without owner review.
 
+`engineering.harness.verify` is split on purpose:
+
+- `canonical` — `scripts/harness/*` checks that exist only in `fhf-harness-os`.
+- `consumer` — `node .harness/verify.mjs`, vendored into every clone.
+
 `check-docs-links.mjs` validates the four engineering pillars, routes, roster, hook paths, limits,
-documentation owners, and Obsidian boundary. `check-loader-drift.mjs` verifies every generated
-projection. `test-hooks.mjs` verifies runtime behavior. `test-adapter-contract.mjs` checks official
+documentation owners, and Obsidian boundary. `check-loader-drift.mjs` verifies named generated
+files only; it does not treat owner `.cursor/*`, owner `.github/*`, or `architecture/README.md`
+as generated. `test-hooks.mjs` verifies runtime behavior. `test-adapter-contract.mjs` checks official
 compaction projection, hook deduplication, capability fallbacks, sandbox boundaries, and loop wiring.

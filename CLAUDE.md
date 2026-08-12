@@ -33,7 +33,9 @@ docs/
 
 ## Consumer contract
 
-The FHF root's `.claude/{hooks,agents,rules,skills}/`, `.claude/settings.json`, `.cursor/hooks.json`, `.github/copilot-instructions.md`, and `GEMINI.md` are generated. Lane repos receive settings plus Cursor, Copilot, Gemini, and documentation overlays. Regenerate with `node scripts/harness/sync-loader-shims.mjs` after any change here, then verify with `node scripts/harness/check-loader-drift.mjs`. Consumers hardcode absolute paths back to this repo (`C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/*.mjs`) in their hook commands — this is a single-machine design, not a portable package; that tradeoff already existed before this repo split out and is unchanged by it.
+The FHF root's `.claude/{hooks,agents,rules,skills}/`, `.claude/settings.json`, `.cursor/hooks.json`, `.github/copilot-instructions.md`, `GEMINI.md`, and `.harness/verify.mjs` are generated. Lane repos also receive documentation overlays (`README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/README.md`). Sibling `.cursor/*` and `.github/*` files, plus optional `architecture/`, are consumer-owned and are not drift.
+
+Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path.
 
 ## Governance
 

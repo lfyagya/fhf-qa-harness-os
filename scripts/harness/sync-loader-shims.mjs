@@ -18,6 +18,8 @@ import {
   geminiInstructions,
   parentCopilotInstructions,
   parentGeminiInstructions,
+  consumerVerifierReadme,
+  CONSUMER_VERIFIER_TEXT,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +32,9 @@ const FHF_ROOT = process.env.FHF_SYNC_TARGET_ROOT
 const SUB_REPOS = {
   e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation"),
   smoke: path.join(FHF_ROOT, "ProdSmokeExecution", "front-end-automation"),
+  backend: process.env.FHF_SYNC_BACKEND_TARGET
+    ? path.resolve(process.env.FHF_SYNC_BACKEND_TARGET)
+    : path.join(FHF_ROOT, "fhf-backend-automation"),
 };
 
 // FHF root gets the full generated .claude tree — it's the project root Claude Code
@@ -43,6 +48,10 @@ const CLAUDE_SUBFOLDERS = ["hooks", "agents", "rules", "skills"];
 // edit (this happened for real: a source-map.md fix landed only on the FHF side and got clobbered
 // by a sync run before being ported upstream). Track last-synced hashes; block instead of guessing.
 const FORCE = process.argv.includes("--force");
+const SKIP_E2E = process.argv.includes("--skip-e2e");
+const ONLY_E2E = process.argv.includes("--only-e2e");
+const ONLY_BACKEND = process.argv.includes("--only-backend");
+const ONLY_ROOT = process.argv.includes("--only-root");
 const MANIFEST_PATH = process.env.FHF_SYNC_MANIFEST
   ? path.resolve(process.env.FHF_SYNC_MANIFEST)
   : path.join(HARNESS_ROOT, ".sync-manifest.json");
@@ -79,7 +88,14 @@ function transactionPath(filePath, suffix) {
   const repositoryRoot = roots
     .filter((root) => filePath === root || filePath.startsWith(`${root}${path.sep}`))
     .sort((a, b) => b.length - a.length)[0] ?? HARNESS_ROOT;
-  const directory = path.join(repositoryRoot, ".git", "fhf-sync", transaction);
+  const gitMarker = path.join(repositoryRoot, ".git");
+  let gitDirectory = gitMarker;
+  if (fs.existsSync(gitMarker) && fs.statSync(gitMarker).isFile()) {
+    const match = /^gitdir:\s*(.+)\s*$/im.exec(fs.readFileSync(gitMarker, "utf8"));
+    if (!match) throw new Error(`Invalid Git worktree pointer: ${gitMarker}`);
+    gitDirectory = path.resolve(repositoryRoot, match[1]);
+  }
+  const directory = path.join(gitDirectory, "fhf-sync", transaction);
   transactionDirs.add(directory);
   return path.join(directory, `${hash(filePath).slice(0, 24)}.${suffix}`);
 }
@@ -208,6 +224,8 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
   writeText(path.join(FHF_ROOT, ".github", "copilot-instructions.md"), parentCopilotInstructions());
   writeText(path.join(FHF_ROOT, "GEMINI.md"), parentGeminiInstructions());
+  writeText(path.join(FHF_ROOT, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
+  writeText(path.join(FHF_ROOT, ".harness", "README.md"), consumerVerifierReadme());
 }
 
 // Lane repos vendor the full .claude tree. They are pushed to a shared remote and cloned by
@@ -217,9 +235,11 @@ function syncFhfRoot() {
 // copy is edited directly.
 function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, "docs", "README.md"), docsReadme(lane));
-  writeText(path.join(repoPath, "README.md"), rootReadme(lane));
-  writeText(path.join(repoPath, "ARCHITECTURE.md"), architectureOverlay(lane));
-  writeText(path.join(repoPath, "CONTRIBUTING.md"), contributingOverlay(lane));
+  if (lane !== "backend") {
+    writeText(path.join(repoPath, "README.md"), rootReadme(lane));
+    writeText(path.join(repoPath, "ARCHITECTURE.md"), architectureOverlay(lane));
+    writeText(path.join(repoPath, "CONTRIBUTING.md"), contributingOverlay(lane));
+  }
   for (const sub of CLAUDE_SUBFOLDERS) {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(repoPath, ".claude", sub));
   }
@@ -231,6 +251,8 @@ function syncSubRepo(repoPath, lane) {
   );
   writeText(path.join(repoPath, ".github", "copilot-instructions.md"), copilotInstructions(lane));
   writeText(path.join(repoPath, "GEMINI.md"), geminiInstructions(lane));
+  writeText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
+  writeText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme());
 }
 
 function removeEmptyLegacyCodexDirectory(repoPath) {
@@ -241,13 +263,27 @@ function removeEmptyLegacyCodexDirectory(repoPath) {
 }
 
 withFileLock(MANIFEST_PATH, () => {
+  if (
+    (SKIP_E2E && (ONLY_E2E || ONLY_ROOT)) ||
+    [ONLY_E2E, ONLY_BACKEND, ONLY_ROOT].filter(Boolean).length > 1
+  ) {
+    throw new Error("Use only one scoped sync mode.");
+  }
   manifest = fs.existsSync(MANIFEST_PATH)
     ? JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"))
     : {};
-  syncHarnessRoot();
-  syncFhfRoot();
-  syncSubRepo(SUB_REPOS.e2e, "e2e");
-  syncSubRepo(SUB_REPOS.smoke, "smoke");
+  if (ONLY_E2E) {
+    syncSubRepo(SUB_REPOS.e2e, "e2e");
+  } else if (ONLY_BACKEND) {
+    syncSubRepo(SUB_REPOS.backend, "backend");
+  } else if (ONLY_ROOT) {
+    syncFhfRoot();
+  } else {
+    syncHarnessRoot();
+    syncFhfRoot();
+    if (!SKIP_E2E) syncSubRepo(SUB_REPOS.e2e, "e2e");
+    syncSubRepo(SUB_REPOS.smoke, "smoke");
+  }
 
   if (blocked.length) {
     console.error("Sync blocked for files that changed since the last sync (hand-edited, not just stale):");
@@ -257,17 +293,35 @@ withFileLock(MANIFEST_PATH, () => {
     process.exitCode = 1;
   } else {
     preflight = false;
-    syncHarnessRoot();
-    syncFhfRoot();
-    syncSubRepo(SUB_REPOS.e2e, "e2e");
-    syncSubRepo(SUB_REPOS.smoke, "smoke");
-    removeEmptyLegacyCodexDirectory(FHF_ROOT);
-    removeEmptyLegacyCodexDirectory(SUB_REPOS.e2e);
-    removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
+    if (ONLY_E2E) {
+      syncSubRepo(SUB_REPOS.e2e, "e2e");
+      removeEmptyLegacyCodexDirectory(SUB_REPOS.e2e);
+    } else if (ONLY_BACKEND) {
+      syncSubRepo(SUB_REPOS.backend, "backend");
+      removeEmptyLegacyCodexDirectory(SUB_REPOS.backend);
+    } else if (ONLY_ROOT) {
+      syncFhfRoot();
+    } else {
+      syncHarnessRoot();
+      syncFhfRoot();
+      if (!SKIP_E2E) syncSubRepo(SUB_REPOS.e2e, "e2e");
+      syncSubRepo(SUB_REPOS.smoke, "smoke");
+      removeEmptyLegacyCodexDirectory(FHF_ROOT);
+      if (!SKIP_E2E) removeEmptyLegacyCodexDirectory(SUB_REPOS.e2e);
+      removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
+    }
     for (const file of Object.keys(manifest)) {
       if (/[\\/]\.codex[\\/]hooks\.json$/i.test(file)) delete manifest[file];
     }
     publishSync();
-    console.log("Synced loader shims for FHF root, E2E repo, and Smoke repo.");
+    console.log(
+      ONLY_BACKEND
+        ? "Synced loader shims for Backend repo only."
+        : ONLY_E2E
+        ? "Synced loader shims for E2E repo only."
+        : ONLY_ROOT
+        ? "Synced loader shims for FHF root only."
+        : `Synced loader shims for FHF root and ${SKIP_E2E ? "Smoke" : "E2E and Smoke"} repos.`,
+    );
   }
 });

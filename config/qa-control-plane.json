@@ -37,7 +37,15 @@
       },
       "backend": {
         "root": "fhf-backend-automation",
-        "branch": "per-ticket"
+        "package": ".",
+        "branch": "unifi",
+        "moduleBaselines": {
+          "unifi": "unifi",
+          "ancillary": "ancillary",
+          "loss-mitigation": "loss-mitigation"
+        },
+        "standards": "docs/AGENT-GUIDE.md",
+        "moduleContext": "project-context/modules"
       }
     }
   },
@@ -81,7 +89,8 @@
         "laneAccess": {
           "e2e": "full-read",
           "smoke": "metadata-only",
-          "root": "metadata-only"
+          "root": "metadata-only",
+          "backend": "none"
         },
         "guard": {
           "safeNoNetworkFlags": [
@@ -120,7 +129,16 @@
     },
     "testRail": {
       "required": false,
-      "fallback": "run-id-and-junit-artifacts"
+      "fallback": "run-id-and-junit-artifacts",
+      "laneAccess": {
+        "backend": "full-read"
+      },
+      "artifacts": [
+        "reports/junit-report.xml",
+        "reports/testrail_run_id.txt"
+      ],
+      "idPattern": "\\[C\\d+\\]",
+      "uploadDefaultOnDemand": false
     }
   },
   "freshnessDays": {
@@ -387,7 +405,11 @@
       "effortLevel": "high",
       "autoCompact": {
         "enabled": true,
-        "windowTokens": 70000
+        "windowTokens": null
+      },
+      "readOutput": {
+        "maxLines": 120,
+        "unboundedReadMaxBytes": 2048
       },
       "skillListing": {
         "maxDescriptionChars": 240,
@@ -413,6 +435,69 @@
           "priority": 90,
           "match": "\\b(command center|current sprint|sprint intake|spec (sync|freshness|delta)|centralized qa|cross-lane)\\b",
           "hint": "QA control plane → follow the repository's QA control-plane guide when available; otherwise use repository-local rules. Approval-gate every Jira, Confluence, or application-spec write."
+        },
+        {
+          "id": "backend-failure",
+          "priority": 101,
+          "lanes": ["backend"],
+          "match": "\\b(failing|fails|red|broken|error)\\b.*\\b(test|pytest|oracle|ords)\\b|\\b(pytest|oracle|ords|spec)\\b.*\\b(failing|fails|red|broken)\\b",
+          "hint": "Backend pytest failure → stay in parent. Read docs/AGENT-GUIDE.md, then reports/junit-report.xml or allure-results. Do not spawn cypress-debugger."
+        },
+        {
+          "id": "backend-new-test",
+          "priority": 96,
+          "lanes": ["backend"],
+          "match": "\\b(write|create|add|new|generate)\\b.*\\b(test|spec|suite|pytest)\\b|\\bacceptance criteria\\b|\\bserv-\\d+",
+          "hint": "Backend pytest work → stay in parent. Read docs/AGENT-GUIDE.md, then api/*_client.py, tests/commons/db_schema.py, tests/example_env, tests/commons/api_schemas/. Reuse a client method before adding one. Do not spawn cypress-generator."
+        },
+        {
+          "id": "backend-pre-merge",
+          "priority": 96,
+          "lanes": ["backend"],
+          "match": "\\b(pre-?merge|ready to (commit|merge)|open (a )?pr|pull request)\\b",
+          "hint": "Backend pre-merge → stay in parent. Check typed clients, db_schema.py names, no time.sleep, no f-string SQL, [C] TestRail ids, --order-scope=module. Do not spawn cypress-gate or cypress-shipper."
+        },
+        {
+          "id": "backend-oracle",
+          "priority": 80,
+          "lanes": ["backend"],
+          "match": "\\b(oracle|db_schema|table|view|dao|execute_query)\\b",
+          "hint": "Oracle names → tests/commons/db_schema.py only. DAO in dao/oracle_dao.py. Never hardcode schema/table/view strings."
+        },
+        {
+          "id": "backend-endpoint",
+          "priority": 80,
+          "lanes": ["backend"],
+          "match": "\\b(firsthelp_coll|/ords/|endpoint)\\b",
+          "hint": "ORDS paths → tests/example_env, then the matching api/*_client.py method. Tests must not call os.getenv for endpoints."
+        },
+        {
+          "id": "backend-testrail",
+          "priority": 80,
+          "lanes": ["backend"],
+          "match": "\\b(testrail|trcli|\\[c\\d+)\\b",
+          "hint": "TestRail → docs/TESTRAIL_INTEGRATION.md and scripts/testrail_integration.sh. Case ids are [C<id>] in test docstrings."
+        },
+        {
+          "id": "backend-auth",
+          "priority": 80,
+          "lanes": ["backend"],
+          "match": "\\b(okta|bearer|401)\\b",
+          "hint": "Okta → helpers/okta_auth_helper.py and docs/OKTA_AUTH_GUIDE.md (read in 120-line chunks)."
+        },
+        {
+          "id": "backend-module-context",
+          "priority": 70,
+          "lanes": ["backend"],
+          "match": "\\b(apd|acd|repo invoice|auction invoice|unifi collections|ancillary product)\\b",
+          "hint": "Module behavior → project-context/modules/<module>/00_README.md, then one numbered file. Suites exist only for ancillary, loss-mitigation, and unifi."
+        },
+        {
+          "id": "backend-on-demand",
+          "priority": 70,
+          "lanes": ["backend"],
+          "match": "\\b(on-?demand|pytest target|codebuild)\\b",
+          "hint": "Scoped backend run → buildspec.yml FHF_PYTEST_* vars and scripts/testrail_integration.sh TEST_TARGET. Empty collection is a fail."
         },
         {
           "id": "cloud-failure",
@@ -540,6 +625,9 @@
       "authority": "working-tree-config-and-generated-evidence",
       "sessionScope": "one-job",
       "handoffFile": "cypress/handoff/session-latest.json",
+      "handoffFileByLane": {
+        "backend": "reports/handoff/session-latest.json"
+      },
       "handoffMaxAgeHours": 24,
       "preserveExactly": [
         "ticket-ids",
@@ -566,7 +654,17 @@
         },
         {
           "name": "endpoints",
-          "match": "\\/api\\/[a-z0-9_./:{}-]+",
+          "match": "\\/api\\/[a-z0-9_./:{}-]+|/firsthelp_coll/[a-z0-9_./-]+",
+          "flags": "gi"
+        },
+        {
+          "name": "oracle-objects",
+          "match": "\\b(?:FIRSTHELP_COLL|FIRSTHELP_LETTERS|FHF_DOC)\\.[A-Z0-9_]+\\b",
+          "flags": "g"
+        },
+        {
+          "name": "testrail-ids",
+          "match": "\\[C\\d+\\]",
           "flags": "gi"
         },
         {
@@ -595,7 +693,9 @@
         "applicationSource": {
           "mode": "read-only",
           "pathPatterns": [
-            "fhf-dashboards[\\\\/]src(?:[\\\\/]|$)"
+            "fhf-dashboards[\\\\/]src(?:[\\\\/]|$)",
+            "(?:^|[\\\\/])tests[\\\\/]\\.env$",
+            "(?:^|[\\\\/])config[\\\\/]config\\.ini$"
           ],
           "denyWriteByLane": {
             "root": [
@@ -608,6 +708,11 @@
             ],
             "smoke": [
               "./CypressFHF/fhf-dashboards/src"
+            ],
+            "backend": [
+              "./tests/.env",
+              "./config/config.ini",
+              "./.env"
             ]
           }
         }
@@ -632,6 +737,9 @@
         ],
         "preReadExceptE2e": [
           "protect-prod-data.mjs"
+        ],
+        "preRead": [
+          "context-read-guard.mjs"
         ],
         "subagentStart": [
           "block-generic-agents.mjs"
@@ -688,6 +796,19 @@
             "deny": [
               "WebSearch"
             ]
+          },
+          "permissionsByLane": {
+            "backend": {
+              "allow": [
+                "Bash(pytest *)",
+                "Bash(./scripts/testrail_integration.sh *)",
+                "Bash(python scripts/testrail_sync_titles.py *)",
+                "Bash(allure *)"
+              ],
+              "deny": [
+                "WebSearch"
+              ]
+            }
           }
         },
         "cursor": {
@@ -724,12 +845,18 @@
       ],
       "projection": ".claude/harness.config.json",
       "sync": "scripts/harness/sync-loader-shims.mjs",
-      "verify": [
-        "scripts/harness/check-loader-drift.mjs",
-        "scripts/harness/check-docs-links.mjs",
-        "scripts/harness/test-hooks.mjs",
-        "scripts/harness/test-adapter-contract.mjs"
-      ]
+      "verify": {
+        "canonical": [
+          "scripts/harness/check-loader-drift.mjs",
+          "scripts/harness/check-docs-links.mjs",
+          "scripts/harness/test-hooks.mjs",
+          "scripts/harness/test-adapter-contract.mjs",
+          "scripts/harness/test-sync-loader.mjs"
+        ],
+        "consumer": [
+          ".harness/verify.mjs"
+        ]
+      }
     },
     "loops": {
       "sameFailureLimit": 3,
@@ -753,16 +880,18 @@
       "obsidian-derived-index"
     ],
     "owners": {
-      "application": "docs/framework/application-intelligence",
+      "application": "Test-Case-Automation-Using-Claude-Agents/specs",
       "test-standards": "docs/framework/testing-standards/TESTS.md",
       "coverage": "docs/evidence/coverage-computed.json",
       "chain": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
       "planning": "docs/planning/roadmap/effort-breakdown-by-module-and-subdashboard.md",
       "selectors": "docs/planning/data-cy-hook-backlog.md",
-      "smoke-execution": "docs/framework/testing-standards/smoke-execution-strategy.md",
+      "smoke-execution": "docs/framework/execution-strategy.md",
       "product": "Test-Case-Automation-Using-Claude-Agents/specs",
       "execution": "docs/framework/execution-strategy.md",
-      "triage": "docs/framework/triage-runbook.md"
+      "triage": "docs/framework/triage-runbook.md",
+      "backend-standards": "fhf-backend-automation/docs/AGENT-GUIDE.md",
+      "backend-modules": "fhf-backend-automation/project-context/modules"
     }
   }
 }

@@ -50,6 +50,11 @@ function cursorCommand(root, script, { matcher, failClosed, loopLimit, args = ""
 }
 
 export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
+  const contextReadGuard = HOOKS.preRead.map((script) =>
+    cursorCommand(HARNESS_HOOKS, script, {
+      matcher: "Read|read",
+      failClosed: true,
+    }));
   const productionArtifactGuard = lane === "e2e"
     ? []
     : HOOKS.preReadExceptE2e.map((script) =>
@@ -74,6 +79,7 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
             matcher: "Shell|Bash|shell|bash",
             failClosed: true,
           })),
+        ...contextReadGuard,
         ...productionArtifactGuard,
       ],
       subagentStart: HOOKS.subagentStart.map((script) =>
@@ -121,6 +127,7 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
     { matcher: "Edit|Write", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
     { matcher: "Bash", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
     { matcher: "Task", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
+    { matcher: "Read", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preRead) },
   ];
   if (lane !== "e2e") {
     preToolUse.push({
@@ -132,12 +139,14 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
   return {
     $schema: "https://json.schemastore.org/claude-code-settings.json",
     effortLevel: ENGINEERING.context.effortLevel,
-    env: ENGINEERING.context.autoCompact.enabled
-      ? {
+    env: !ENGINEERING.context.autoCompact.enabled
+      ? { DISABLE_AUTO_COMPACT: "1" }
+      : ENGINEERING.context.autoCompact.windowTokens != null
+        ? {
           [ADAPTERS.claudeCode.autoCompactWindowEnv]:
             String(ENGINEERING.context.autoCompact.windowTokens),
         }
-      : { DISABLE_AUTO_COMPACT: "1" },
+        : {},
     hooks: {
       SessionStart: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionStart) }],
       UserPromptSubmit: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.prompt) }],
@@ -158,7 +167,7 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
     skillListingMaxDescChars: ENGINEERING.context.skillListing.maxDescriptionChars,
     skillListingBudgetFraction: ENGINEERING.context.skillListing.budgetFraction,
     skillOverrides: ADAPTERS.claudeCode.skillOverrides,
-    permissions: ADAPTERS.claudeCode.permissions,
+    permissions: ADAPTERS.claudeCode.permissionsByLane?.[lane] ?? ADAPTERS.claudeCode.permissions,
     sandbox: {
       filesystem: {
         denyWrite: BOUNDARIES.applicationSource.denyWriteByLane[lane],
@@ -176,7 +185,7 @@ export function portableSettings(lane) {
 }
 
 export function parentCopilotInstructions() {
-  return `# Copilot Instructions — FHF Parent Workspace
+  return `# Copilot Instructions â€” FHF Parent Workspace
 
 Read the workspace-root \`CLAUDE.md\`, then the selected lane's
 \`.github/copilot-instructions.md\`. Do not preload FHF documentation.
@@ -184,7 +193,7 @@ Read the workspace-root \`CLAUDE.md\`, then the selected lane's
 }
 
 export function parentGeminiInstructions() {
-  return `# Gemini Instructions — FHF Parent Workspace
+  return `# Gemini Instructions â€” FHF Parent Workspace
 
 Read the workspace-root \`CLAUDE.md\`, then the selected lane's \`GEMINI.md\`.
 Do not preload FHF documentation.
@@ -192,6 +201,13 @@ Do not preload FHF documentation.
 }
 
 export function docsReadme(lane) {
+  if (lane === "backend") {
+    return `# Backend Docs Pointer
+
+Lane standards: [AGENT-GUIDE.md](./AGENT-GUIDE.md)
+Module context: [project-context/modules](../project-context/modules)
+`;
+  }
   return `# ${lane === "e2e" ? "E2E" : "Smoke"} Docs Pointer
 
 Shared documentation is routed by \`../../docs/README.md\`. Read only the path required by the task.
@@ -199,6 +215,12 @@ Shared documentation is routed by \`../../docs/README.md\`. Read only the path r
 }
 
 export function rootReadme(lane) {
+  if (lane === "backend") {
+    return `# FHF Backend Lane
+
+Owner README â€” do not generate this file. Sync skips it.
+`;
+  }
   const isE2e = lane === "e2e";
   return `# FHF ${isE2e ? "E2E" : "Smoke"} Lane
 
@@ -209,6 +231,12 @@ ${isE2e ? "Dev/QA mutations require synthetic data and cleanup; never run agains
 }
 
 export function architectureOverlay(lane) {
+  if (lane === "backend") {
+    return `# Backend Architecture Pointer
+
+Read \`docs/AGENT-GUIDE.md\`. Layers: \`api/\` â†’ \`tests/\` â†’ \`tests/commons/\` â†’ \`dao/\` â†’ \`db/\`.
+`;
+  }
   return `# ${lane === "e2e" ? "E2E" : "Smoke"} Architecture Pointer
 
 Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\`.
@@ -216,6 +244,12 @@ Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\`.
 }
 
 export function contributingOverlay(lane) {
+  if (lane === "backend") {
+    return `# Contributing (Backend)
+
+Read \`docs/AGENT-GUIDE.md\` before changing pytest clients, schemas, or tests.
+`;
+  }
   return `# Contributing (${lane === "e2e" ? "E2E" : "Smoke"})
 
 Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\` before changing tests.
@@ -223,9 +257,17 @@ Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\` befor
 }
 
 function toolInstructions(tool, lane) {
+  if (lane === "backend") {
+    return `# ${tool} Instructions â€” Backend
+
+Read this repository's \`docs/AGENT-GUIDE.md\`, then only the module context it names.
+Pytest + Oracle. Stay in the parent session. Do not spawn Cypress agents.
+Smoke in \`tests/smoke/\` is GET-only. Never commit \`tests/.env\` or \`config/config.ini\`.
+`;
+  }
   const isE2e = lane === "e2e";
   const sharedRouter = tool === "Copilot" ? "../../../CLAUDE.md" : "../../CLAUDE.md";
-  return `# ${tool} Instructions — ${isE2e ? "E2E" : "Smoke"}
+  return `# ${tool} Instructions â€” ${isE2e ? "E2E" : "Smoke"}
 
 Read \`${sharedRouter}\`, then the repository's \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
 ${isE2e
@@ -241,3 +283,18 @@ export function copilotInstructions(lane) {
 export function geminiInstructions(lane) {
   return toolInstructions("Gemini", lane);
 }
+
+export function consumerVerifierReadme() {
+  return `# Consumer harness verification
+
+This clone does not contain \`fhf-harness-os/scripts/harness/*\`.
+
+Run \`node .harness/verify.mjs\` here. Canonical checks (\`test-hooks\`, \`test-adapter-contract\`,
+\`test-sync-loader\`, \`check-docs-links\`, \`check-loader-drift\`) run only from \`fhf-harness-os\`.
+`;
+}
+
+export const CONSUMER_VERIFIER_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "verify-projection.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");

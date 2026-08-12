@@ -19,8 +19,8 @@ const patterns = engineeringConfig().harness.boundaries.applicationSource.pathPa
   .map((source) => new RegExp(source, 'i'));
 
 if (patterns.some((pattern) => pattern.test(filePath))) {
-  console.error('BLOCKED: fhf-dashboards/src is read-only — QA never edits app source.');
-  console.error('To add a data-cy attribute, open a PR upstream to the frontend dev team.');
+  console.error('BLOCKED: path is read-only per engineering.harness.boundaries.applicationSource.');
+  console.error('App source, tests/.env, and config/config.ini are not writable from this lane.');
   process.exit(2);
 }
 emitAllow(payload);

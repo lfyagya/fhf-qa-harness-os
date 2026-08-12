@@ -261,7 +261,7 @@ the debugger first.
 
 ## Before handing off to cypress-gate
 
-- [ ] `node .harness/verify.mjs change` passes from the selected repository root
+- [ ] `node .harness/verify.mjs` passes from the selected repository root
 - [ ] `testIsolation: true` present
 - [ ] `cy.ensureAuthenticated()` in `before()` and `beforeEach()`
 - [ ] No `cy.wait(number)` anywhere

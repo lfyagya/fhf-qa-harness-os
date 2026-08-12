@@ -77,6 +77,12 @@ if (engineering) {
         issues.push(`engineering.context.routes[${index}] has invalid match: ${error.message}`);
       }
       if (!route.hint) issues.push(`engineering.context.routes[${index}] needs a hint`);
+      if (route.lanes) {
+        const known = new Set(["root", "e2e", "smoke", "backend"]);
+        if (!Array.isArray(route.lanes) || route.lanes.length === 0 || route.lanes.some((name) => !known.has(name))) {
+          issues.push(`engineering.context.routes[${index}] lanes must be a non-empty subset of root|e2e|smoke|backend`);
+        }
+      }
     });
   }
 
@@ -111,7 +117,7 @@ if (engineering) {
       issues.push(`applicationSource.pathPatterns[${index}] is invalid: ${error.message}`);
     }
   }
-  for (const lane of ["root", "e2e", "smoke"]) {
+  for (const lane of ["root", "e2e", "smoke", "backend"]) {
     if (!Array.isArray(appBoundary?.denyWriteByLane?.[lane]) || appBoundary.denyWriteByLane[lane].length === 0) {
       issues.push(`applicationSource.denyWriteByLane.${lane} must not be empty`);
     }
@@ -151,9 +157,28 @@ if (engineering) {
       }
     }
   }
-  for (const script of engineering.harness?.verify ?? []) {
-    if (!fs.existsSync(path.join(HARNESS_ROOT, repoPath(script)))) {
-      issues.push(`Configured verification script is missing: ${script}`);
+  const verify = engineering.harness?.verify;
+  if (!verify || typeof verify !== "object" || Array.isArray(verify)) {
+    issues.push("engineering.harness.verify must be { canonical, consumer }");
+  } else {
+    if (!Array.isArray(verify.canonical) || verify.canonical.length === 0) {
+      issues.push("engineering.harness.verify.canonical must be a non-empty list");
+    }
+    if (!Array.isArray(verify.consumer) || verify.consumer.length === 0) {
+      issues.push("engineering.harness.verify.consumer must be a non-empty list");
+    }
+    for (const script of verify.canonical ?? []) {
+      if (!fs.existsSync(path.join(HARNESS_ROOT, repoPath(script)))) {
+        issues.push(`Canonical verification script is missing: ${script}`);
+      }
+    }
+    for (const script of verify.consumer ?? []) {
+      if (String(script).replaceAll("\\", "/").startsWith("scripts/harness/")) {
+        issues.push(`Consumer verification must not advertise canonical-only ${script}`);
+      }
+    }
+    if (!fs.existsSync(path.join(HARNESS_ROOT, "scripts", "harness", "verify-projection.mjs"))) {
+      issues.push("Consumer verifier source is missing: scripts/harness/verify-projection.mjs");
     }
   }
   for (const [name, value] of Object.entries(engineering.loops ?? {})) {
@@ -188,7 +213,7 @@ if (!cloudCli) {
   if (auth.local !== "oauth" || auth.ciTokenEnv !== "CYPRESS_CLOUD_TOKEN" || auth.credentialsInConfig !== false) {
     issues.push("Cloud CLI auth must use local OAuth, external CI token env, and no config credentials");
   }
-  const expectedAccess = { e2e: "full-read", smoke: "metadata-only", root: "metadata-only" };
+  const expectedAccess = { e2e: "full-read", smoke: "metadata-only", root: "metadata-only", backend: "none" };
   for (const [lane, access] of Object.entries(expectedAccess)) {
     if (cloudCli.laneAccess?.[lane] !== access) {
       issues.push(`connectors.cypressCloud.cli.laneAccess.${lane} must be ${access}`);

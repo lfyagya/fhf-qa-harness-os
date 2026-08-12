@@ -18,7 +18,7 @@ You MUST read and follow [../documentation/documentation-rules.md](../documentat
 - When reviewing existing project content, including files suggested by agent configuration, always prefer searching for specific content inside files (`grep`) rather than reading the entire file.
 
 ## Style
-- Use clear, concise, and descriptive test titles in Cypress. 
+- Use clear, concise, and descriptive test titles in Cypress.
   - When creating or updating a test, summarize the user behavior and expected outcome in plain language, avoiding implementation details.
   - Prefer the format: "[action] → [expected result]".
   - If updating an existing title, remove ambiguity and ensure it reflects the current test logic.

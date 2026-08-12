@@ -65,10 +65,17 @@ check(
   claudeCommands("UserPromptSubmit").some((command) => command.includes("prompt-router.mjs")),
   "Claude UserPromptSubmit must retain dynamic route context",
 );
+const compactWindowEnv = engineering.harness.adapters.claudeCode.autoCompactWindowEnv;
 check(
-  claude.env[engineering.harness.adapters.claudeCode.autoCompactWindowEnv] ===
-    String(engineering.context.autoCompact.windowTokens),
+  engineering.context.autoCompact.windowTokens == null
+    ? !(compactWindowEnv in claude.env)
+    : claude.env[compactWindowEnv] === String(engineering.context.autoCompact.windowTokens),
   "Claude auto-compaction window environment projection is wrong",
+);
+check(
+  claudeCommands("PreToolUse").some((command) => command.includes("context-read-guard.mjs")) &&
+    cursorCommands("preToolUse").some((command) => command.includes("context-read-guard.mjs")),
+  "Claude and Cursor must guard unbounded reads",
 );
 check(!("autoCompactWindow" in claude), "Unsupported autoCompactWindow setting must not be generated");
 check(
@@ -85,6 +92,17 @@ check(
   engineering.harness.adapters.codex.instructionFile === "AGENTS.md" &&
     engineering.harness.adapters.codex.hookCapability === "instruction-only",
   "Codex must degrade explicitly to its verified instruction-only capability",
+);
+check(
+  Array.isArray(engineering.harness.verify?.canonical) &&
+    engineering.harness.verify.canonical.includes("scripts/harness/test-sync-loader.mjs"),
+  "Canonical verify must list harness-os scripts, including test-sync-loader",
+);
+check(
+  Array.isArray(engineering.harness.verify?.consumer) &&
+    engineering.harness.verify.consumer.includes(".harness/verify.mjs") &&
+    engineering.harness.verify.consumer.every((script) => !String(script).includes("scripts/harness/")),
+  "Consumer verify must be clone-runnable and must not advertise scripts/harness/*",
 );
 
 const launcherCommand = cursorCommands("preToolUse")

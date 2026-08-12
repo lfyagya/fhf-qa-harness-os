@@ -15,6 +15,22 @@ export function loadHarnessConfig() {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
+export function detectLane(cwd, config = loadHarnessConfig()) {
+  const resolved = path.resolve(cwd || process.cwd()).replace(/\\/g, "/").toLowerCase();
+  const lanes = Object.entries(config.paths?.lanes ?? {})
+    .map(([name, value]) => ({
+      name,
+      root: String(value?.root ?? "").replace(/\\/g, "/").toLowerCase(),
+    }))
+    .filter((lane) => lane.root)
+    .sort((a, b) => b.root.length - a.root.length);
+  for (const { name, root } of lanes) {
+    const needle = `/${root}`;
+    if (resolved.includes(`${needle}/`) || resolved.endsWith(needle)) return name;
+  }
+  return "root";
+}
+
 export function engineeringConfig() {
   const engineering = loadHarnessConfig().engineering;
   if (!engineering) throw new Error("Harness config is missing engineering");

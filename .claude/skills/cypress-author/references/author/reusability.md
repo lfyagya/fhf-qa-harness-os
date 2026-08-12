@@ -4,7 +4,7 @@ Consider extracting repeated or reusable content.
 
 ## Hooks
 
-Prefer `before` and `beforeEach` hooks for required setup and configuration. Consider extracting existing test content into a shared hook if similar steps are needed in a new test. 
+Prefer `before` and `beforeEach` hooks for required setup and configuration. Consider extracting existing test content into a shared hook if similar steps are needed in a new test.
 
 Always prefer defining aliases in `beforeEach` over `before`. Code in `before` hooks is only run once, and between the tests Cypress removes all aliases, so subsequent tests may not have access to them.
 

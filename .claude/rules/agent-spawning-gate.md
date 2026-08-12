@@ -1,6 +1,8 @@
 # Agent and Skill Router
 
-Apply this only to FHF Cypress work. Read `.claude/harness.config.json`:
+Apply this to FHF Cypress work. When the cwd is `fhf-backend-automation`, stay in the parent and follow `docs/AGENT-GUIDE.md` — do not spawn Cypress agents.
+
+Read `.claude/harness.config.json`:
 
 - `engineering.context.routes` owns task routing hints.
 - `engineering.harness.skills` owns allowed FHF skills.

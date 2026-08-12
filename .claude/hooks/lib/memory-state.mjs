@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { detectLane } from "./harness-config.mjs";
 
 export function workspaceRoot(payload) {
   return path.resolve(
@@ -11,7 +12,10 @@ export function workspaceRoot(payload) {
 }
 
 export function handoffPath(payload, memory) {
-  return path.resolve(workspaceRoot(payload), memory.handoffFile);
+  const root = workspaceRoot(payload);
+  const lane = detectLane(root);
+  const file = memory.handoffFileByLane?.[lane] ?? memory.handoffFile;
+  return path.resolve(root, file);
 }
 
 function readJson(file) {
