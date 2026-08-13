@@ -3,7 +3,7 @@
 // The harness must test itself: a hook with the wrong exit code silently talks to nobody.
 // Run: node scripts/harness/test-hooks.mjs   (CI runs it next to check-loader-drift.mjs)
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,6 +72,7 @@ customConfig.engineering.context.routes = [
   },
 ];
 customConfig.engineering.harness.forbiddenAgents.push("custom-agent");
+customConfig.engineering.harness.skills.push("custom-skill");
 customConfig.engineering.loops.sameFailureLimit = 2;
 customConfig.engineering.memory.handoffFile = "handoff.json";
 customConfig.connectors.cypressCloud.cli.guard.inlineCredentialPatterns = [
@@ -132,6 +133,8 @@ expect("protect-app-source blocks fhf-dashboards/src write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/Users/Leapfrog/FHF/fhf-dashboards/src/App.tsx" } }), 2);
 expect("protect-app-source allows CypressFHF package write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/x/CypressFHF/fhf-dashboards/cypress/tests/a.cy.js" } }), 0);
+expect("protect-app-source blocks external backend writes",
+  run("protect-app-source.mjs", { tool_input: { file_path: "C:/Users/Leapfrog/FHF/fhf-backend-automation/tests/api/test_users.py" } }), 2);
 expect("protect-app-source emits runtime-neutral JSON",
   run("protect-app-source.mjs", {
     hook_event_name: "preToolUse",
@@ -230,6 +233,31 @@ expect("manual-task-guard blocks shell writes to application source",
       command: "Set-Content 'C:/work/fhf-dashboards/src/App.tsx' 'changed'",
     },
   }), 2);
+expect("manual-task-guard blocks shell writes to the external backend",
+  run("manual-task-guard.mjs", {
+    tool_input: {
+      command: "Set-Content 'C:/work/fhf-backend-automation/tests/api/test_users.py' 'changed'",
+    },
+  }), 2);
+expect("manual-task-guard blocks backend git commits from its working directory",
+  run("manual-task-guard.mjs", {
+    cwd: "C:/work/fhf-backend-automation",
+    tool_input: { working_directory: "C:/work/fhf-backend-automation", command: "git commit -m change" },
+  }), 2);
+expect("manual-task-guard blocks backend dependency installs",
+  run("manual-task-guard.mjs", {
+    cwd: "C:/work/fhf-backend-automation",
+    tool_input: { working_directory: "C:/work/fhf-backend-automation", command: "pip install -r requirements.txt" },
+  }), 2);
+expect("manual-task-guard blocks backend test runs",
+  run("manual-task-guard.mjs", {
+    cwd: "C:/work/fhf-backend-automation",
+    tool_input: { working_directory: "C:/work/fhf-backend-automation", command: "pytest tests/api" },
+  }), 2);
+expect("manual-task-guard allows read-only backend searches",
+  run("manual-task-guard.mjs", {
+    tool_input: { command: "rg oracle C:/work/fhf-backend-automation" },
+  }), 0);
 expect("manual-task-guard allows read-only source searches",
   run("manual-task-guard.mjs", {
     tool_input: { command: "rg data-cy C:/work/fhf-dashboards/src" },
@@ -290,6 +318,20 @@ expect("block-generic-agents consumes the central roster",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "custom-agent" } }, {
     FHF_HARNESS_CONFIG: customConfigPath,
   }), 2);
+expect("block-forbidden-skills blocks a skill absent from the allowlist",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-author" } }), 2);
+expect("block-forbidden-skills allows an allowlisted skill",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-explain" } }), 0);
+expect("block-forbidden-skills matches skill names case-insensitively",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "Cypress-Docs" } }), 0);
+expect("block-forbidden-skills noops on a payload without a skill",
+  run("block-forbidden-skills.mjs", { tool_input: { file_path: "cypress/tests/a.cy.js" } }), 0);
+expect("block-forbidden-skills allows a metadata-less probe",
+  runProbe("block-forbidden-skills.mjs"), 0);
+expect("block-forbidden-skills consumes the central skill roster",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "custom-skill" } }, {
+    FHF_HARNESS_CONFIG: customConfigPath,
+  }), 0);
 
 // PostToolUse — validators must exit 2 (exit 1 would be invisible to Claude)
 expect("validate-cypress-rules flags bad spec with exit 2",
@@ -318,6 +360,19 @@ expect("prompt-router injects one owner for documentation work",
 expect("prompt-router prioritizes test creation over generic documentation",
   run("prompt-router.mjs", { prompt: "write a new test and document the scenario" }),
   (r) => r.code === 0 && r.stdout.includes("[router:new-test]") && !r.stdout.includes("[router:documentation]"));
+expect("prompt-router does not route external backend work to Cypress agents",
+  run("prompt-router.mjs", {
+    cwd: "C:/work/fhf-backend-automation",
+    prompt: "write a new test for the backend API",
+  }),
+  cursorEmitsNeutral);
+const externalBackendHandoff = path.join(tmp, "fhf-backend-automation", "cypress", "handoff", "session-latest.json");
+expect("prompt-router does not write a handoff in the external backend",
+  run("prompt-router.mjs", {
+    cwd: path.join(tmp, "fhf-backend-automation"),
+    prompt: "Work SERV-12345 using /api/backend",
+  }),
+  (r) => r.code === 0 && !existsSync(externalBackendHandoff));
 expect("prompt-router routes planning to one ledger",
   run("prompt-router.mjs", { prompt: "what is the current capacity and priority?" }),
   (r) => r.code === 0 && r.stdout.includes("effort-breakdown-by-module-and-subdashboard.md"));
@@ -405,6 +460,9 @@ expect("memory checkpoint survives pre-compaction",
 // Stop — sweep exits 0 when there are no repos/specs to check
 expect("spec-sweep exits 0 with no git repos in CWD",
   run("spec-sweep-stop-hook.mjs", {}, { CLAUDE_CWD: tmp }), 0);
+expect("spec-sweep does not write retry state in the external backend",
+  run("spec-sweep-stop-hook.mjs", {}, { CLAUDE_CWD: path.join(tmp, "fhf-backend-automation") }),
+  (r) => r.code === 0 && !existsSync(path.join(tmp, "fhf-backend-automation", ".claude", "hooks", ".sweep-retries")));
 const failurePayload = {
   hook_event_name: "postToolUseFailure",
   cursor_version: "1.7.2",

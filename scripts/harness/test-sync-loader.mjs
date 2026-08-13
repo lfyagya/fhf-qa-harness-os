@@ -98,7 +98,6 @@ try {
   const ownerCursor = path.join(root, "AG Frontend Automation", "front-end-automation", ".cursor", "BUGBOT.md");
   assert.equal(fs.existsSync(path.join(root, ".harness", "verify.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "ProdSmokeExecution", "front-end-automation", ".harness", "verify.mjs")), true);
-  assert.equal(fs.existsSync(path.join(root, "fhf-backend-automation", ".claude", "harness.config.json")), false);
 
   const rootOnly = path.join(root, "root-only");
   const rootOnlyRun = spawnSync(process.execPath, [script, "--force", "--only-root"], {
@@ -144,28 +143,45 @@ try {
   });
   assert.equal(linked.status, 0, linked.stderr);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".claude", "harness.config.json")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "verify.mjs")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".cursor", "hooks.json")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".github", "copilot-instructions.md")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, "GEMINI.md")), true);
   assert.equal(fs.existsSync(path.join(linkedFhf, ".claude", "harness.config.json")), false);
 
-  const linkedBackend = path.join(root, "linked-backend");
-  execFileSync("git", ["-C", linkedSource, "worktree", "add", "-b", "backend-projection", linkedBackend]);
-  const backendEnv = {
-    ...process.env,
-    FHF_SYNC_TARGET_ROOT: linkedFhf,
-    FHF_SYNC_BACKEND_TARGET: linkedBackend,
-    FHF_SYNC_MANIFEST: path.join(linkedFhf, "backend-sync-manifest.json"),
-  };
-  const backend = spawnSync(process.execPath, [script, "--force", "--only-backend"], {
+  const linkedSmoke = path.join(linkedFhf, "ProdSmokeExecution", "front-end-automation");
+  fs.mkdirSync(path.dirname(linkedSmoke), { recursive: true });
+  execFileSync("git", ["-C", linkedSource, "worktree", "add", "-b", "smoke-projection", linkedSmoke]);
+  const smoke = spawnSync(process.execPath, [script, "--force", "--only-smoke"], {
     encoding: "utf8",
-    env: backendEnv,
+    env: {
+      ...process.env,
+      FHF_SYNC_TARGET_ROOT: linkedFhf,
+      FHF_SYNC_MANIFEST: path.join(linkedFhf, "sync-manifest.json"),
+    },
   });
-  assert.equal(backend.status, 0, backend.stderr);
-  assert.equal(fs.existsSync(path.join(linkedBackend, ".claude", "harness.config.json")), true);
-  const backendCheck = spawnSync(process.execPath, [driftScript, "--only-backend"], {
+  assert.equal(smoke.status, 0, smoke.stderr);
+  assert.equal(fs.existsSync(path.join(linkedSmoke, ".claude", "harness.config.json")), true);
+  const smokeCheck = spawnSync(process.execPath, [driftScript, "--only-smoke"], {
     encoding: "utf8",
-    env: backendEnv,
+    env: {
+      ...process.env,
+      FHF_SYNC_TARGET_ROOT: linkedFhf,
+      FHF_SYNC_MANIFEST: path.join(linkedFhf, "sync-manifest.json"),
+    },
   });
-  assert.equal(backendCheck.status, 0, backendCheck.stderr);
-  assert.equal(fs.readFileSync(path.join(linkedBackend, "GEMINI.md"), "utf8").includes("../../CLAUDE.md"), false);
+  assert.equal(smokeCheck.status, 0, smokeCheck.stderr);
+  const smokePointer = path.join(linkedSmoke, "AGENTS.md");
+  fs.writeFileSync(smokePointer, "FHF/docs/architecture/HARNESS.md\n", "utf8");
+  const smokePointerCheck = spawnSync(process.execPath, [driftScript, "--only-smoke"], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      FHF_SYNC_TARGET_ROOT: linkedFhf,
+      FHF_SYNC_MANIFEST: path.join(linkedFhf, "sync-manifest.json"),
+    },
+  });
+  assert.notEqual(smokePointerCheck.status, 0);
 
   console.log("sync-loader safety tests passed");
 } finally {

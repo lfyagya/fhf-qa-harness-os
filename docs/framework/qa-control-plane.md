@@ -1,8 +1,9 @@
 # FHF QA Control Plane
 
-The control plane is the AI-independent operating layer above the E2E, Smoke, and Backend test
-repositories. It centralizes read-only Atlassian context, repository-derived evidence, proposed
-application-spec changes, implementation routing, and a portable command-center report.
+The control plane is the AI-independent operating layer above the E2E and Smoke test repositories.
+It centralizes read-only Atlassian context, repository-derived evidence, proposed application-spec
+changes, implementation routing, and a portable command-center report. The separately owned backend
+repository is available only as a read-only API and Oracle evidence source.
 
 Architecture decision: [`../adr/0005-centralized-qa-control-plane.md`](../adr/0005-centralized-qa-control-plane.md)
 
@@ -104,12 +105,14 @@ ambiguous relationship remains in the review queue.
 - E2E / functional / regression: `AG Frontend Automation/front-end-automation`, branch `dev`.
 - Production smoke / availability / auth / structure: `ProdSmokeExecution/front-end-automation`,
   branch `staging`, GET-only.
-- API request/response plus Oracle state: `fhf-backend-automation`, using that repository's own
-  pytest harness.
+- API request/response plus Oracle state: consult `fhf-backend-automation` read-only when it is
+  available; its owner maintains the independent pytest harness.
 
 The Cypress lanes retain Config → Commands → Tests and the generator → gate → ship sequence. The
-backend lane retains typed API clients → tests → API assertions → DB assertions. Coverage is
-reported with separate rubrics rather than forcing these architectures into one score.
+backend repository remains separately owned; this harness neither installs configuration nor writes
+to it. Its typed API, test, and DB evidence may inform Cypress work through read-only discovery.
+When available, reports label this optional source `backendEvidence` for regression impact, coverage,
+and UI-to-API-to-DB chain evidence; its absence is evidence unavailable, not a harness failure.
 
 ### Cypress Cloud evidence
 

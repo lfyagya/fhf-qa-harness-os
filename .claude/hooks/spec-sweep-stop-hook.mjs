@@ -10,11 +10,15 @@ import { join } from 'path';
 import { checkSpecContent, isSmokePath, SMOKE_MUTATION_RE } from './lib/cypress-rule-patterns.mjs';
 import { loadHarnessConfig } from './lib/harness-config.mjs';
 import { emitEmpty } from './lib/hook-runtime.mjs';
-import { mergeHandoff } from './lib/memory-state.mjs';
+import { isExternalBackendWorkspace, mergeHandoff } from './lib/memory-state.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch {}
 const ROOT = process.env.CLAUDE_CWD ?? process.cwd();
+if (isExternalBackendWorkspace({ cwd: ROOT })) {
+  emitEmpty(payload);
+  process.exit(0);
+}
 const config = loadHarnessConfig();
 const engineering = config.engineering;
 const REPOS = [

@@ -79,6 +79,11 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
             matcher: "Shell|Bash|shell|bash",
             failClosed: true,
           })),
+        ...HOOKS.preSkill.map((script) =>
+          cursorCommand(HARNESS_HOOKS, script, {
+            matcher: "Skill|skill",
+            failClosed: true,
+          })),
         ...contextReadGuard,
         ...productionArtifactGuard,
       ],
@@ -126,7 +131,8 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
   const preToolUse = [
     { matcher: "Edit|Write", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
     { matcher: "Bash", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
-    { matcher: "Task", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
+    { matcher: "Task|Agent", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
+    { matcher: "Skill", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSkill) },
     { matcher: "Read", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preRead) },
   ];
   if (lane !== "e2e") {
@@ -201,13 +207,6 @@ Do not preload FHF documentation.
 }
 
 export function docsReadme(lane) {
-  if (lane === "backend") {
-    return `# Backend Docs Pointer
-
-Lane standards: [AGENT-GUIDE.md](./AGENT-GUIDE.md)
-Module context: [project-context/modules](../project-context/modules)
-`;
-  }
   return `# ${lane === "e2e" ? "E2E" : "Smoke"} Docs Pointer
 
 Shared documentation is routed by \`../../docs/README.md\`. Read only the path required by the task.
@@ -215,12 +214,6 @@ Shared documentation is routed by \`../../docs/README.md\`. Read only the path r
 }
 
 export function rootReadme(lane) {
-  if (lane === "backend") {
-    return `# FHF Backend Lane
-
-Owner README â€” do not generate this file. Sync skips it.
-`;
-  }
   const isE2e = lane === "e2e";
   return `# FHF ${isE2e ? "E2E" : "Smoke"} Lane
 
@@ -231,12 +224,6 @@ ${isE2e ? "Dev/QA mutations require synthetic data and cleanup; never run agains
 }
 
 export function architectureOverlay(lane) {
-  if (lane === "backend") {
-    return `# Backend Architecture Pointer
-
-Read \`docs/AGENT-GUIDE.md\`. Layers: \`api/\` â†’ \`tests/\` â†’ \`tests/commons/\` â†’ \`dao/\` â†’ \`db/\`.
-`;
-  }
   return `# ${lane === "e2e" ? "E2E" : "Smoke"} Architecture Pointer
 
 Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\`.
@@ -244,12 +231,6 @@ Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\`.
 }
 
 export function contributingOverlay(lane) {
-  if (lane === "backend") {
-    return `# Contributing (Backend)
-
-Read \`docs/AGENT-GUIDE.md\` before changing pytest clients, schemas, or tests.
-`;
-  }
   return `# Contributing (${lane === "e2e" ? "E2E" : "Smoke"})
 
 Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\` before changing tests.
@@ -257,14 +238,6 @@ Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\` befor
 }
 
 function toolInstructions(tool, lane) {
-  if (lane === "backend") {
-    return `# ${tool} Instructions â€” Backend
-
-Read this repository's \`docs/AGENT-GUIDE.md\`, then only the module context it names.
-Pytest + Oracle. Stay in the parent session. Do not spawn Cypress agents.
-Smoke in \`tests/smoke/\` is GET-only. Never commit \`tests/.env\` or \`config/config.ini\`.
-`;
-  }
   const isE2e = lane === "e2e";
   const sharedRouter = tool === "Copilot" ? "../../../CLAUDE.md" : "../../CLAUDE.md";
   return `# ${tool} Instructions â€” ${isE2e ? "E2E" : "Smoke"}

@@ -28,15 +28,12 @@ const FHF_ROOT = process.env.FHF_SYNC_TARGET_ROOT
   : path.resolve(HARNESS_ROOT, "..", "FHF");
 const SKIP_E2E = process.argv.includes("--skip-e2e");
 const ONLY_E2E = process.argv.includes("--only-e2e");
-const ONLY_BACKEND = process.argv.includes("--only-backend");
+const ONLY_SMOKE = process.argv.includes("--only-smoke");
 const ONLY_ROOT = process.argv.includes("--only-root");
 
 const SUB_REPOS = {
   e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation"),
   smoke: path.join(FHF_ROOT, "ProdSmokeExecution", "front-end-automation"),
-  backend: process.env.FHF_SYNC_BACKEND_TARGET
-    ? path.resolve(process.env.FHF_SYNC_BACKEND_TARGET)
-    : path.join(FHF_ROOT, "fhf-backend-automation"),
 };
 
 const CLAUDE_SUBFOLDERS = ["hooks", "agents", "rules", "skills"];
@@ -149,19 +146,15 @@ function checkSubRepo(repoPath, lane) {
   const architecturePath = path.join(repoPath, "ARCHITECTURE.md");
   const contributingPath = path.join(repoPath, "CONTRIBUTING.md");
   const geminiPath = path.join(repoPath, "GEMINI.md");
-  const skipOwnerDocs = lane === "backend";
-
   requireFile(path.join(docsDir, "README.md"));
   requireFile(path.join(claudeDir, "settings.json"));
   requireFile(path.join(claudeDir, "harness.config.json"));
   requireFile(path.join(cursorDir, "hooks.json"));
   requireFile(path.join(githubDir, "copilot-instructions.md"));
   requireFile(geminiPath);
-  if (!skipOwnerDocs) {
-    requireFile(readmePath);
-    requireFile(architecturePath);
-    requireFile(contributingPath);
-  }
+  requireFile(readmePath);
+  requireFile(architecturePath);
+  requireFile(contributingPath);
 
   const settingsPath = path.join(claudeDir, "settings.json");
   checkExactText(settingsPath, portableSettings(lane));
@@ -178,11 +171,9 @@ function checkSubRepo(repoPath, lane) {
   }
 
   checkExactText(path.join(docsDir, "README.md"), docsReadme(lane));
-  if (!skipOwnerDocs) {
-    checkExactText(readmePath, rootReadme(lane));
-    checkExactText(architecturePath, architectureOverlay(lane));
-    checkExactText(contributingPath, contributingOverlay(lane));
-  }
+  checkExactText(readmePath, rootReadme(lane));
+  checkExactText(architecturePath, architectureOverlay(lane));
+  checkExactText(contributingPath, contributingOverlay(lane));
   checkExactText(path.join(githubDir, "copilot-instructions.md"), copilotInstructions(lane));
   checkExactText(geminiPath, geminiInstructions(lane));
   checkExactText(path.join(cursorDir, "hooks.json"), `${JSON.stringify(cursorHooks(VENDORED_HOOKS, lane), null, 2)}\n`);
@@ -229,7 +220,7 @@ function checkHandMaintainedPointers() {
   const stale = /FHF[\\/]docs[\\/]architecture[\\/](?:CENTRALIZED-HARNESS|HARNESS)\.md/i;
   for (const file of required) {
     if (ONLY_E2E && !file.startsWith(SUB_REPOS.e2e)) continue;
-    if (ONLY_BACKEND && !file.startsWith(SUB_REPOS.backend)) continue;
+    if (ONLY_SMOKE && !file.startsWith(SUB_REPOS.smoke)) continue;
     if (SKIP_E2E && file.startsWith(SUB_REPOS.e2e)) continue;
     requireFile(file);
     if (!fs.existsSync(file)) continue;
@@ -248,18 +239,18 @@ function checkHandMaintainedPointers() {
 }
 
 if (
-  (SKIP_E2E && (ONLY_E2E || ONLY_ROOT)) ||
-  [ONLY_E2E, ONLY_BACKEND, ONLY_ROOT].filter(Boolean).length > 1
+  (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT)) ||
+  [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT].filter(Boolean).length > 1
 ) {
   throw new Error("Use only one scoped drift-check mode.");
 }
 if (ONLY_ROOT) {
   checkFhfRoot();
   checkAgentsRoster();
-} else if (ONLY_BACKEND) {
-  checkSubRepo(SUB_REPOS.backend, "backend");
 } else if (ONLY_E2E) {
   checkSubRepo(SUB_REPOS.e2e, "e2e");
+} else if (ONLY_SMOKE) {
+  checkSubRepo(SUB_REPOS.smoke, "smoke");
 } else {
   checkHarnessRoot();
   checkFhfRoot();
@@ -278,10 +269,10 @@ if (issues.length) {
 }
 
 console.log(
-  ONLY_BACKEND
-    ? "Backend harness loader shims are clean and centralized."
-    : ONLY_E2E
+  ONLY_E2E
     ? "E2E harness loader shims are clean and centralized."
+    : ONLY_SMOKE
+    ? "Smoke harness loader shims are clean and centralized."
     : ONLY_ROOT
     ? "FHF-root harness loader shims are clean and centralized."
     : SKIP_E2E

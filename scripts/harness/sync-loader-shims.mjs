@@ -32,9 +32,6 @@ const FHF_ROOT = process.env.FHF_SYNC_TARGET_ROOT
 const SUB_REPOS = {
   e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation"),
   smoke: path.join(FHF_ROOT, "ProdSmokeExecution", "front-end-automation"),
-  backend: process.env.FHF_SYNC_BACKEND_TARGET
-    ? path.resolve(process.env.FHF_SYNC_BACKEND_TARGET)
-    : path.join(FHF_ROOT, "fhf-backend-automation"),
 };
 
 // FHF root gets the full generated .claude tree — it's the project root Claude Code
@@ -50,7 +47,7 @@ const CLAUDE_SUBFOLDERS = ["hooks", "agents", "rules", "skills"];
 const FORCE = process.argv.includes("--force");
 const SKIP_E2E = process.argv.includes("--skip-e2e");
 const ONLY_E2E = process.argv.includes("--only-e2e");
-const ONLY_BACKEND = process.argv.includes("--only-backend");
+const ONLY_SMOKE = process.argv.includes("--only-smoke");
 const ONLY_ROOT = process.argv.includes("--only-root");
 const MANIFEST_PATH = process.env.FHF_SYNC_MANIFEST
   ? path.resolve(process.env.FHF_SYNC_MANIFEST)
@@ -228,18 +225,15 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, ".harness", "README.md"), consumerVerifierReadme());
 }
 
-// Lane repos vendor the full .claude tree. They are pushed to a shared remote and cloned by
-// engineers who have no fhf-harness-os checkout, so pointing at an absolute path off this
-// machine would leave every hook broken for them. Vendored content stays generated — this
-// repo is still the only place it is authored, and check-loader-drift.mjs fails if a lane
-// copy is edited directly.
+// Managed Cypress lanes vendor and commit the full generated tree. Engineers clone these repos
+// without fhf-harness-os, so an absolute path off this machine would leave every hook broken.
+// Vendored content stays generated: this repo is the only author, and check-loader-drift.mjs
+// fails if a lane copy is edited directly.
 function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, "docs", "README.md"), docsReadme(lane));
-  if (lane !== "backend") {
-    writeText(path.join(repoPath, "README.md"), rootReadme(lane));
-    writeText(path.join(repoPath, "ARCHITECTURE.md"), architectureOverlay(lane));
-    writeText(path.join(repoPath, "CONTRIBUTING.md"), contributingOverlay(lane));
-  }
+  writeText(path.join(repoPath, "README.md"), rootReadme(lane));
+  writeText(path.join(repoPath, "ARCHITECTURE.md"), architectureOverlay(lane));
+  writeText(path.join(repoPath, "CONTRIBUTING.md"), contributingOverlay(lane));
   for (const sub of CLAUDE_SUBFOLDERS) {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(repoPath, ".claude", sub));
   }
@@ -264,8 +258,8 @@ function removeEmptyLegacyCodexDirectory(repoPath) {
 
 withFileLock(MANIFEST_PATH, () => {
   if (
-    (SKIP_E2E && (ONLY_E2E || ONLY_ROOT)) ||
-    [ONLY_E2E, ONLY_BACKEND, ONLY_ROOT].filter(Boolean).length > 1
+    (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT)) ||
+    [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT].filter(Boolean).length > 1
   ) {
     throw new Error("Use only one scoped sync mode.");
   }
@@ -274,8 +268,8 @@ withFileLock(MANIFEST_PATH, () => {
     : {};
   if (ONLY_E2E) {
     syncSubRepo(SUB_REPOS.e2e, "e2e");
-  } else if (ONLY_BACKEND) {
-    syncSubRepo(SUB_REPOS.backend, "backend");
+  } else if (ONLY_SMOKE) {
+    syncSubRepo(SUB_REPOS.smoke, "smoke");
   } else if (ONLY_ROOT) {
     syncFhfRoot();
   } else {
@@ -296,9 +290,9 @@ withFileLock(MANIFEST_PATH, () => {
     if (ONLY_E2E) {
       syncSubRepo(SUB_REPOS.e2e, "e2e");
       removeEmptyLegacyCodexDirectory(SUB_REPOS.e2e);
-    } else if (ONLY_BACKEND) {
-      syncSubRepo(SUB_REPOS.backend, "backend");
-      removeEmptyLegacyCodexDirectory(SUB_REPOS.backend);
+    } else if (ONLY_SMOKE) {
+      syncSubRepo(SUB_REPOS.smoke, "smoke");
+      removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
     } else if (ONLY_ROOT) {
       syncFhfRoot();
     } else {
@@ -315,10 +309,10 @@ withFileLock(MANIFEST_PATH, () => {
     }
     publishSync();
     console.log(
-      ONLY_BACKEND
-        ? "Synced loader shims for Backend repo only."
-        : ONLY_E2E
+      ONLY_E2E
         ? "Synced loader shims for E2E repo only."
+        : ONLY_SMOKE
+        ? "Synced loader shims for Smoke repo only."
         : ONLY_ROOT
         ? "Synced loader shims for FHF root only."
         : `Synced loader shims for FHF root and ${SKIP_E2E ? "Smoke" : "E2E and Smoke"} repos.`,

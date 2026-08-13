@@ -8,6 +8,9 @@ It is not a QA test suite. It contains no Cypress specs, no application docs, no
 - `C:\Users\Leapfrog\FHF\AG Frontend Automation\front-end-automation` — E2E lane
 - `C:\Users\Leapfrog\FHF\ProdSmokeExecution\front-end-automation` — Smoke lane
 
+`fhf-backend-automation` is independently owned and is not a consumer of this harness. When it is
+available, use it only for read-only API or Oracle evidence; never install, sync, edit, or write there.
+
 ## What lives here
 
 ```
@@ -23,7 +26,7 @@ scripts/harness/
     test-hooks.mjs             — hook regression tests
     check-docs-links.mjs       — docs integrity check
     loader-templates.mjs       — single source of truth for generated consumer-repo content
-    sync-loader-shims.mjs      — regenerates every consumer repo's .claude/ + overlay docs
+    sync-loader-shims.mjs      — regenerates the FHF root plus E2E and Smoke consumer configuration
     check-loader-drift.mjs     — local gate: fails if a consumer repo's generated files drifted
 docs/
     framework/harness-engineering.md  — control-plane reference (hook topology, agent roles, model config)
@@ -33,7 +36,13 @@ docs/
 
 ## Consumer contract
 
-The FHF root's `.claude/{hooks,agents,rules,skills}/`, `.claude/settings.json`, `.cursor/hooks.json`, `.github/copilot-instructions.md`, `GEMINI.md`, and `.harness/verify.mjs` are generated. Lane repos also receive documentation overlays (`README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/README.md`). Sibling `.cursor/*` and `.github/*` files, plus optional `architecture/`, are consumer-owned and are not drift.
+The FHF root is a local aggregation workspace. Its generated configuration is local-only. The E2E
+and Smoke repositories are clone-ready consumers: commit their generated `.claude/{hooks,agents,rules,skills}/`,
+`.claude/settings.json`, `.claude/harness.config.json`, `.cursor/hooks.json`,
+`.github/copilot-instructions.md`, `GEMINI.md`, `.harness/`, and documentation overlays (`README.md`,
+`ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/README.md`) so engineers can use the harness after cloning.
+Only runtime state such as `**/cypress/handoff/` and `.claude/hooks/.sweep-retries` remains ignored.
+Sibling `.cursor/*` and `.github/*` files, plus optional `architecture/`, are consumer-owned and are not drift.
 
 Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path.
 
@@ -44,5 +53,5 @@ Any change to hook topology, agent roster, or the skill-routing map requires an 
 ## Centralized QA control plane
 
 Use `docs/framework/qa-control-plane.md` for current-sprint intake, connected Atlassian context,
-application-spec proposals, three-lane evidence, and dashboard refreshes. Read-only discovery is
+application-spec proposals, two Cypress lanes, and dashboard refreshes. Read-only discovery is
 autonomous; Jira, Confluence, and application-spec writes require explicit single-use approval.

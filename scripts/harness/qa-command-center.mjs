@@ -179,7 +179,7 @@ function classifyLanes(issue) {
     issue.components.join(" "),
   ].join(" "));
   const lanes = new Set();
-  if (/\b(api|backend|database|db|oracle|endpoint|trigger|cron|ords)\b/.test(text)) lanes.add("backend");
+  if (/\b(api|backend|database|db|oracle|endpoint|trigger|cron|ords)\b/.test(text)) lanes.add("backendEvidence");
   if (/\b(smoke|production|prod|availability|auth|sanity)\b/.test(text)) lanes.add("smoke");
   if (/\b(frontend|ui|dashboard|cypress|data cy|filter|sort|modal|tab)\b/.test(text)) lanes.add("e2e");
   if (!lanes.size) lanes.add("review");
@@ -553,13 +553,17 @@ function discoverExecution(config) {
   const discovered = [
     junitRun(path.join(lanePath("e2e"), "reports", "junit", "merged.xml"), "e2e"),
     junitRun(path.join(lanePath("smoke"), "reports", "junit", "merged.xml"), "smoke"),
-    junitRun(
-      path.join(lanePath("backend"), "reports", "junit-report.xml"),
-      "backend",
-      path.join(lanePath("backend"), "reports", "testrail_run_id.txt"),
-    ),
-  ].filter(Boolean);
-  const runs = [...configured, ...discovered].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  ];
+  const backend = config.paths.optionalReadOnlyEvidence?.backend;
+  if (backend && fs.existsSync(path.join(config.consumerRoot, backend.root))) {
+    discovered.push(junitRun(
+      path.join(config.consumerRoot, backend.root, backend.execution.junit),
+      "backendEvidence",
+      path.join(config.consumerRoot, backend.root, backend.execution.testRailRun),
+    ));
+  }
+  const available = discovered.filter(Boolean);
+  const runs = [...configured, ...available].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   return { status: runs.length ? "available" : "unknown", generatedAt: runs[0]?.date, runs };
 }
 
@@ -644,7 +648,7 @@ function prioritizedActions(issues, coverage, config) {
     if (!issue.module.modules.length) score += weights.unmappedWeight;
     if (issue.module.confidence === "review") score += weights.reviewWeight;
     const laneStates = issue.suggestedLanes
-      .filter((lane) => ["e2e", "smoke", "backend"].includes(lane))
+      .filter((lane) => ["e2e", "smoke", "backendEvidence"].includes(lane))
       .flatMap((lane) => issue.module.modules.map((module) => coverage?.lanes?.[lane]?.modules?.[module]?.state))
       .filter(Boolean);
     if (laneStates.includes("NONE")) score += weights.noCoverageWeight;

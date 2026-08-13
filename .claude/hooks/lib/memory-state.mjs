@@ -11,6 +11,10 @@ export function workspaceRoot(payload) {
   );
 }
 
+export function isExternalBackendWorkspace(payload) {
+  return /(?:^|[\\/])fhf-backend-automation(?:[\\/]|$)/i.test(workspaceRoot(payload));
+}
+
 export function handoffPath(payload, memory) {
   const root = workspaceRoot(payload);
   const lane = detectLane(root);

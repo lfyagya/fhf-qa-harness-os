@@ -78,9 +78,9 @@ if (engineering) {
       }
       if (!route.hint) issues.push(`engineering.context.routes[${index}] needs a hint`);
       if (route.lanes) {
-        const known = new Set(["root", "e2e", "smoke", "backend"]);
+        const known = new Set(["root", "e2e", "smoke"]);
         if (!Array.isArray(route.lanes) || route.lanes.length === 0 || route.lanes.some((name) => !known.has(name))) {
-          issues.push(`engineering.context.routes[${index}] lanes must be a non-empty subset of root|e2e|smoke|backend`);
+          issues.push(`engineering.context.routes[${index}] lanes must be a non-empty subset of root|e2e|smoke`);
         }
       }
     });
@@ -117,7 +117,7 @@ if (engineering) {
       issues.push(`applicationSource.pathPatterns[${index}] is invalid: ${error.message}`);
     }
   }
-  for (const lane of ["root", "e2e", "smoke", "backend"]) {
+  for (const lane of ["root", "e2e", "smoke"]) {
     if (!Array.isArray(appBoundary?.denyWriteByLane?.[lane]) || appBoundary.denyWriteByLane[lane].length === 0) {
       issues.push(`applicationSource.denyWriteByLane.${lane} must not be empty`);
     }
@@ -213,7 +213,7 @@ if (!cloudCli) {
   if (auth.local !== "oauth" || auth.ciTokenEnv !== "CYPRESS_CLOUD_TOKEN" || auth.credentialsInConfig !== false) {
     issues.push("Cloud CLI auth must use local OAuth, external CI token env, and no config credentials");
   }
-  const expectedAccess = { e2e: "full-read", smoke: "metadata-only", root: "metadata-only", backend: "none" };
+  const expectedAccess = { e2e: "full-read", smoke: "metadata-only", root: "metadata-only" };
   for (const [lane, access] of Object.entries(expectedAccess)) {
     if (cloudCli.laneAccess?.[lane] !== access) {
       issues.push(`connectors.cypressCloud.cli.laneAccess.${lane} must be ${access}`);

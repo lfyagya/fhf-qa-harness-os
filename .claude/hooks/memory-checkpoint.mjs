@@ -3,15 +3,17 @@
 import { readFileSync } from "node:fs";
 import { engineeringConfig } from "./lib/harness-config.mjs";
 import { emitEmpty } from "./lib/hook-runtime.mjs";
-import { mergeHandoff, workspaceRoot } from "./lib/memory-state.mjs";
+import { isExternalBackendWorkspace, mergeHandoff, workspaceRoot } from "./lib/memory-state.mjs";
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, "utf8")); } catch { process.exit(0); }
 
-mergeHandoff(payload, engineeringConfig().memory, {
-  checkpointAt: new Date().toISOString(),
-  checkpointReason:
-    payload.trigger ?? payload.reason ?? payload.source ?? payload.hook_event_name ?? "unknown",
-  workspace: workspaceRoot(payload),
-});
+if (!isExternalBackendWorkspace(payload)) {
+  mergeHandoff(payload, engineeringConfig().memory, {
+    checkpointAt: new Date().toISOString(),
+    checkpointReason:
+      payload.trigger ?? payload.reason ?? payload.source ?? payload.hook_event_name ?? "unknown",
+    workspace: workspaceRoot(payload),
+  });
+}
 emitEmpty(payload);

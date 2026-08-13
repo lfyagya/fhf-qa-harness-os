@@ -20,7 +20,6 @@
   "paths": {
     "consumerRoot": "../FHF",
     "applicationIntelligence": "docs/framework/application-intelligence",
-    "moduleIndex": "docs/modules/README.md",
     "chainRisk": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
     "executionHistory": "docs/evidence/execution-history.md",
     "evidenceDir": "docs/evidence",
@@ -34,18 +33,22 @@
         "root": "ProdSmokeExecution/front-end-automation",
         "package": "CypressFHF/fhf-dashboards",
         "branch": "staging"
-      },
+      }
+    },
+    "optionalReadOnlyEvidence": {
       "backend": {
         "root": "fhf-backend-automation",
-        "package": ".",
-        "branch": "unifi",
-        "moduleBaselines": {
-          "unifi": "unifi",
-          "ancillary": "ancillary",
-          "loss-mitigation": "loss-mitigation"
-        },
-        "standards": "docs/AGENT-GUIDE.md",
-        "moduleContext": "project-context/modules"
+        "availability": "optional",
+        "access": "read-only",
+        "purpose": [
+          "regression-impact",
+          "coverage",
+          "ui-api-db-chain-evidence"
+        ],
+        "execution": {
+          "junit": "reports/junit-report.xml",
+          "testRailRun": "reports/testrail_run_id.txt"
+        }
       }
     }
   },
@@ -64,7 +67,8 @@
         "confluence",
         "teamworkGraph"
       ],
-      "authentication": "oauth"
+      "authentication": "oauth",
+      "transport": "claude.ai-connector"
     },
     "cypressCloud": {
       "required": false,
@@ -89,8 +93,7 @@
         "laneAccess": {
           "e2e": "full-read",
           "smoke": "metadata-only",
-          "root": "metadata-only",
-          "backend": "none"
+          "root": "metadata-only"
         },
         "guard": {
           "safeNoNetworkFlags": [
@@ -353,51 +356,7 @@
       "unifi"
     ]
   },
-  "_moduleSpecPathsNote": "Prefer each module's own module-context.yaml: consumers take path.dirname() of these entries to locate the module directory, so a specs/*.yaml target resolves one level too deep. call-reports, post-funding and contracts have no module-context.yaml of their own and point at their real spec files instead. letters has no application-intelligence directory at all, so it has no entry (consumers default to []).",
-  "moduleSpecPaths": {
-    "ancillary": [
-      "docs/framework/application-intelligence/modules/ancillary/module-context.yaml"
-    ],
-    "call-reports": [
-      "docs/framework/application-intelligence/modules/call_reports/specs/agent-call-volume.yaml",
-      "docs/framework/application-intelligence/modules/call_reports/specs/call-recording.yaml"
-    ],
-    "checks": [
-      "docs/framework/application-intelligence/modules/checks/module-context.yaml"
-    ],
-    "complaints": [
-      "docs/framework/application-intelligence/modules/complaints/module-context.yaml"
-    ],
-    "contracts": [
-      "docs/framework/application-intelligence/modules/custodian/specs/contracts-dashboard.yaml"
-    ],
-    "custodian": [
-      "docs/framework/application-intelligence/modules/custodian/module-context.yaml"
-    ],
-    "doc-repository": [
-      "docs/framework/application-intelligence/modules/document_repository/module-context.yaml"
-    ],
-    "funding": [
-      "docs/framework/application-intelligence/modules/funding/module-context.yaml"
-    ],
-    "insurance": [
-      "docs/framework/application-intelligence/modules/insurance/module-context.yaml"
-    ],
-    "loss-mitigation": [
-      "docs/framework/application-intelligence/modules/loss_mitigation/module-context.yaml"
-    ],
-    "post-funding": [
-      "docs/framework/application-intelligence/modules/post_funding/specs/dealer-detail.yaml",
-      "docs/framework/application-intelligence/modules/post_funding/specs/summary.yaml"
-    ],
-    "titles": [
-      "docs/framework/application-intelligence/modules/titles/module-context.yaml"
-    ],
-    "unifi": [
-      "docs/framework/application-intelligence/modules/unifi/collections/module-context.yaml",
-      "docs/framework/application-intelligence/modules/unifi/servicing/module-context.yaml"
-    ]
-  },
+  "moduleSpecPaths": {},
   "engineering": {
     "context": {
       "mode": "route-on-demand",
@@ -435,69 +394,6 @@
           "priority": 90,
           "match": "\\b(command center|current sprint|sprint intake|spec (sync|freshness|delta)|centralized qa|cross-lane)\\b",
           "hint": "QA control plane → follow the repository's QA control-plane guide when available; otherwise use repository-local rules. Approval-gate every Jira, Confluence, or application-spec write."
-        },
-        {
-          "id": "backend-failure",
-          "priority": 101,
-          "lanes": ["backend"],
-          "match": "\\b(failing|fails|red|broken|error)\\b.*\\b(test|pytest|oracle|ords)\\b|\\b(pytest|oracle|ords|spec)\\b.*\\b(failing|fails|red|broken)\\b",
-          "hint": "Backend pytest failure → stay in parent. Read docs/AGENT-GUIDE.md, then reports/junit-report.xml or allure-results. Do not spawn cypress-debugger."
-        },
-        {
-          "id": "backend-new-test",
-          "priority": 96,
-          "lanes": ["backend"],
-          "match": "\\b(write|create|add|new|generate)\\b.*\\b(test|spec|suite|pytest)\\b|\\bacceptance criteria\\b|\\bserv-\\d+",
-          "hint": "Backend pytest work → stay in parent. Read docs/AGENT-GUIDE.md, then api/*_client.py, tests/commons/db_schema.py, tests/example_env, tests/commons/api_schemas/. Reuse a client method before adding one. Do not spawn cypress-generator."
-        },
-        {
-          "id": "backend-pre-merge",
-          "priority": 96,
-          "lanes": ["backend"],
-          "match": "\\b(pre-?merge|ready to (commit|merge)|open (a )?pr|pull request)\\b",
-          "hint": "Backend pre-merge → stay in parent. Check typed clients, db_schema.py names, no time.sleep, no f-string SQL, [C] TestRail ids, --order-scope=module. Do not spawn cypress-gate or cypress-shipper."
-        },
-        {
-          "id": "backend-oracle",
-          "priority": 80,
-          "lanes": ["backend"],
-          "match": "\\b(oracle|db_schema|table|view|dao|execute_query)\\b",
-          "hint": "Oracle names → tests/commons/db_schema.py only. DAO in dao/oracle_dao.py. Never hardcode schema/table/view strings."
-        },
-        {
-          "id": "backend-endpoint",
-          "priority": 80,
-          "lanes": ["backend"],
-          "match": "\\b(firsthelp_coll|/ords/|endpoint)\\b",
-          "hint": "ORDS paths → tests/example_env, then the matching api/*_client.py method. Tests must not call os.getenv for endpoints."
-        },
-        {
-          "id": "backend-testrail",
-          "priority": 80,
-          "lanes": ["backend"],
-          "match": "\\b(testrail|trcli|\\[c\\d+)\\b",
-          "hint": "TestRail → docs/TESTRAIL_INTEGRATION.md and scripts/testrail_integration.sh. Case ids are [C<id>] in test docstrings."
-        },
-        {
-          "id": "backend-auth",
-          "priority": 80,
-          "lanes": ["backend"],
-          "match": "\\b(okta|bearer|401)\\b",
-          "hint": "Okta → helpers/okta_auth_helper.py and docs/OKTA_AUTH_GUIDE.md (read in 120-line chunks)."
-        },
-        {
-          "id": "backend-module-context",
-          "priority": 70,
-          "lanes": ["backend"],
-          "match": "\\b(apd|acd|repo invoice|auction invoice|unifi collections|ancillary product)\\b",
-          "hint": "Module behavior → project-context/modules/<module>/00_README.md, then one numbered file. Suites exist only for ancillary, loss-mitigation, and unifi."
-        },
-        {
-          "id": "backend-on-demand",
-          "priority": 70,
-          "lanes": ["backend"],
-          "match": "\\b(on-?demand|pytest target|codebuild)\\b",
-          "hint": "Scoped backend run → buildspec.yml FHF_PYTEST_* vars and scripts/testrail_integration.sh TEST_TARGET. Empty collection is a fail."
         },
         {
           "id": "cloud-failure",
@@ -563,25 +459,7 @@
           "id": "api-interception",
           "priority": 70,
           "match": "\\b(intercept|api alias|api wait)\\b",
-          "hint": "API interception detail → read docs/framework/testing-standards/api-layer-guide.md."
-        },
-        {
-          "id": "api-contract",
-          "priority": 70,
-          "match": "\\b(response contract|schema assertion|api validation)\\b",
-          "hint": "API contract detail → read docs/framework/testing-standards/api-validation-guide.md."
-        },
-        {
-          "id": "test-data",
-          "priority": 70,
-          "match": "\\b(test data|fixture|seed data|cleanup strategy)\\b",
-          "hint": "Test data detail → read docs/framework/testing-standards/test-data-management.md."
-        },
-        {
-          "id": "test-organization",
-          "priority": 70,
-          "match": "\\b(file naming|folder structure|test organization)\\b",
-          "hint": "Test path detail → read docs/framework/testing-standards/test-organization.md."
+          "hint": "API interception detail → read docs/framework/api-layer-guide.md in the E2E repo."
         },
         {
           "id": "coverage-presence",
@@ -611,7 +489,7 @@
           "id": "application-contract",
           "priority": 65,
           "match": "\\b(application contract|product behavior|module context|route.*permission|api.*database)\\b",
-          "hint": "Product behavior → read docs/modules/README.md, then only the target application-intelligence module contract."
+          "hint": "Product behavior → read docs/framework/fhf-application-context.md in the E2E repo, then Test-Case-Automation-Using-Claude-Agents/specs for the target module spec."
         },
         {
           "id": "triage-night-brief",
@@ -625,9 +503,6 @@
       "authority": "working-tree-config-and-generated-evidence",
       "sessionScope": "one-job",
       "handoffFile": "cypress/handoff/session-latest.json",
-      "handoffFileByLane": {
-        "backend": "reports/handoff/session-latest.json"
-      },
       "handoffMaxAgeHours": 24,
       "preserveExactly": [
         "ticket-ids",
@@ -694,6 +569,7 @@
           "mode": "read-only",
           "pathPatterns": [
             "fhf-dashboards[\\\\/]src(?:[\\\\/]|$)",
+            "(?:^|[\\\\/])fhf-backend-automation(?:[\\\\/]|$)",
             "(?:^|[\\\\/])tests[\\\\/]\\.env$",
             "(?:^|[\\\\/])config[\\\\/]config\\.ini$"
           ],
@@ -708,11 +584,6 @@
             ],
             "smoke": [
               "./CypressFHF/fhf-dashboards/src"
-            ],
-            "backend": [
-              "./tests/.env",
-              "./config/config.ini",
-              "./.env"
             ]
           }
         }
@@ -734,6 +605,9 @@
         ],
         "preSubagent": [
           "block-generic-agents.mjs"
+        ],
+        "preSkill": [
+          "block-forbidden-skills.mjs"
         ],
         "preReadExceptE2e": [
           "protect-prod-data.mjs"
@@ -796,19 +670,6 @@
             "deny": [
               "WebSearch"
             ]
-          },
-          "permissionsByLane": {
-            "backend": {
-              "allow": [
-                "Bash(pytest *)",
-                "Bash(./scripts/testrail_integration.sh *)",
-                "Bash(python scripts/testrail_sync_titles.py *)",
-                "Bash(allure *)"
-              ],
-              "deny": [
-                "WebSearch"
-              ]
-            }
           }
         },
         "cursor": {
@@ -886,12 +747,8 @@
       "chain": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
       "planning": "docs/planning/roadmap/effort-breakdown-by-module-and-subdashboard.md",
       "selectors": "docs/planning/data-cy-hook-backlog.md",
-      "smoke-execution": "docs/framework/execution-strategy.md",
-      "product": "Test-Case-Automation-Using-Claude-Agents/specs",
       "execution": "docs/framework/execution-strategy.md",
-      "triage": "docs/framework/triage-runbook.md",
-      "backend-standards": "fhf-backend-automation/docs/AGENT-GUIDE.md",
-      "backend-modules": "fhf-backend-automation/project-context/modules"
+      "triage": "docs/framework/triage-runbook.md"
     }
   }
 }

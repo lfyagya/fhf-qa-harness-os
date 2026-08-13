@@ -1,6 +1,6 @@
 # Agent and Skill Router
 
-Apply this to FHF Cypress work. When the cwd is `fhf-backend-automation`, stay in the parent and follow `docs/AGENT-GUIDE.md` — do not spawn Cypress agents.
+Apply this to FHF Cypress work. `fhf-backend-automation` is an independent repository: when available, inspect it read-only for API or Oracle evidence; never install this harness, modify files, or spawn Cypress agents there.
 
 Read `.claude/harness.config.json`:
 

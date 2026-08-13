@@ -13,7 +13,12 @@ import {
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const FHF_ROOT = path.resolve(HARNESS_ROOT, "..", "FHF");
 const OUT_JSON = path.join(FHF_ROOT, "docs", "evidence", "coverage-computed.json");
-const BACKEND_ROOT = path.join(FHF_ROOT, "fhf-backend-automation");
+const CONTROL_PLANE_CONFIG_PATH = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
+const CONTROL_PLANE = JSON.parse(fs.readFileSync(CONTROL_PLANE_CONFIG_PATH, "utf8"));
+const BACKEND_EVIDENCE = CONTROL_PLANE.paths?.optionalReadOnlyEvidence?.backend;
+const BACKEND_ROOT = BACKEND_EVIDENCE
+  ? path.join(FHF_ROOT, BACKEND_EVIDENCE.root)
+  : null;
 const consentIndex = process.argv.indexOf("--consent");
 const consent = consentIndex >= 0 ? process.argv[consentIndex + 1] : null;
 
@@ -60,14 +65,6 @@ function walk(dir, ext) {
     else if (e.name.endsWith(ext)) out.push(full);
   }
   return out;
-}
-
-function backendModule(file) {
-  const n = norm(file);
-  if (n.includes("repoinvoice") || n.includes("auctioninvoice")) return "loss-mitigation";
-  if (n.includes("ancillary") || n.includes("acd") || n.includes("apd")) return "ancillary";
-  if (n.includes("unifi") || n.includes("payix")) return "unifi";
-  return null;
 }
 
 const unmapped = [];
@@ -123,67 +120,50 @@ function verdict(laneState) {
 }
 
 const BACKEND_LAYERS = ["client", "tests", "contract", "db", "testrail"];
-const backendState = {};
-for (const m of MODULES) backendState[m] = {};
-
-// Reference-readiness signal — deliberately NOT one of BACKEND_LAYERS and never counted in
-// backendVerdict(). It answers "is the API contract already mapped for whoever builds this,"
-// not "does automation exist" — those are different questions and collapsing them into one
-// State value would hide which one is true. Reuses qa-control-plane.json's own module→directory
-// mapping (moduleSpecPaths) rather than a second, parallel mapping that could drift from it.
-//
-// Checks module-context.yaml for a top-level `backend_automation:` key — NOT a separate file.
-// A standalone backend-automation-reference.md was tried first (2026-07-24) and reverted same
-// day: this corpus was deliberately restructured to exactly two files per module (specs/*.yaml +
-// module-context.yaml), and a third loosely-named file per module reintroduces the exact
-// proliferation that restructure eliminated. String-matched, not full YAML-parsed — presence
-// detection only, no need for a YAML dependency here.
-const CONTROL_PLANE_CONFIG_PATH = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
-const MODULE_SPEC_PATHS = fs.existsSync(CONTROL_PLANE_CONFIG_PATH)
-  ? JSON.parse(fs.readFileSync(CONTROL_PLANE_CONFIG_PATH, "utf8")).moduleSpecPaths ?? {}
-  : {};
-function hasBackendRefDoc(moduleKey) {
-  const specPaths = MODULE_SPEC_PATHS[moduleKey] ?? [];
-  const dirs = [...new Set(specPaths.map((p) => path.dirname(p)))];
-  return dirs.some((dir) => {
-    const contextFile = path.join(FHF_ROOT, dir, "module-context.yaml");
-    if (!fs.existsSync(contextFile)) return false;
-    return /^backend_automation:/m.test(fs.readFileSync(contextFile, "utf8"));
-  });
-}
-for (const m of MODULES) backendState[m].refDoc = hasBackendRefDoc(m);
-
-for (const client of walk(path.join(BACKEND_ROOT, "api"), ".py")) {
-  if (path.basename(client) === "base_client.py" || path.basename(client) === "__init__.py") continue;
-  const mod = backendModule(client);
-  if (mod) backendState[mod].client = true;
-  else unmapped.push(`backend/client: ${path.relative(BACKEND_ROOT, client).replace(/\\/g, "/")}`);
+function backendModule(file) {
+  const n = norm(file);
+  if (n.includes("repoinvoice") || n.includes("auctioninvoice")) return "loss-mitigation";
+  if (n.includes("ancillary") || n.includes("acd") || n.includes("apd")) return "ancillary";
+  if (n.includes("unifi") || n.includes("payix")) return "unifi";
+  return null;
 }
 
-for (const test of walk(path.join(BACKEND_ROOT, "tests"), ".py")) {
-  if (!path.basename(test).startsWith("test_")) continue;
-  const mod = backendModule(test);
-  if (!mod) {
-    if (!path.relative(path.join(BACKEND_ROOT, "tests"), test).startsWith("smoke")) {
-      unmapped.push(`backend/test: ${path.relative(BACKEND_ROOT, test).replace(/\\/g, "/")}`);
-    }
-    continue;
+function collectBackendEvidence() {
+  if (!BACKEND_ROOT || !fs.existsSync(BACKEND_ROOT)) {
+    return { availability: "unavailable", access: "read-only", rubric: BACKEND_LAYERS, modules: {} };
   }
-  const content = fs.readFileSync(test, "utf8");
-  const s = backendState[mod];
-  s.tests = true;
-  s.testFiles = (s.testFiles ?? 0) + 1;
-  s.testCount = (s.testCount ?? 0) + (content.match(/^\s*def\s+test_/gm) ?? []).length;
-  if (/assert_response_schema|assert_response_body|assert_response_status/.test(content)) s.contract = true;
-  if (/assert_api_db_sync|execute_query|db_query|BaseDB/.test(content)) s.db = true;
-  const ids = content.match(/\[C\d+\]/g) ?? [];
-  s.testrailCount = (s.testrailCount ?? 0) + ids.length;
-  if (ids.length) s.testrail = true;
-}
 
-function backendVerdict(moduleState) {
-  const have = BACKEND_LAYERS.filter((layer) => moduleState[layer]).length;
-  return have === BACKEND_LAYERS.length ? "FULL" : have === 0 ? "NONE" : "PARTIAL";
+  const modules = Object.fromEntries(MODULES.map((module) => [module, {}]));
+  for (const client of walk(path.join(BACKEND_ROOT, "api"), ".py")) {
+    if (["base_client.py", "__init__.py"].includes(path.basename(client))) continue;
+    const module = backendModule(client);
+    if (module) modules[module].client = true;
+  }
+  for (const test of walk(path.join(BACKEND_ROOT, "tests"), ".py")) {
+    if (!path.basename(test).startsWith("test_")) continue;
+    const module = backendModule(test);
+    if (!module) continue;
+    const content = fs.readFileSync(test, "utf8");
+    const state = modules[module];
+    state.tests = true;
+    state.testFiles = (state.testFiles ?? 0) + 1;
+    state.testCount = (state.testCount ?? 0) + (content.match(/^\s*def\s+test_/gm) ?? []).length;
+    if (/assert_response_schema|assert_response_body|assert_response_status/.test(content)) state.contract = true;
+    if (/assert_api_db_sync|execute_query|db_query|BaseDB/.test(content)) state.db = true;
+    const ids = content.match(/\[C\d+\]/g) ?? [];
+    state.testrailCount = (state.testrailCount ?? 0) + ids.length;
+    if (ids.length) state.testrail = true;
+  }
+  return {
+    availability: "available",
+    access: "read-only",
+    rubric: BACKEND_LAYERS,
+    modules: Object.fromEntries(displayOrder.map((module) => {
+      const state = modules[module];
+      const present = BACKEND_LAYERS.filter((layer) => state[layer]).length;
+      return [module, { ...state, state: present === BACKEND_LAYERS.length ? "FULL" : present ? "PARTIAL" : "NONE" }];
+    })),
+  };
 }
 
 const displayOrder = [...MODULES].sort();
@@ -200,10 +180,7 @@ const json = {
       rubric: LAYERS,
       modules: Object.fromEntries(displayOrder.map((m) => [m, { ...state[m].smoke, state: verdict(state[m].smoke) }])),
     },
-    backend: {
-      rubric: BACKEND_LAYERS,
-      modules: Object.fromEntries(displayOrder.map((m) => [m, { ...backendState[m], state: backendVerdict(backendState[m]) }])),
-    },
+    backendEvidence: collectBackendEvidence(),
   },
   unmapped: [...new Set(unmapped)].sort(),
 };

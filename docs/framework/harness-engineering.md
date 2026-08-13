@@ -22,8 +22,10 @@ loader-templates.mjs + sync-loader-shims.mjs
             └─ .claude/harness.config.json
 ```
 
-The engine lives in `fhf-harness-os`. Generated adapters and test payloads live in the FHF
-workspace and lane repositories. Never hand-edit a generated adapter.
+The engine lives in `fhf-harness-os`. The FHF root is a local aggregation workspace; generated
+adapters and test payloads live in the lane repositories. The E2E and Smoke projections are
+committed with their repositories so a fresh clone is immediately usable. Never hand-edit a
+generated adapter.
 Every committed adapter uses the same Node launcher to resolve `CLAUDE_PROJECT_DIR`,
 `CURSOR_PROJECT_DIR`, or the project working directory at runtime. Generated files must not contain
 a developer home directory or drive-specific path. Control-plane topology remains relative data;
