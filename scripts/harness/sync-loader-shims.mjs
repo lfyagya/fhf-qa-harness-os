@@ -18,6 +18,14 @@ import {
   geminiInstructions,
   parentCopilotInstructions,
   parentGeminiInstructions,
+  baselineClaude,
+  baselineAgents,
+  baselineReadme,
+  baselineArchitecture,
+  baselineContributing,
+  baselineDocsReadme,
+  baselineCopilotInstructions,
+  baselineGeminiInstructions,
   consumerVerifierReadme,
   CONSUMER_VERIFIER_TEXT,
 } from "./loader-templates.mjs";
@@ -28,6 +36,9 @@ const HARNESS_ROOT = path.resolve(__dirname, "..", "..");
 const FHF_ROOT = process.env.FHF_SYNC_TARGET_ROOT
   ? path.resolve(process.env.FHF_SYNC_TARGET_ROOT)
   : path.resolve(HARNESS_ROOT, "..", "FHF");
+const BASELINE_ROOT = process.env.FHF_BASELINE_TARGET
+  ? path.resolve(process.env.FHF_BASELINE_TARGET)
+  : null;
 
 const SUB_REPOS = {
   e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation"),
@@ -49,6 +60,7 @@ const SKIP_E2E = process.argv.includes("--skip-e2e");
 const ONLY_E2E = process.argv.includes("--only-e2e");
 const ONLY_SMOKE = process.argv.includes("--only-smoke");
 const ONLY_ROOT = process.argv.includes("--only-root");
+const ONLY_BASELINE = process.argv.includes("--only-baseline");
 const MANIFEST_PATH = process.env.FHF_SYNC_MANIFEST
   ? path.resolve(process.env.FHF_SYNC_MANIFEST)
   : path.join(HARNESS_ROOT, ".sync-manifest.json");
@@ -225,6 +237,26 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, ".harness", "README.md"), consumerVerifierReadme());
 }
 
+function syncBaseline() {
+  if (!BASELINE_ROOT) throw new Error("--only-baseline requires FHF_BASELINE_TARGET.");
+  for (const sub of CLAUDE_SUBFOLDERS) {
+    copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(BASELINE_ROOT, ".claude", sub));
+  }
+  writeText(path.join(BASELINE_ROOT, ".claude", "settings.json"), portableSettings("root"));
+  writeText(path.join(BASELINE_ROOT, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
+  writeText(path.join(BASELINE_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  writeText(path.join(BASELINE_ROOT, ".github", "copilot-instructions.md"), baselineCopilotInstructions());
+  writeText(path.join(BASELINE_ROOT, "GEMINI.md"), baselineGeminiInstructions());
+  writeText(path.join(BASELINE_ROOT, "CLAUDE.md"), baselineClaude());
+  writeText(path.join(BASELINE_ROOT, "AGENTS.md"), baselineAgents());
+  writeText(path.join(BASELINE_ROOT, "README.md"), baselineReadme());
+  writeText(path.join(BASELINE_ROOT, "ARCHITECTURE.md"), baselineArchitecture());
+  writeText(path.join(BASELINE_ROOT, "CONTRIBUTING.md"), baselineContributing());
+  writeText(path.join(BASELINE_ROOT, "docs", "README.md"), baselineDocsReadme());
+  writeText(path.join(BASELINE_ROOT, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
+  writeText(path.join(BASELINE_ROOT, ".harness", "README.md"), consumerVerifierReadme());
+}
+
 // Managed Cypress lanes vendor and commit the full generated tree. Engineers clone these repos
 // without fhf-harness-os, so an absolute path off this machine would leave every hook broken.
 // Vendored content stays generated: this repo is the only author, and check-loader-drift.mjs
@@ -258,8 +290,8 @@ function removeEmptyLegacyCodexDirectory(repoPath) {
 
 withFileLock(MANIFEST_PATH, () => {
   if (
-    (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT)) ||
-    [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT].filter(Boolean).length > 1
+    (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT || ONLY_BASELINE)) ||
+    [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT, ONLY_BASELINE].filter(Boolean).length > 1
   ) {
     throw new Error("Use only one scoped sync mode.");
   }
@@ -270,6 +302,8 @@ withFileLock(MANIFEST_PATH, () => {
     syncSubRepo(SUB_REPOS.e2e, "e2e");
   } else if (ONLY_SMOKE) {
     syncSubRepo(SUB_REPOS.smoke, "smoke");
+  } else if (ONLY_BASELINE) {
+    syncBaseline();
   } else if (ONLY_ROOT) {
     syncFhfRoot();
   } else {
@@ -293,6 +327,8 @@ withFileLock(MANIFEST_PATH, () => {
     } else if (ONLY_SMOKE) {
       syncSubRepo(SUB_REPOS.smoke, "smoke");
       removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
+    } else if (ONLY_BASELINE) {
+      syncBaseline();
     } else if (ONLY_ROOT) {
       syncFhfRoot();
     } else {
@@ -313,6 +349,8 @@ withFileLock(MANIFEST_PATH, () => {
         ? "Synced loader shims for E2E repo only."
         : ONLY_SMOKE
         ? "Synced loader shims for Smoke repo only."
+        : ONLY_BASELINE
+        ? "Synced loader shims for master baseline only."
         : ONLY_ROOT
         ? "Synced loader shims for FHF root only."
         : `Synced loader shims for FHF root and ${SKIP_E2E ? "Smoke" : "E2E and Smoke"} repos.`,

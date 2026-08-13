@@ -112,6 +112,28 @@ try {
   assert.equal(fs.existsSync(path.join(rootOnly, ".claude", "harness.config.json")), true);
   assert.equal(fs.existsSync(path.join(rootOnly, "AG Frontend Automation")), false);
   assert.equal(fs.existsSync(path.join(rootOnly, "ProdSmokeExecution")), false);
+
+  const baselineOnly = path.join(root, "baseline-only");
+  const baselineEnv = {
+    ...process.env,
+    FHF_SYNC_TARGET_ROOT: root,
+    FHF_BASELINE_TARGET: baselineOnly,
+    FHF_SYNC_MANIFEST: path.join(baselineOnly, "sync-manifest.json"),
+  };
+  const baselineRun = spawnSync(process.execPath, [script, "--force", "--only-baseline"], {
+    encoding: "utf8",
+    env: baselineEnv,
+  });
+  assert.equal(baselineRun.status, 0, baselineRun.stderr);
+  assert.equal(fs.existsSync(path.join(baselineOnly, ".claude", "harness.config.json")), true);
+  assert.equal(fs.existsSync(path.join(baselineOnly, "CLAUDE.md")), true);
+  assert.equal(fs.existsSync(path.join(baselineOnly, "AGENTS.md")), true);
+  assert.equal(fs.existsSync(path.join(baselineOnly, ".harness", "verify.mjs")), true);
+  const baselineCheck = spawnSync(process.execPath, [driftScript, "--only-baseline"], {
+    encoding: "utf8",
+    env: baselineEnv,
+  });
+  assert.equal(baselineCheck.status, 0, baselineCheck.stderr);
   fs.mkdirSync(path.dirname(ownerCursor), { recursive: true });
   fs.writeFileSync(ownerCursor, "owner cursor file\n", "utf8");
   fs.writeFileSync(e2eReadme, "owner e2e readme\n", "utf8");

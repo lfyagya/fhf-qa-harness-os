@@ -206,6 +206,79 @@ Do not preload FHF documentation.
 `;
 }
 
+export function baselineClaude() {
+  return `# Frontend Automation Harness
+
+This is the shared, clone-ready harness baseline. For E2E work, checkout \`dev\`; for production
+smoke work, checkout \`staging\`. The selected branch provides the lane-specific instructions and
+execution boundaries. \`fhf-backend-automation\` is read-only evidence only.
+`;
+}
+
+export function baselineAgents() {
+  return `# Frontend Automation Harness
+
+Read \`CLAUDE.md\`. Choose the branch that matches the work before editing tests:
+
+| Work | Branch | Agent |
+| --- | --- | --- |
+| E2E / Dev-QA | \`dev\` | \`cypress-generator\`, \`cypress-gate\`, \`cypress-debugger\`, \`cypress-shipper\` |
+| Production smoke | \`staging\` | \`cypress-generator\`, \`cypress-gate\`, \`cypress-debugger\`, \`cypress-shipper\` |
+
+Generated harness files live in \`.claude/\`, \`.cursor/hooks.json\`,
+\`.github/copilot-instructions.md\`, \`GEMINI.md\`, and \`.harness/\`. Edit their canonical source
+in \`fhf-harness-os\` and regenerate; do not hand-edit generated files.
+`;
+}
+
+export function baselineReadme() {
+  return `# Frontend Automation
+
+This branch carries the shared clone-ready harness baseline. Checkout \`dev\` for E2E work or
+\`staging\` for production smoke work before changing or executing tests.
+`;
+}
+
+export function baselineArchitecture() {
+  return `# Harness Baseline Architecture
+
+The shared harness is vendored in \`.claude/\`. Lane-specific test architecture and execution
+constraints are defined by the \`dev\` (E2E) and \`staging\` (Smoke) branches.
+`;
+}
+
+export function baselineContributing() {
+  return `# Contributing
+
+Choose the correct lane branch before changing tests: \`dev\` for E2E or \`staging\` for Smoke.
+Run \`node .harness/verify.mjs\` after updating generated harness configuration.
+`;
+}
+
+export function baselineDocsReadme() {
+  return `# Harness Documentation
+
+This branch contains the shared harness baseline. Lane-specific documentation is maintained on
+\`dev\` for E2E and \`staging\` for Smoke.
+`;
+}
+
+export function baselineCopilotInstructions() {
+  return `# Copilot Instructions - Frontend Automation Baseline
+
+Read \`CLAUDE.md\`. Checkout \`dev\` for E2E work or \`staging\` for Smoke work before editing or
+executing tests.
+`;
+}
+
+export function baselineGeminiInstructions() {
+  return `# Gemini Instructions - Frontend Automation Baseline
+
+Read \`CLAUDE.md\`. Checkout \`dev\` for E2E work or \`staging\` for Smoke work before editing or
+executing tests.
+`;
+}
+
 export function docsReadme(lane) {
   return `# ${lane === "e2e" ? "E2E" : "Smoke"} Docs Pointer
 
