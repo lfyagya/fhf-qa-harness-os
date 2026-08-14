@@ -23,7 +23,7 @@ a fake outage. Both destroy confidence in the suite, which is the only thing the
    sufficient** — source shows *intended* behaviour. If you stop here and agree with source, you
    have only confirmed the app does what the app says it does, which is exactly where a genuine
    defect hides.
-5. **Adjudicate with the application specs.** `docs/framework/application-intelligence/` —
+5. **Adjudicate with the application specs.** The configured `documentation.owners.application` path —
    including per-module `modules/<module>/specs/*.yaml` with numbered business rules
    (`BR-<MOD>-NNN`). This is the independent third reference: it states what the app is
    *supposed* to do, so it can disagree with source. When spec and source disagree, that

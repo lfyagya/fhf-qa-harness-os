@@ -31,12 +31,28 @@ Every committed adapter uses the same Node launcher to resolve `CLAUDE_PROJECT_D
 a developer home directory or drive-specific path. Control-plane topology remains relative data;
 runtime adapters never require a sibling checkout.
 
+### Static and dynamic configuration
+
+`config/qa-control-plane.json` is the reviewed static policy. It owns topology, permissions,
+boundaries, routes, product-contract mappings, hard loop ceilings, and verification commands.
+Generated `.claude`, Cursor, and instruction projections are derived from that policy.
+
+An optional `FHF_HARNESS_OVERLAY` is session configuration, not a second source of truth. It may
+identify a ticket/module/run, select a configured route, or lower context and retry budgets. It may
+not widen permissions, change hook or agent topology, disable data protections, or raise hard
+safety limits. The effective configuration is fingerprinted in runtime loop state and traces.
+
+Loop state and traces are separate runtime artifacts. They record goal, plan, progress, failures,
+budgets, artifacts, verdicts, approvals, and provenance, but never rewrite static policy. Durable
+improvements follow the learning-plane path: trace -> evaluation -> reviewed proposal -> static
+change -> regenerated projection -> canary verification.
+
 ## Context engineering
 
 - `engineering.context.routes` uses explicit IDs and priorities; config order breaks equal-priority
   ties deterministically, while task intent remains authoritative over the advisory hint.
 - `documentation.owners` identifies the one document owner for each concern.
-- `moduleSpecPaths` identifies product-contract context per module.
+- `moduleSpecPaths` identifies product-contract context per module under the configured consumer workspace.
 - Root instructions stay thin; detailed context is loaded on demand.
 - Claude uses its adaptive auto-compact window unless `autoCompact.windowTokens` explicitly overrides it.
 - Read output is bounded before it enters context; large files must be read in configured line chunks.
@@ -106,6 +122,26 @@ blocked because they can put live production records into model context and the 
 Loops are proposal-only. They never self-approve, merge, or determine release quality. A loop
 terminates as `completed`, `blocked`, or `escalated`; it does not invent a fourth strategy after
 the configured limit.
+
+### Runtime evaluation evidence
+
+The evaluator does not use a committed repair-outcome fixture. Gate agents record `gate_verdict`,
+`repair_started`, and `repair_completed` events with `.harness/record-loop-event.mjs`. The canonical
+`eval-harness.mjs` discovers the ignored `engineering.context.runtime.traceFile` under the configured
+workspace and lane roots, groups events by `runId`, and measures convergence only for runs that
+actually entered repair. Missing traces remain `unavailable`, never zero or a fabricated pass.
+
+Gate calibration is a separate human-review workflow:
+
+```text
+node scripts/harness/calibrate-gate.mjs collect --trace <loop-trace.jsonl>
+node scripts/harness/calibrate-gate.mjs status
+node scripts/harness/calibrate-gate.mjs label --id <case> --human-pass <pass|fail> --human-score <0..1> --reviewer <name> --rationale <text>
+```
+
+Collection imports only machine-scored gate verdicts. It never fills human fields automatically;
+agreement metrics are withheld until every collected case has an explicit reviewer, pass/fail label,
+score, and rationale.
 
 ## Runtime flow
 

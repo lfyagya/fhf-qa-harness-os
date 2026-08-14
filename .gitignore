@@ -9,3 +9,6 @@
 .qa-consent-ledger.json.lock
 .qa-consent-ledger.json.*.tmp
 .qa-consent-ledger.json.*.bak
+
+# Runtime loop state and trace artifacts are workspace-local and regenerable.
+cypress/handoff/

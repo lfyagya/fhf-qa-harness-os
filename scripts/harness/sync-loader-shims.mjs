@@ -28,6 +28,8 @@ import {
   baselineGeminiInstructions,
   consumerVerifierReadme,
   CONSUMER_VERIFIER_TEXT,
+  PORTABLE_RUNTIME_STATE_TEXT,
+  RECORD_LOOP_EVENT_TEXT,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -75,6 +77,40 @@ const FIRST_SYNC_GENERATED = new Set([
   path.join(HARNESS_ROOT, ".claude", "settings.json"),
 ]);
 
+function manifestKey(filePath) {
+  const absolute = path.resolve(filePath);
+  const roots = [
+    [HARNESS_ROOT, "harness"],
+    [FHF_ROOT, "consumer"],
+    ...(BASELINE_ROOT ? [[BASELINE_ROOT, "baseline"]] : []),
+    [SUB_REPOS.e2e, "consumer/e2e"],
+    [SUB_REPOS.smoke, "consumer/smoke"],
+  ].sort((a, b) => b[0].length - a[0].length);
+  for (const [root, prefix] of roots) {
+    if (absolute === root || absolute.startsWith(`${root}${path.sep}`)) {
+      return `${prefix}/${path.relative(root, absolute).replaceAll(path.sep, "/")}`;
+    }
+  }
+  return `external/${absolute.replaceAll("\\", "/")}`;
+}
+
+function normalizeManifest(raw) {
+  const normalized = {};
+  const managedRoots = [HARNESS_ROOT, FHF_ROOT, BASELINE_ROOT, ...Object.values(SUB_REPOS)].filter(Boolean);
+  for (const [key, value] of Object.entries(raw ?? {})) {
+    if (!path.isAbsolute(key)) {
+      normalized[key] = value;
+      continue;
+    }
+    const keyPath = path.resolve(key);
+    const knownRoot = managedRoots.some(
+      (root) => keyPath === root || keyPath.startsWith(`${root}${path.sep}`),
+    );
+    if (knownRoot) normalized[manifestKey(keyPath)] = value;
+  }
+  return normalized;
+}
+
 function hash(content) {
   return createHash("sha256").update(content).digest("hex");
 }
@@ -83,7 +119,7 @@ function hash(content) {
 function guardWrite(filePath, newContent) {
   if (FORCE || !fs.existsSync(filePath)) return true;
   const currentHash = hash(fs.readFileSync(filePath, "utf8"));
-  const lastSynced = manifest[filePath];
+  const lastSynced = manifest[manifestKey(filePath)];
   if (!lastSynced && FIRST_SYNC_GENERATED.has(filePath)) return true;
   if (!lastSynced || currentHash !== lastSynced) {
     blocked.push(filePath);
@@ -126,7 +162,7 @@ function writeText(filePath, content) {
   if (!guardWrite(filePath, normalized)) return;
   if (preflight) return;
   stageWrite(filePath, normalized);
-  manifest[filePath] = hash(normalized);
+  manifest[manifestKey(filePath)] = hash(normalized);
 }
 
 function copyDirSync(src, dest) {
@@ -144,7 +180,7 @@ function copyDirSync(src, dest) {
       if (!guardWrite(d, content)) continue;
       if (preflight) continue;
       stageWrite(d, content);
-      manifest[d] = hash(content);
+      manifest[manifestKey(d)] = hash(content);
     }
   }
   // Remove generated entries whose source no longer exists — same divergence guard applies.
@@ -158,7 +194,7 @@ function copyDirSync(src, dest) {
         continue;
       }
       const currentHash = hash(fs.readFileSync(dpath, "utf8"));
-      const lastSynced = manifest[dpath];
+      const lastSynced = manifest[manifestKey(dpath)];
       if (!lastSynced || currentHash !== lastSynced) {
         blocked.push(`${dpath} (would be deleted — diverged since last sync)`);
         continue;
@@ -166,7 +202,7 @@ function copyDirSync(src, dest) {
     }
     if (preflight) continue;
     pendingDeletes.push({ filePath: dpath, backup: transactionPath(dpath, "bak") });
-    delete manifest[dpath];
+    delete manifest[manifestKey(dpath)];
   }
 }
 
@@ -224,6 +260,11 @@ function syncHarnessRoot() {
   writeText(path.join(HARNESS_ROOT, ".claude", "settings.json"), harnessSettings());
 }
 
+function syncRuntimeEvidence(repoPath) {
+  writeText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
+  writeText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
+}
+
 function syncFhfRoot() {
   for (const sub of CLAUDE_SUBFOLDERS) {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(FHF_ROOT, ".claude", sub));
@@ -235,6 +276,7 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, "GEMINI.md"), parentGeminiInstructions());
   writeText(path.join(FHF_ROOT, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
   writeText(path.join(FHF_ROOT, ".harness", "README.md"), consumerVerifierReadme());
+  syncRuntimeEvidence(FHF_ROOT);
 }
 
 function syncBaseline() {
@@ -255,6 +297,7 @@ function syncBaseline() {
   writeText(path.join(BASELINE_ROOT, "docs", "README.md"), baselineDocsReadme());
   writeText(path.join(BASELINE_ROOT, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
   writeText(path.join(BASELINE_ROOT, ".harness", "README.md"), consumerVerifierReadme());
+  syncRuntimeEvidence(BASELINE_ROOT);
 }
 
 // Managed Cypress lanes vendor and commit the full generated tree. Engineers clone these repos
@@ -279,6 +322,7 @@ function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, "GEMINI.md"), geminiInstructions(lane));
   writeText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
   writeText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme());
+  syncRuntimeEvidence(repoPath);
 }
 
 function removeEmptyLegacyCodexDirectory(repoPath) {
@@ -296,7 +340,7 @@ withFileLock(MANIFEST_PATH, () => {
     throw new Error("Use only one scoped sync mode.");
   }
   manifest = fs.existsSync(MANIFEST_PATH)
-    ? JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"))
+    ? normalizeManifest(JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8")))
     : {};
   if (ONLY_E2E) {
     syncSubRepo(SUB_REPOS.e2e, "e2e");

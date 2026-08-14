@@ -16,7 +16,7 @@ Not required for: adding a new skill file that doesn't change routing, fixing a 
 2. Make the change.
 3. Verify with `node scripts/harness/test-hooks.mjs` and `node scripts/harness/check-loader-drift.mjs` if the change touches hooks or generated consumer content.
 
-No separate approval step — this is a solo-owned harness, not a team process. The ADR exists so a future session (yours or an agent's) can find out *why* a structural decision was made, not to add a review gate.
+No separate approval step — this is a solo-owned harness, not a team process. The ADR exists so a future session (yours or an agent's) can find out *why* a structural decision was made, not to add a review gate. This exception expires when another contributor receives write access, the harness becomes a shared CI/deployment dependency, or a product/security owner assumes responsibility for its policy. At that point, structural changes require review by a second maintainer or the designated owner before merge.
 
 First real ADR, worth reading as a worked example: [`docs/adr/0001-harness-relocation.md`](adr/0001-harness-relocation.md) — records why the harness itself was pulled out into this repo.
 

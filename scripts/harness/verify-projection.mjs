@@ -9,6 +9,8 @@ const issues = [];
 const settingsPath = path.join(ROOT, ".claude", "settings.json");
 const configPath = path.join(ROOT, ".claude", "harness.config.json");
 const hooksPath = path.join(ROOT, ".cursor", "hooks.json");
+const runtimeStatePath = path.join(ROOT, ".harness", "portable-runtime-state.mjs");
+const recordLoopEventPath = path.join(ROOT, ".harness", "record-loop-event.mjs");
 
 function readJson(file) {
   if (!fs.existsSync(file)) {
@@ -27,8 +29,14 @@ function assertNoHomePath(file, text) {
 const settings = readJson(settingsPath);
 const config = readJson(configPath);
 const cursorHooks = fs.existsSync(hooksPath) ? fs.readFileSync(hooksPath, "utf8") : "";
+for (const file of [runtimeStatePath, recordLoopEventPath]) {
+  if (!fs.existsSync(file)) issues.push(`Missing ${path.relative(ROOT, file).replaceAll("\\", "/")}`);
+}
 if (settings) assertNoHomePath(settingsPath, JSON.stringify(settings));
 if (cursorHooks) assertNoHomePath(hooksPath, cursorHooks);
+for (const file of [runtimeStatePath, recordLoopEventPath]) {
+  if (fs.existsSync(file)) assertNoHomePath(file, fs.readFileSync(file, "utf8"));
+}
 
 const verify = config?.engineering?.harness?.verify;
 if (!verify || typeof verify !== "object" || Array.isArray(verify)) {

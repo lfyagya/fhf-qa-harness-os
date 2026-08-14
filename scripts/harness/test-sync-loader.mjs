@@ -50,6 +50,9 @@ try {
   const initialized = run(["--force"]);
   assert.equal(initialized.status, 0, initialized.stderr);
   legacyCodexDirs.forEach((directory) => assert.equal(fs.existsSync(directory), false));
+  const initializedManifest = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  assert.ok(Object.keys(initializedManifest).every((key) => !/^(?:[A-Za-z]:[\\/]|[\\/])/.test(key)));
+  assert.ok(Object.keys(initializedManifest).every((key) => /^(?:harness|consumer)\//.test(key)));
   const beforeTarget = fs.readFileSync(guarded, "utf8");
   const beforeManifest = fs.readFileSync(manifest, "utf8");
 
@@ -97,7 +100,10 @@ try {
   const e2eReadme = path.join(root, "AG Frontend Automation", "front-end-automation", "README.md");
   const ownerCursor = path.join(root, "AG Frontend Automation", "front-end-automation", ".cursor", "BUGBOT.md");
   assert.equal(fs.existsSync(path.join(root, ".harness", "verify.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, ".harness", "record-loop-event.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, ".harness", "portable-runtime-state.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "ProdSmokeExecution", "front-end-automation", ".harness", "verify.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, "ProdSmokeExecution", "front-end-automation", ".harness", "record-loop-event.mjs")), true);
 
   const rootOnly = path.join(root, "root-only");
   const rootOnlyRun = spawnSync(process.execPath, [script, "--force", "--only-root"], {
@@ -166,6 +172,8 @@ try {
   assert.equal(linked.status, 0, linked.stderr);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".claude", "harness.config.json")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "verify.mjs")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "record-loop-event.mjs")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "portable-runtime-state.mjs")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".cursor", "hooks.json")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".github", "copilot-instructions.md")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, "GEMINI.md")), true);

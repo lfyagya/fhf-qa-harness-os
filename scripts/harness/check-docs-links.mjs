@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -188,6 +189,109 @@ if (engineering) {
   }
 } else if (config) {
   issues.push("engineering must configure context, memory, harness, and loops");
+}
+
+const moduleSpecPaths = config?.moduleSpecPaths;
+const moduleAliases = config?.moduleAliases;
+const moduleSpecBase = config?.moduleSpecPathsBase;
+if (moduleSpecBase !== "paths.consumerRoot") {
+  issues.push("moduleSpecPathsBase must resolve from paths.consumerRoot");
+}
+
+const quality = config?.qualityAssurance;
+if (!quality || typeof quality !== "object") {
+  issues.push("qualityAssurance must be configured");
+} else {
+  for (const field of ["requiredEvidenceChain", "scenarioRequiredFields", "acceptedProductSpecStatuses", "fullChainRequires"]) {
+    if (!Array.isArray(quality[field]) || quality[field].length === 0) {
+      issues.push(`qualityAssurance.${field} must be a non-empty array`);
+    }
+  }
+  for (const lane of ["smoke", "e2e", "backend"]) {
+    if (!quality.lanes?.[lane] || typeof quality.lanes[lane] !== "object") {
+      issues.push(`qualityAssurance.lanes.${lane} must be configured`);
+    }
+  }
+  if (quality.lanes?.smoke?.environment !== "production") {
+    issues.push("qualityAssurance.lanes.smoke.environment must be production");
+  }
+  if (JSON.stringify(quality.lanes?.smoke?.allowedMethods ?? []) !== JSON.stringify(["GET"])) {
+    issues.push("qualityAssurance.lanes.smoke.allowedMethods must be GET-only");
+  }
+  for (const [name, value] of Object.entries(quality.falseGreen ?? {})) {
+    if (value !== false) issues.push(`qualityAssurance.falseGreen.${name} must remain false`);
+  }
+}
+if (!moduleSpecPaths || typeof moduleSpecPaths !== "object" || Array.isArray(moduleSpecPaths)) {
+  issues.push("moduleSpecPaths must be a non-empty object");
+} else {
+  for (const module of Object.keys(moduleAliases ?? {})) {
+    const targets = moduleSpecPaths[module];
+    if (!Array.isArray(targets) || targets.length === 0) {
+      issues.push(`moduleSpecPaths.${module} must contain at least one product contract path`);
+      continue;
+    }
+    for (const target of targets) {
+      if (typeof target !== "string" || !target || path.isAbsolute(target)) {
+        issues.push(`moduleSpecPaths.${module} contains a non-relative path: ${target}`);
+        continue;
+      }
+      const resolved = path.resolve(FHF_ROOT, repoPath(target));
+      if (!fs.existsSync(resolved)) issues.push(`moduleSpecPaths.${module} target is unavailable in the configured consumer workspace: ${target}`);
+    }
+  }
+  for (const module of Object.keys(moduleSpecPaths)) {
+    if (!Object.hasOwn(moduleAliases ?? {}, module)) {
+      issues.push(`moduleSpecPaths.${module} has no matching moduleAliases entry`);
+    }
+  }
+}
+
+const runtimePolicy = engineering?.context?.runtime;
+if (!runtimePolicy || typeof runtimePolicy !== "object") {
+  issues.push("engineering.context.runtime must be configured");
+} else {
+  for (const key of ["stateFile", "traceFile", "stateSchema", "traceSchema"]) {
+    if (typeof runtimePolicy[key] !== "string" || path.isAbsolute(runtimePolicy[key])) {
+      issues.push(`engineering.context.runtime.${key} must be a relative string`);
+    }
+  }
+  for (const source of runtimePolicy.redactPatterns ?? []) {
+    try { new RegExp(source, "gi"); } catch (error) {
+      issues.push(`engineering.context.runtime.redactPatterns contains invalid regex: ${error.message}`);
+    }
+  }
+}
+
+const evaluationPolicy = engineering?.context?.evaluation;
+if (!evaluationPolicy || typeof evaluationPolicy !== "object") {
+  issues.push("engineering.context.evaluation must be configured");
+} else {
+  for (const key of ["goldenRoutes", "calibrationCases"]) {
+    const target = evaluationPolicy[key];
+    if (typeof target !== "string" || path.isAbsolute(target) || !fs.existsSync(path.join(HARNESS_ROOT, repoPath(target)))) {
+      issues.push(`engineering.context.evaluation.${key} must point to an existing relative file`);
+    }
+  }
+  for (const [name, value] of Object.entries(evaluationPolicy.thresholds ?? {})) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) issues.push(`Invalid evaluation threshold: ${name}`);
+  }
+}
+
+try {
+  const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: HARNESS_ROOT, encoding: "utf8" })
+    .split("\0")
+    .filter(Boolean);
+  const homePath = /(?:[A-Za-z]:[\\/](?:Users|home)[\\/]|\/(?:Users|home)\/)/;
+  for (const relative of tracked) {
+    const file = path.join(HARNESS_ROOT, relative);
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
+    if (homePath.test(fs.readFileSync(file, "utf8"))) {
+      issues.push(`Developer-absolute path found in tracked file: ${relative}`);
+    }
+  }
+} catch (error) {
+  issues.push(`Unable to inspect tracked files for developer paths: ${error.message}`);
 }
 
 const cloud = config?.connectors?.cypressCloud;

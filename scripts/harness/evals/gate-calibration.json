@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "status": "calibrated",
+  "threshold": 0.5,
+  "cases": [
+    {
+      "id": "gate-e2e-20260814-01:gate:external/loop-trace.jsonl:2",
+      "runId": "gate-e2e-20260814-01",
+      "goal": "Read-only cypress-gate evaluation of the current E2E consumer repository",
+      "lane": "e2e",
+      "sourceFile": "external/loop-trace.jsonl",
+      "traceLine": 2,
+      "capturedAt": "2026-08-14T10:21:52.455Z",
+      "verdict": "BLOCK",
+      "judgePass": false,
+      "judgeScore": 0.2222222222222222,
+      "findings": [],
+      "humanPass": false,
+      "humanScore": 0.22,
+      "humanReviewer": "qa-owner",
+      "humanRationale": "Human review confirmed BLOCK: material architecture, mutation-safety, configuration, and draft-contract blockers remain.",
+      "humanLabeledAt": "2026-08-14T10:43:29.563Z"
+    },
+    {
+      "id": "gate-smoke-20260814-01:gate:external/loop-trace.jsonl:2",
+      "runId": "gate-smoke-20260814-01",
+      "goal": "Read-only cypress-gate evaluation of the current Smoke consumer repository",
+      "lane": "smoke",
+      "sourceFile": "external/loop-trace.jsonl",
+      "traceLine": 2,
+      "capturedAt": "2026-08-14T10:36:05.205Z",
+      "verdict": "BLOCK",
+      "judgePass": false,
+      "judgeScore": 0.75,
+      "findings": [],
+      "humanPass": false,
+      "humanScore": 0.75,
+      "humanReviewer": "qa-owner",
+      "humanRationale": "Human review confirmed BLOCK: missing freeze and regression evidence, a false-green assertion, docs failure, and a draft-contract blocker remain.",
+      "humanLabeledAt": "2026-08-14T10:43:36.579Z"
+    }
+  ]
+}

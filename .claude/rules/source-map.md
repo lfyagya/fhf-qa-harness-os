@@ -12,7 +12,7 @@ fhf-dashboards/          (sibling checkout in the FHF workspace)
 
 Read-only evidence source for QA. **NEVER write, edit, or create files there** — it is owned by the frontend dev team. Missing `data-cy` hook → record as a gap in the exploration report; propose upstream via PR.
 
-Use `docs/framework/application-intelligence/` only after the source lookup needs product context.
+Use the configured application contract owner only after the source lookup needs product context.
 
 Source shows *intended* behavior; tests verify *actual* behavior. When they diverge, the divergence IS the bug — never resolve it by adjusting tests.
 

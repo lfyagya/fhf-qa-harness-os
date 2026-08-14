@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -9,10 +10,119 @@ const CANDIDATES = [
   path.resolve(HERE, "..", "..", "..", "config", "qa-control-plane.json"),
 ].filter(Boolean);
 
+function readOverlay() {
+  const source = String(process.env.FHF_HARNESS_OVERLAY ?? "").trim();
+  if (!source) return null;
+  try {
+    const content = source.startsWith("{")
+      ? source
+      : fs.readFileSync(path.resolve(source), "utf8");
+    return JSON.parse(content);
+  } catch (error) {
+    throw new Error(`Invalid FHF_HARNESS_OVERLAY: ${error.message}`);
+  }
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function assertStringField(value, name, maxLength = 200) {
+  if (value === undefined) return;
+  if (typeof value !== "string" || value.length === 0 || value.length > maxLength) {
+    throw new Error(`FHF_HARNESS_OVERLAY ${name} must be a non-empty string of at most ${maxLength} characters`);
+  }
+}
+
+function assertLowerBudget(value, base, name) {
+  if (value === undefined) return;
+  if (!Number.isInteger(value) || value < 1 || value > base) {
+    throw new Error(`FHF_HARNESS_OVERLAY ${name} must be a positive integer no greater than ${base}`);
+  }
+}
+
+function validateOverlay(overlay, base) {
+  const policy = base.engineering?.context?.runtimeOverlay;
+  if (!isPlainObject(overlay)) throw new Error("FHF_HARNESS_OVERLAY must be a JSON object");
+  if (!policy || overlay.version !== policy.version) {
+    throw new Error(`FHF_HARNESS_OVERLAY version must be ${policy?.version ?? "the configured version"}`);
+  }
+
+  const allowed = new Set(["version", ...policy.allowedSections]);
+  for (const key of Object.keys(overlay)) {
+    if (!allowed.has(key)) throw new Error(`FHF_HARNESS_OVERLAY section is not allowed: ${key}`);
+  }
+
+  const session = overlay.session ?? {};
+  if (!isPlainObject(session)) throw new Error("FHF_HARNESS_OVERLAY.session must be an object");
+  for (const key of Object.keys(session)) {
+    if (!policy.sessionFields.includes(key)) throw new Error(`FHF_HARNESS_OVERLAY.session.${key} is not allowed`);
+    assertStringField(session[key], `session.${key}`);
+  }
+  const routeIds = new Set((base.engineering.context.routes ?? []).map((route) => route.id));
+  if (session.routeId && !routeIds.has(session.routeId)) {
+    throw new Error(`FHF_HARNESS_OVERLAY.session.routeId is not configured: ${session.routeId}`);
+  }
+  const modules = base.moduleAliases ?? {};
+  if (session.module && !Object.hasOwn(modules, session.module)) {
+    throw new Error(`FHF_HARNESS_OVERLAY.session.module is not configured: ${session.module}`);
+  }
+
+  const context = overlay.context ?? {};
+  if (!isPlainObject(context)) throw new Error("FHF_HARNESS_OVERLAY.context must be an object");
+  for (const key of Object.keys(context)) {
+    if (!["readOutput"].includes(key)) throw new Error(`FHF_HARNESS_OVERLAY.context.${key} is not allowed`);
+  }
+  const readOutput = context.readOutput ?? {};
+  if (!isPlainObject(readOutput)) throw new Error("FHF_HARNESS_OVERLAY.context.readOutput must be an object");
+  for (const key of Object.keys(readOutput)) {
+    if (!["maxLines", "unboundedReadMaxBytes"].includes(key)) {
+      throw new Error(`FHF_HARNESS_OVERLAY.context.readOutput.${key} is not allowed`);
+    }
+  }
+  assertLowerBudget(readOutput.maxLines, base.engineering.context.readOutput.maxLines, "context.readOutput.maxLines");
+  assertLowerBudget(
+    readOutput.unboundedReadMaxBytes,
+    base.engineering.context.readOutput.unboundedReadMaxBytes,
+    "context.readOutput.unboundedReadMaxBytes",
+  );
+
+  const loops = overlay.loops ?? {};
+  if (!isPlainObject(loops)) throw new Error("FHF_HARNESS_OVERLAY.loops must be an object");
+  for (const key of Object.keys(loops)) {
+    if (!["sameFailureLimit", "gateRepairLimit", "specSweepLimit"].includes(key)) {
+      throw new Error(`FHF_HARNESS_OVERLAY.loops.${key} is not allowed`);
+    }
+    assertLowerBudget(loops[key], base.engineering.loops[key], `loops.${key}`);
+  }
+}
+
+function applyOverlay(base, overlay) {
+  if (!overlay) return base;
+  validateOverlay(overlay, base);
+  const effective = structuredClone(base);
+  effective.session = { ...(effective.session ?? {}), ...(overlay.session ?? {}) };
+  effective.engineering.context = {
+    ...effective.engineering.context,
+    ...(overlay.context ?? {}),
+    readOutput: {
+      ...effective.engineering.context.readOutput,
+      ...(overlay.context?.readOutput ?? {}),
+    },
+  };
+  effective.engineering.loops = {
+    ...effective.engineering.loops,
+    ...(overlay.loops ?? {}),
+  };
+  effective.baseConfigFingerprint = `sha256:${crypto.createHash("sha256").update(JSON.stringify(base)).digest("hex")}`;
+  effective.runtimeOverlay = overlay;
+  return effective;
+}
+
 export function loadHarnessConfig() {
   const file = CANDIDATES.find((candidate) => fs.existsSync(candidate));
   if (!file) throw new Error(`Harness config not found. Checked: ${CANDIDATES.join(", ")}`);
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+  return applyOverlay(JSON.parse(fs.readFileSync(file, "utf8")), readOverlay());
 }
 
 export function detectLane(cwd, config = loadHarnessConfig()) {

@@ -19,7 +19,7 @@
   },
   "paths": {
     "consumerRoot": "../FHF",
-    "applicationIntelligence": "docs/framework/application-intelligence",
+    "applicationIntelligence": "Test-Case-Automation-Using-Claude-Agents/specs",
     "chainRisk": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
     "executionHistory": "docs/evidence/execution-history.md",
     "evidenceDir": "docs/evidence",
@@ -155,6 +155,77 @@
     "maxUnmappedSprintPercent": 10,
     "maxReviewQueuePercent": 20,
     "maxExecutionAgeDays": 14
+  },
+  "qualityAssurance": {
+    "coverageUnit": "approved-scenario",
+    "requiredEvidenceChain": [
+      "productIntent",
+      "applicationImplementation",
+      "automationImplementation",
+      "assertion",
+      "executionEvidence"
+    ],
+    "scenarioRequiredFields": [
+      "id",
+      "jiraId",
+      "ac",
+      "name",
+      "type",
+      "given",
+      "when",
+      "then",
+      "priority",
+      "testType",
+      "riskCategory",
+      "impact",
+      "productSpec",
+      "productSpecStatus",
+      "applicationEvidence",
+      "assertions"
+    ],
+    "acceptedProductSpecStatuses": ["approved"],
+    "falseGreen": {
+      "fallbackMarkersAccepted": false,
+      "disabledSuitesAccepted": false,
+      "stubbedMutationAsWorkflowAccepted": false,
+      "structuralInventoryAsProductCoverageAccepted": false
+    },
+    "lanes": {
+      "smoke": {
+        "environment": "production",
+        "allowedMethods": ["GET"],
+        "forbiddenActions": ["submit", "mutate", "export", "download", "upload", "send"]
+      },
+      "e2e": {
+        "environments": ["dev", "qa"],
+        "persistentMutationRequires": [
+          "syntheticOwnedIdentity",
+          "knownBaseline",
+          "exactRequestAndResult",
+          "prohibitedOutcome",
+          "verifiedCleanup"
+        ]
+      },
+      "backend": {
+        "persistentMutationRequires": [
+          "syntheticOwnedIdentity",
+          "exactApiContract",
+          "exactDatabaseState",
+          "prohibitedNoWrite",
+          "verifiedCleanup"
+        ]
+      }
+    },
+    "fullChainRequires": [
+      "approvedIntent",
+      "controlledStartingState",
+      "realUiMutation",
+      "exactUiRequestAndResult",
+      "directApiContract",
+      "exactDatabaseOrNoWrite",
+      "downstreamReconciliationWhenApplicable",
+      "verifiedCleanup"
+    ]
   },
   "workflow": {
     "stages": [
@@ -356,7 +427,79 @@
       "unifi"
     ]
   },
-  "moduleSpecPaths": {},
+  "moduleSpecPathsBase": "paths.consumerRoot",
+  "moduleSpecPaths": {
+    "ancillary": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/general-dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard-export-activity.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/all-product-dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/verification-dashboard.yaml"
+    ],
+    "call-reports": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-reports/agent-call-volume.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-reports/call-recording.yaml"
+    ],
+    "checks": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/checks-module/insurance-repair-checks.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/checks-module/lockbox-check.yaml"
+    ],
+    "complaints": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/complaints/complaints-view.yaml"
+    ],
+    "contracts": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/contracts.yaml"
+    ],
+    "custodian": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/contracts.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/custodian-dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/custodian-requests.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/exception-queue.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/portfolio-view.yaml"
+    ],
+    "doc-repository": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/document-repository/download-job-queue.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/document-repository/loan-packages.yaml"
+    ],
+    "funding": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/coordinator.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/monthly-spreadsheet.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/my-queue.yaml"
+    ],
+    "insurance": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/lienholder-claim.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/total-loss.yaml"
+    ],
+    "letters": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/letter-tracking/letter-tracking.yaml"
+    ],
+    "loss-mitigation": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/invoices.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/re-marketing.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/transport.yaml"
+    ],
+    "post-funding": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/post-funding/post-funding.yaml"
+    ],
+    "titles": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/general.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/missing-titles.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/re-registration.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/release.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/remarketing-titles.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/remarketing.yaml"
+    ],
+    "unifi": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-center/collections.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-center/servicing.yaml"
+    ]
+  },
   "engineering": {
     "context": {
       "mode": "route-on-demand",
@@ -373,6 +516,49 @@
       "skillListing": {
         "maxDescriptionChars": 240,
         "budgetFraction": 0.015
+      },
+      "runtimeOverlay": {
+        "version": 1,
+        "overlayEnv": "FHF_HARNESS_OVERLAY",
+        "allowedSections": [
+          "session",
+          "context",
+          "loops"
+        ],
+        "sessionFields": [
+          "ticket",
+          "module",
+          "routeId",
+          "reason",
+          "runId"
+        ],
+        "mutablePaths": {
+          "context.readOutput.maxLines": "lower-or-equal",
+          "context.readOutput.unboundedReadMaxBytes": "lower-or-equal",
+          "loops.sameFailureLimit": "lower-or-equal",
+          "loops.gateRepairLimit": "lower-or-equal",
+          "loops.specSweepLimit": "lower-or-equal"
+        }
+      },
+      "evaluation": {
+        "goldenRoutes": "scripts/harness/evals/routes.golden.json",
+        "calibrationCases": "scripts/harness/evals/gate-calibration.json",
+        "thresholds": {
+          "routeAccuracy": 1,
+          "minimumCalibrationKappa": 0.6,
+          "minimumCalibrationRho": 0.8,
+          "minimumRepairConvergence": 0.8
+        }
+      },
+      "runtime": {
+        "stateFile": "cypress/handoff/loop-state.json",
+        "traceFile": "cypress/handoff/loop-trace.jsonl",
+        "stateSchema": "fhf-harness/loop-state/v1",
+        "traceSchema": "fhf-harness/trace/v1",
+        "redactPatterns": [
+          "(?:token|password|secret|authorization|cookie)\\s*[:=]\\s*[^\\s,;]+",
+          "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b"
+        ]
       },
       "topicDriftSignals": [
         "also can you",
@@ -489,7 +675,7 @@
           "id": "application-contract",
           "priority": 65,
           "match": "\\b(application contract|product behavior|module context|route.*permission|api.*database)\\b",
-          "hint": "Product behavior → read docs/framework/fhf-application-context.md in the E2E repo, then Test-Case-Automation-Using-Claude-Agents/specs for the target module spec."
+          "hint": "Product behavior → read the configured application contract owner, then the target module spec from moduleSpecPaths."
         },
         {
           "id": "triage-night-brief",
@@ -707,12 +893,17 @@
       "projection": ".claude/harness.config.json",
       "sync": "scripts/harness/sync-loader-shims.mjs",
       "verify": {
-        "canonical": [
-          "scripts/harness/check-loader-drift.mjs",
-          "scripts/harness/check-docs-links.mjs",
-          "scripts/harness/test-hooks.mjs",
-          "scripts/harness/test-adapter-contract.mjs",
-          "scripts/harness/test-sync-loader.mjs"
+          "canonical": [
+            "scripts/harness/check-loader-drift.mjs",
+            "scripts/harness/check-docs-links.mjs",
+            "scripts/harness/test-hooks.mjs",
+            "scripts/harness/test-adapter-contract.mjs",
+            "scripts/harness/test-sync-loader.mjs",
+            "scripts/harness/test-runtime-state.mjs",
+            "scripts/harness/test-evaluation-evidence.mjs",
+            "scripts/harness/test-calibration.mjs",
+            "scripts/harness/test-consumer-runtime.mjs",
+            "scripts/harness/eval-harness.mjs"
         ],
         "consumer": [
           ".harness/verify.mjs"

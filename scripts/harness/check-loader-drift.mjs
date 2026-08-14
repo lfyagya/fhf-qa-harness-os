@@ -26,6 +26,8 @@ import {
   baselineGeminiInstructions,
   consumerVerifierReadme,
   CONSUMER_VERIFIER_TEXT,
+  PORTABLE_RUNTIME_STATE_TEXT,
+  RECORD_LOOP_EVENT_TEXT,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -110,8 +112,12 @@ function dirsMatch(srcDir, destDir, prefix) {
 function checkConsumerVerifier(repoPath) {
   requireFile(path.join(repoPath, ".harness", "verify.mjs"));
   requireFile(path.join(repoPath, ".harness", "README.md"));
+  requireFile(path.join(repoPath, ".harness", "portable-runtime-state.mjs"));
+  requireFile(path.join(repoPath, ".harness", "record-loop-event.mjs"));
   checkExactText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
   checkExactText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme());
+  checkExactText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
 }
 
 function checkHarnessRoot() {

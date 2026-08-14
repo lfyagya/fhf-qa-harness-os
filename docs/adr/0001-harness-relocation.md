@@ -7,13 +7,13 @@
 
 ## Context
 
-The QA engineering harness (`.claude/hooks`, `.claude/agents`, `.claude/rules`, `.claude/skills`, `.claude/commands`, and `docs/framework/harness-engineering.md`) lived inside `C:\Users\Leapfrog\FHF`, the same repo as the QA docs, coverage evidence, and automation backlog it governs. The harness is reusable scaffolding — hooks, agents, and routing rules that don't depend on FHF specifically — while FHF's `docs/` and the two Cypress sub-repos are payload specific to this QA engagement. Mixing engine and payload in one repo made it harder to reason about which parts were reusable and which were FHF-specific, and there was no separate change-record process for structural harness changes (hook topology, agent roster, skill routing) — they were indistinguishable from ordinary QA doc edits in git history.
+The QA engineering harness (`.claude/hooks`, `.claude/agents`, `.claude/rules`, `.claude/skills`, `.claude/commands`, and `docs/framework/harness-engineering.md`) lived inside the FHF workspace, the same repo as the QA docs, coverage evidence, and automation backlog it governs. The harness is reusable scaffolding — hooks, agents, and routing rules that don't depend on FHF specifically — while FHF's `docs/` and the two Cypress sub-repos are payload specific to this QA engagement. Mixing engine and payload in one repo made it harder to reason about which parts were reusable and which were FHF-specific, and there was no separate change-record process for structural harness changes (hook topology, agent roster, skill routing) — they were indistinguishable from ordinary QA doc edits in git history.
 
 This ADR itself is the first real use of the governance process it establishes — see `docs/governance.md`.
 
 ## Decision
 
-Relocated the harness to its own sibling repo, `C:\Users\Leapfrog\fhf-harness-os`. FHF (and its two sub-repos, `AG Frontend Automation` and `ProdSmokeExecution`) became consumers: their `.claude/` content is now generated output, regenerated from this repo via `scripts/harness/sync-loader-shims.mjs` and verified with `check-loader-drift.mjs`. Hook commands in every consumer's `settings.json` use absolute paths back to this repo, extending the same pattern already used to share hooks between FHF and its sub-repos (previously: sub-repos pointed at `C:/Users/Leapfrog/FHF/.claude/hooks/`; now: FHF and its sub-repos all point at `C:/Users/Leapfrog/fhf-harness-os/.claude/hooks/`).
+Relocated the harness to its own sibling repository, `fhf-harness-os`. FHF (and its two sub-repos, `AG Frontend Automation` and `ProdSmokeExecution`) became consumers: their `.claude/` content is now generated output, regenerated from this repo via `scripts/harness/sync-loader-shims.mjs` and verified with `check-loader-drift.mjs`. Hook commands in every consumer's `settings.json` resolve the selected project at runtime through `CLAUDE_PROJECT_DIR` or `CURSOR_PROJECT_DIR`; no developer checkout path is part of the committed contract.
 
 ## Consequences
 
@@ -27,5 +27,5 @@ Relocated the harness to its own sibling repo, `C:\Users\Leapfrog\fhf-harness-os
 
 **What does NOT change:**
 - FHF's own docs, coverage evidence, and automation backlog — all payload, all stay in FHF
-- The absolute-path-based sharing mechanism itself — this was already the pattern for FHF→sub-repo hook sharing; this ADR extends it one level, it doesn't introduce a new mechanism
+- The runtime project-resolution mechanism — consumers still load the canonical hook behavior, but checkout locations remain environment-specific and untracked
 - The three-tier docs manifest (runtime/reference/archive) in FHF — unaffected, just one runtime entry repointed

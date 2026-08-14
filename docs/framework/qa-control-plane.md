@@ -9,7 +9,7 @@ Architecture decision: [`../adr/0005-centralized-qa-control-plane.md`](../adr/00
 
 Canonical configuration: `config/qa-control-plane.json`
 Runner: `scripts/harness/qa-command-center.mjs`
-Consumer evidence: `C:\Users\Leapfrog\FHF\docs\evidence\`
+Consumer evidence: `paths.consumerRoot` + `paths.evidenceDir` from `config/qa-control-plane.json`
 
 ## Operating contract
 
@@ -38,6 +38,9 @@ node scripts/harness/qa-command-center.mjs workflow --ticket SERV-12345 --stage 
 node scripts/harness/qa-command-center.mjs build --consent <reference>
 node scripts/harness/qa-command-center.mjs refresh --input <page1.json,page2.json> --graph <graph.json> --confluence <pages.json> --consent <reference>
 node scripts/harness/generate-coverage.mjs --consent <reference>
+node scripts/harness/eval-harness.mjs [--trace <loop-trace.jsonl>]
+node scripts/harness/calibrate-gate.mjs collect --trace <loop-trace.jsonl>
+node scripts/harness/calibrate-gate.mjs status
 ```
 
 `snapshot` validates and normalizes sprint data. `build` combines the current snapshot with
@@ -148,3 +151,9 @@ and only after a separate approved publication step.
 
 Unavailable sources are shown as `unknown`, never converted to zero. Every available source
 includes a timestamp so stale evidence is visible.
+
+Runtime loop traces are likewise evidence, not policy. `eval-harness.mjs` derives repair convergence
+from redacted `cypress/handoff/loop-trace.jsonl` events grouped by `runId`; it does not read a static
+repair-outcome fixture. Gate calibration imports machine verdicts only after a recorded gate run and
+requires explicit human pass/fail labels, scores, reviewer identity, and rationale before reporting
+Cohen's kappa or Spearman correlation.

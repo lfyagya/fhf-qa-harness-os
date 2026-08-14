@@ -2,11 +2,11 @@
 
 This repo is the **harness**: the scaffolding that compensates for what a model can't do reliably on its own — deterministic hooks, role-separated agents (generator vs evaluator), skills, and the routing rules that tie them together. Full topology: `docs/framework/harness-engineering.md`.
 
-It is not a QA test suite. It contains no Cypress specs, no application docs, no coverage data. Those are payload, and payload lives in consumer repos:
+It is not a QA test suite. It contains no Cypress specs, no application docs, no coverage data. Those are payload, and payload lives in the configured consumer workspace:
 
-- `C:\Users\Leapfrog\FHF` — QA docs, coverage evidence, the automation backlog
-- `C:\Users\Leapfrog\FHF\AG Frontend Automation\front-end-automation` — E2E lane
-- `C:\Users\Leapfrog\FHF\ProdSmokeExecution\front-end-automation` — Smoke lane
+- `paths.consumerRoot` in `config/qa-control-plane.json` — QA docs, coverage evidence, and the automation backlog
+- `paths.lanes.e2e.root` — the E2E lane on its configured branch
+- `paths.lanes.smoke.root` — the Smoke lane on its configured branch
 
 `fhf-backend-automation` is independently owned and is not a consumer of this harness. When it is
 available, use it only for read-only API or Oracle evidence; never install, sync, edit, or write there.
@@ -23,6 +23,9 @@ available, use it only for read-only API or Oracle evidence; never install, sync
 scripts/harness/
     generate-coverage.mjs      — consent-gated scan; writes ignored runtime evidence into FHF/docs/evidence/
     qa-command-center.mjs      — sprint/spec intake plus portable JSON/Markdown/HTML dashboard
+    eval-harness.mjs            — route, calibration, and trace-derived repair evaluation
+    calibrate-gate.mjs          — imports machine verdicts and records explicit human labels
+    record-loop-event.mjs       — redacted runtime loop state and trace recorder
     test-hooks.mjs             — hook regression tests
     check-docs-links.mjs       — docs integrity check
     loader-templates.mjs       — single source of truth for generated consumer-repo content
@@ -44,7 +47,15 @@ and Smoke repositories are clone-ready consumers: commit their generated `.claud
 Only runtime state such as `**/cypress/handoff/` and `.claude/hooks/.sweep-retries` remains ignored.
 Sibling `.cursor/*` and `.github/*` files, plus optional `architecture/`, are consumer-owned and are not drift.
 
-Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path.
+Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path. Local checkout locations belong in environment variables or untracked runtime state, never in committed policy.
+
+## Configuration layers
+
+`config/qa-control-plane.json` is the reviewed static policy. Generated projections are derived
+from it and must be regenerated rather than hand-edited. A validated `FHF_HARNESS_OVERLAY` may
+provide short-lived session selection or lower-budget changes; it cannot widen permissions, change
+hook or agent topology, disable data protections, or raise hard safety limits. Runtime loop state,
+traces, and evidence are separate artifacts and never become policy automatically.
 
 ## Governance
 

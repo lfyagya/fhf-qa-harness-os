@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "new-test-e2e",
+      "prompt": "write a new smoke test for insurance",
+      "expectedRoute": "new-test",
+      "expectedAgent": "cypress-generator"
+    },
+    {
+      "id": "test-failure",
+      "prompt": "the Cypress spec is failing after the API change",
+      "expectedRoute": "test-failure",
+      "expectedAgent": "cypress-debugger"
+    },
+    {
+      "id": "test-flake",
+      "prompt": "review the flaky dashboard test suite",
+      "expectedRoute": "test-flake",
+      "expectedAgent": "cypress-debugger"
+    },
+    {
+      "id": "pre-merge",
+      "prompt": "is this ready to merge?",
+      "expectedRoute": "pre-merge",
+      "expectedAgent": "cypress-gate"
+    },
+    {
+      "id": "pull-request",
+      "prompt": "open a pull request for the completed Cypress work",
+      "expectedRoute": "pull-request",
+      "expectedAgent": "cypress-shipper"
+    },
+    {
+      "id": "coverage-report",
+      "prompt": "show the current UI coverage gap and automation backlog",
+      "expectedRoute": "coverage-report",
+      "expectedAgent": "cypress-shipper"
+    },
+    {
+      "id": "application-contract",
+      "prompt": "what is the application contract for the insurance module?",
+      "expectedRoute": "application-contract",
+      "expectedAgent": null
+    },
+    {
+      "id": "documentation",
+      "prompt": "remove duplicate documentation and update the source of truth",
+      "expectedRoute": "documentation",
+      "expectedAgent": null
+    }
+  ]
+}

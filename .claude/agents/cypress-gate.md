@@ -175,6 +175,33 @@ pre-existing contract risk remains outside the diff. N/A if no dashboard spec ch
 
 On any BLOCK: don't just report it, close it.
 
+## Runtime Evidence — Required
+
+Every gate run must leave a redacted runtime trace so repair convergence and judge calibration use
+actual decisions rather than examples embedded in the evaluator. Use one `runId` for the entire gate
+run, taken from `FHF_HARNESS_OVERLAY.session.runId` when present. Carry that same ID across every
+repair cycle; never reuse it for a different job. From the selected consumer repository root:
+
+```bash
+node .harness/record-loop-event.mjs '{"runId":"<run-id>","goal":"<scope>","type":"loop_started","lane":"<e2e|smoke>","repairCycle":0,"status":"in_progress"}'
+```
+
+Record every gate verdict with `verdict` (`PASS`, `PASS_WITH_ACTIONS`, or `BLOCK`), boolean
+`judgePass`, and a reproducible `judgeScore` from 0 to 1. The score is the fraction of mandatory
+phase checks that passed among the mandatory checks reviewed; it is not a confidence estimate.
+Record `repair_started` before spawning the generator and `repair_completed` after the generator
+returns. Increment `repairCycle` after each repair. The terminal gate verdict must set `status` to
+`completed` for PASS/PASS_WITH_ACTIONS, or `escalated`/`blocked` for an unresolved BLOCK.
+
+Example verdict event:
+
+```bash
+node .harness/record-loop-event.mjs '{"runId":"<run-id>","goal":"<scope>","type":"gate_verdict","lane":"<e2e|smoke>","repairCycle":1,"verdict":"PASS","judgePass":true,"judgeScore":1,"status":"completed"}'
+```
+
+Do not include credentials, PII, raw replay bodies, or unbounded tool output. The recorder redacts
+configured secrets and writes only to ignored `cypress/handoff/` state and trace files.
+
 1. Spawn `cypress-generator` via `Task` with the exact findings (`file:line — phase — issue —
    required fix`). Wait for it to complete.
 2. Re-run Phases 1–9 against the same scope.

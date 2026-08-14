@@ -24,7 +24,6 @@ const isSubagentStart = payload.hook_event_name === "SubagentStart";
 const subagentType = String(
   payload.agent_type ??
   payload.tool_input?.subagent_type ??
-    payload.agent_type ??
     payload.subagent_type ??
     payload.subagentType ??
     "",

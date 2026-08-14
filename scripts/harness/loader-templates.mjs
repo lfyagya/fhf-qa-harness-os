@@ -337,10 +337,22 @@ This clone does not contain \`fhf-harness-os/scripts/harness/*\`.
 
 Run \`node .harness/verify.mjs\` here. Canonical checks (\`test-hooks\`, \`test-adapter-contract\`,
 \`test-sync-loader\`, \`check-docs-links\`, \`check-loader-drift\`) run only from \`fhf-harness-os\`.
+Runtime loop evidence is recorded with \`node .harness/record-loop-event.mjs '<json>'\`; state and
+trace files under \`cypress/handoff/\` are transient and ignored.
 `;
 }
 
 export const CONSUMER_VERIFIER_TEXT = fs.readFileSync(
   path.join(HARNESS_ROOT, "scripts", "harness", "verify-projection.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const PORTABLE_RUNTIME_STATE_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "portable-runtime-state.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const RECORD_LOOP_EVENT_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "record-loop-event.mjs"),
   "utf8",
 ).replace(/\r\n/g, "\n");

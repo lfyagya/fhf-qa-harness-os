@@ -13,13 +13,16 @@ try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); 
 const prompt = (payload.prompt ?? '').toLowerCase();
 const lines = [];
 let engineering;
+let config;
 try {
-  engineering = loadHarnessConfig().engineering;
+  config = loadHarnessConfig();
+  engineering = config.engineering;
 } catch (error) {
   emitContext(payload, "UserPromptSubmit", `[router] Harness config unavailable: ${error.message}`);
   process.exit(0);
 }
 const { context, memory } = engineering;
+const overlay = config.runtimeOverlay;
 const cwd = payload.cwd ?? process.env.CLAUDE_CWD ?? process.cwd();
 const lane = detectLane(cwd);
 const isExternalBackend = isExternalBackendWorkspace({ cwd });
@@ -42,12 +45,34 @@ if (context.topicDriftSignals.some(s => prompt.includes(s))) {
 const routes = context.routes
   .map((route, index) => ({ ...route, index }))
   .sort((a, b) => b.priority - a.priority || a.index - b.index);
-for (const route of routes) {
-  if (!routeApplies(route)) continue;
-  if (new RegExp(route.match, 'i').test(prompt)) {
-    lines.push(`[router:${route.id}] ${route.hint}`);
-    break;
+const explicitRoute = overlay?.session?.routeId
+  ? routes.find((route) => route.id === overlay.session.routeId)
+  : null;
+if (explicitRoute && routeApplies(explicitRoute)) {
+  lines.push(
+    `[router:${explicitRoute.id}] ${explicitRoute.hint}`,
+    `[router] Explicit session route override: ${overlay.session.reason ?? "no reason supplied"}`,
+  );
+} else {
+  if (overlay?.session?.routeId) {
+    lines.push(`[router] Session route override '${overlay.session.routeId}' was not applicable to lane '${lane}'.`);
   }
+  for (const route of routes) {
+    if (!routeApplies(route)) continue;
+    if (new RegExp(route.match, 'i').test(prompt)) {
+      lines.push(`[router:${route.id}] ${route.hint}`);
+      break;
+    }
+  }
+}
+
+if (overlay?.session?.ticket || overlay?.session?.module) {
+  lines.push(
+    `[router] Session focus: ${JSON.stringify({
+      ticket: overlay.session.ticket ?? null,
+      module: overlay.session.module ?? null,
+    })}`,
+  );
 }
 
 // 3. Duplication pre-check on creation prompts

@@ -82,6 +82,17 @@ customConfig.connectors.cypressCloud.cli.guard.productionSensitivePatterns = [
   "custom-cloud-replay",
 ];
 writeFileSync(customConfigPath, JSON.stringify(customConfig));
+const validOverlay = JSON.stringify({
+  version: customConfig.engineering.context.runtimeOverlay.version,
+  session: {
+    routeId: "custom-control",
+    reason: "golden route test",
+    ticket: "SERV-123",
+    module: "insurance",
+  },
+  context: { readOutput: { maxLines: 60 } },
+  loops: { sameFailureLimit: 1 },
+});
 const specDir = path.join(tmp, "cypress", "tests");
 mkdirSync(specDir, { recursive: true });
 const badSpec = path.join(specDir, "bad.cy.js");
@@ -130,11 +141,11 @@ expect("context read guard emits runtime-neutral JSON",
     input: { path: largeRead, limit: 120 },
   }), cursorAllows);
 expect("protect-app-source blocks fhf-dashboards/src write",
-  run("protect-app-source.mjs", { tool_input: { file_path: "C:/Users/Leapfrog/FHF/fhf-dashboards/src/App.tsx" } }), 2);
+  run("protect-app-source.mjs", { tool_input: { file_path: "C:/work/FHF/fhf-dashboards/src/App.tsx" } }), 2);
 expect("protect-app-source allows CypressFHF package write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/x/CypressFHF/fhf-dashboards/cypress/tests/a.cy.js" } }), 0);
 expect("protect-app-source blocks external backend writes",
-  run("protect-app-source.mjs", { tool_input: { file_path: "C:/Users/Leapfrog/FHF/fhf-backend-automation/tests/api/test_users.py" } }), 2);
+  run("protect-app-source.mjs", { tool_input: { file_path: "C:/work/FHF/fhf-backend-automation/tests/api/test_users.py" } }), 2);
 expect("protect-app-source emits runtime-neutral JSON",
   run("protect-app-source.mjs", {
     hook_event_name: "preToolUse",
@@ -317,6 +328,23 @@ expect("block-generic-agents allows an approved agent_type via SubagentStart",
 expect("block-generic-agents consumes the central roster",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "custom-agent" } }, {
     FHF_HARNESS_CONFIG: customConfigPath,
+  }), 2);
+expect("prompt-router applies a validated session overlay",
+  run("prompt-router.mjs", { prompt: "ordinary prompt" }, {
+    FHF_HARNESS_CONFIG: customConfigPath,
+    FHF_HARNESS_OVERLAY: validOverlay,
+  }),
+  (r) => r.code === 0 && r.stdout.includes("[router:custom-control]") && r.stdout.includes("SERV-123"));
+expect("prompt-router rejects an overlay that changes topology",
+  run("prompt-router.mjs", { prompt: "ordinary prompt" }, {
+    FHF_HARNESS_CONFIG: customConfigPath,
+    FHF_HARNESS_OVERLAY: JSON.stringify({ version: 1, harness: { agents: [] } }),
+  }),
+  (r) => r.code === 0 && r.stdout.includes("Harness config unavailable"));
+expect("context read guard applies a lower overlay budget",
+  run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: largeRead, limit: 80 } }, {
+    FHF_HARNESS_CONFIG: customConfigPath,
+    FHF_HARNESS_OVERLAY: validOverlay,
   }), 2);
 expect("block-forbidden-skills blocks a skill absent from the allowlist",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-author" } }), 2);

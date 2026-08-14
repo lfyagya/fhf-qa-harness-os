@@ -60,6 +60,22 @@ function validateConfig(config) {
   for (const stage of config.workflow.approvalRequiredStages ?? []) {
     if (!config.workflow.stages.includes(stage)) throw new Error(`Unknown approval-required stage: ${stage}`);
   }
+  const moduleSpecPaths = config.moduleSpecPaths;
+  if (!moduleSpecPaths || typeof moduleSpecPaths !== "object" || Array.isArray(moduleSpecPaths)) {
+    throw new Error("Config moduleSpecPaths must be a non-empty object.");
+  }
+  for (const module of Object.keys(config.moduleAliases ?? {})) {
+    const targets = moduleSpecPaths[module];
+    if (!Array.isArray(targets) || targets.length === 0) {
+      throw new Error(`Config moduleSpecPaths.${module} must contain at least one product contract path.`);
+    }
+    if (targets.some((target) => typeof target !== "string" || !target || path.isAbsolute(target))) {
+      throw new Error(`Config moduleSpecPaths.${module} must contain only relative paths.`);
+    }
+  }
+  if (config.moduleSpecPathsBase !== "paths.consumerRoot") {
+    throw new Error("Config moduleSpecPathsBase must resolve from paths.consumerRoot.");
+  }
 }
 
 function valueOf(field) {
