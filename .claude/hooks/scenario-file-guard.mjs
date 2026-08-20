@@ -20,8 +20,14 @@ if (filePath.includes('.scenarios.js') || filePath.includes('.scenarios.ts')) {
   }
 }
 
-// Scenario objects should use Object.freeze()
-if (content && content.includes('scenarios') && !content.includes('Object.freeze(')) {
+// Scenario objects should use Object.freeze().
+// Gated on a JS/TS module extension: the bare `content.includes('scenarios')` test also fired
+// on Markdown and YAML — any doc that merely mentions the word "scenarios" and has no reason
+// to contain Object.freeze(). That made regression-planning docs un-writable. Ported upstream
+// 2026-08-17 from a fix that had been applied only to the generated FHF copy, where the next
+// sync would have silently reverted it.
+const isJsModule = /\.(js|ts|jsx|tsx|mjs|cjs)$/.test(filePath);
+if (isJsModule && content && content.includes('scenarios') && !content.includes('Object.freeze(')) {
   console.error('SCENARIO FILE: exported scenario arrays should be wrapped in Object.freeze().');
   process.exit(2);
 }

@@ -60,6 +60,7 @@ function cursorEmitsNeutral(result) {
 // Fixture spec files on disk (validate-cypress-rules reads the file, not the payload)
 const tmp = mkdtempSync(path.join(tmpdir(), "hook-test-"));
 const customConfigPath = path.join(tmp, "harness.config.json");
+const invalidConfigPath = path.join(tmp, "invalid-harness.config.json");
 const customConfig = JSON.parse(
   readFileSync(path.join(HARNESS_ROOT, "config", "qa-control-plane.json"), "utf8"),
 );
@@ -82,6 +83,18 @@ customConfig.connectors.cypressCloud.cli.guard.productionSensitivePatterns = [
   "custom-cloud-replay",
 ];
 writeFileSync(customConfigPath, JSON.stringify(customConfig));
+writeFileSync(invalidConfigPath, "{\n", "utf8");
+const smokeRoot = path.join(tmp, "smoke-consumer");
+mkdirSync(path.join(smokeRoot, ".harness"), { recursive: true });
+writeFileSync(path.join(smokeRoot, ".harness", "lane.json"), JSON.stringify({ lane: "smoke" }));
+const smokeConfigPath = path.join(tmp, "smoke-harness.config.json");
+const smokeConfig = structuredClone(customConfig);
+smokeConfig.paths.lanes.smoke.branch = "";
+smokeConfig.workspaceContract.lanes.smoke.requireBranch = false;
+smokeConfig.workspaceContract.lanes.smoke.requiredLocalPaths = [];
+smokeConfig.workspaceContract.lanes.smoke.requiredWorkspacePaths = [];
+smokeConfig.moduleSpecPaths = {};
+writeFileSync(smokeConfigPath, JSON.stringify(smokeConfig));
 const validOverlay = JSON.stringify({
   version: customConfig.engineering.context.runtimeOverlay.version,
   session: {
@@ -105,6 +118,27 @@ writeFileSync(goodSpec, [
   "  it('y', () => { cy.apiWait('@a'); });",
   "});",
 ].join("\n"));
+// Config-freeze fixtures. A pure re-export barrel declares no object of its own, so the
+// freeze check can never be satisfied by one — flagging it made every barrel permanently
+// un-editable (verified false positive 2026-08-17 on
+// configs/ui/modules/unifi/collections/index.js). The exception must stay narrow: a config
+// that declares anything besides re-exports is still required to freeze it.
+const uiConfigDir = path.join(tmp, "cypress", "configs", "ui");
+mkdirSync(uiConfigDir, { recursive: true });
+const barrelConfig = path.join(uiConfigDir, "index.js");
+writeFileSync(barrelConfig, [
+  "// Contact Log UI Config",
+  "export * from './contactLog.ui.js';",
+  "",
+  "/* Notes UI Config */",
+  "export { NOTES_UI } from './notes.ui.js';",
+].join("\n"));
+const unfrozenConfig = path.join(uiConfigDir, "unfrozen.ui.js");
+writeFileSync(unfrozenConfig, [
+  "export * from './contactLog.ui.js';",
+  "export const LEAKY_UI = { ROW: '[data-cy=\"row\"]' };",
+].join("\n"));
+
 const smallRead = path.join(tmp, "small-read.js");
 writeFileSync(smallRead, "export const ok = true;\n");
 const largeRead = path.join(tmp, "large-read.js");
@@ -126,6 +160,34 @@ writeFileSync(literalRouteSpec, [
   "  it('y', () => { cy.apiWait(API.LIST); });",
   "});",
 ].join("\n"));
+const smokeSpecDir = path.join(tmp, "cypress", "tests", "fhf-dashboard", "smoke");
+mkdirSync(smokeSpecDir, { recursive: true });
+const smokeLoadSpec = path.join(smokeSpecDir, "load.cy.js");
+writeFileSync(smokeLoadSpec, [
+  "describe('x', { testIsolation: true, tags: [S.CRITICAL] }, () => {",
+  "  before(() => { cy.ensureAuthenticated(); });",
+  "  beforeEach(() => { cy.ensureAuthenticated(); });",
+  "  it('y', () => { cy.apiWait('@a'); });",
+  "});",
+].join("\n"));
+const smokeOverCapSpec = path.join(smokeSpecDir, "over-cap.cy.js");
+writeFileSync(smokeOverCapSpec, [
+  "describe('a', { testIsolation: true, tags: [S.CRITICAL] }, () => {",
+  "  before(() => { cy.ensureAuthenticated(); });",
+  "  beforeEach(() => { cy.ensureAuthenticated(); });",
+  "  it('b', { tags: [S.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "  it('c', { tags: [S.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "  it('d', { tags: [S.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "});",
+].join("\n"));
+const smokeQuarantineSpec = path.join(smokeSpecDir, "quarantine.cy.js");
+writeFileSync(smokeQuarantineSpec, [
+  "describe('x', { testIsolation: true, tags: [S.CRITICAL] }, () => {",
+  "  before(() => { cy.ensureAuthenticated(); });",
+  "  beforeEach(() => { cy.ensureAuthenticated(); });",
+  "  it('y', { tags: [S.QUARANTINE] }, () => { cy.apiWait('@a'); });",
+  "});",
+].join("\n"));
 
 // PreToolUse - blockers (exit 2)
 expect("context read guard blocks unbounded large reads",
@@ -140,6 +202,8 @@ expect("context read guard emits runtime-neutral JSON",
     tool_name: "Read",
     input: { path: largeRead, limit: 120 },
   }), cursorAllows);
+expect("context read guard allows a metadata-less Cursor probe",
+  runProbe("context-read-guard.mjs"), cursorAllows);
 expect("protect-app-source blocks fhf-dashboards/src write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/work/FHF/fhf-dashboards/src/App.tsx" } }), 2);
 expect("protect-app-source allows CypressFHF package write",
@@ -185,11 +249,11 @@ expect("pre-validate emits runtime-neutral JSON",
     input: { path: "cypress/tests/a.cy.js", content: "cy.apiWait('@a');" },
   }), cursorAllows);
 expect("protect-prod-data blocks a production screenshot",
-  run("protect-prod-data.mjs", { tool_name: "Read", tool_input: { file_path: "ProdSmokeExecution/front-end-automation/cypress/screenshots/failure.png" } }), 2);
+  run("protect-prod-data.mjs", { tool_name: "Read", tool_input: { file_path: "front-end-automation-smoke/cypress/screenshots/failure.png" } }), 2);
 expect("protect-prod-data allows JUnit timing evidence",
-  run("protect-prod-data.mjs", { tool_name: "Read", tool_input: { file_path: "ProdSmokeExecution/front-end-automation/reports/junit/results.xml" } }), 0);
+  run("protect-prod-data.mjs", { tool_name: "Read", tool_input: { file_path: "front-end-automation-smoke/reports/junit/results.xml" } }), 0);
 expect("protect-prod-data allows explicit owner opt-in",
-  run("protect-prod-data.mjs", { tool_name: "Read", tool_input: { file_path: "ProdSmokeExecution/front-end-automation/cypress/screenshots/failure.png" } }, { FHF_ALLOW_PROD_DATA: "1" }), 0);
+  run("protect-prod-data.mjs", { tool_name: "Read", tool_input: { file_path: "front-end-automation-smoke/cypress/screenshots/failure.png" } }, { FHF_ALLOW_PROD_DATA: "1" }), 0);
 expect("protect-prod-data emits runtime-neutral JSON",
   run("protect-prod-data.mjs", {
     hook_event_name: "preToolUse",
@@ -210,21 +274,21 @@ expect("protect-prod-data allows E2E Test Replay when FHF_LANE=e2e is prefixed",
 expect("protect-prod-data allows E2E Test Replay from E2E package cwd",
   run("protect-prod-data.mjs", {
     tool_name: "Bash",
-    cwd: "C:/work/AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards",
+    cwd: "C:/work/front-end-automation-e2e/CypressFHF/fhf-dashboards",
     tool_input: {
-      working_directory: "C:/work/AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards",
+      working_directory: "C:/work/front-end-automation-e2e/CypressFHF/fhf-dashboards",
       command: "cy-cloud replay timeline --testId abc --commands --network --logs",
     },
-  }), 0);
+  }, { FHF_LANE: "e2e" }), 0);
 expect("protect-prod-data still blocks Test Replay under smoke package cwd",
   run("protect-prod-data.mjs", {
     tool_name: "Bash",
-    cwd: "C:/work/ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards",
+    cwd: "C:/work/front-end-automation-smoke/CypressFHF/fhf-dashboards",
     tool_input: {
-      working_directory: "C:/work/ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards",
+      working_directory: "C:/work/front-end-automation-smoke/CypressFHF/fhf-dashboards",
       command: "cy-cloud replay timeline --testId abc --commands --network --logs",
     },
-  }), 2);
+  }, { FHF_LANE: "smoke" }), 2);
 
 expect("protect-prod-data allows Cloud CLI metadata",
   run("protect-prod-data.mjs", { tool_name: "Bash", tool_input: { command: "cy-cloud test list --projectId abc --runNumber 1 --status failed" } }), 0);
@@ -291,6 +355,7 @@ for (const hook of [
   "protect-second-brain-boundary.mjs",
   "pre-validate-cypress-rules.mjs",
   "protect-prod-data.mjs",
+  "context-read-guard.mjs",
 ]) {
   expect(`${hook} allows a metadata-less Cursor probe`, runProbe(hook), cursorAllows);
 }
@@ -340,7 +405,31 @@ expect("prompt-router rejects an overlay that changes topology",
     FHF_HARNESS_CONFIG: customConfigPath,
     FHF_HARNESS_OVERLAY: JSON.stringify({ version: 1, harness: { agents: [] } }),
   }),
-  (r) => r.code === 0 && r.stdout.includes("Harness config unavailable"));
+  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED") && r.stderr.includes("section is not allowed"));
+expect("prompt-router blocks malformed harness config with repair guidance",
+  run("prompt-router.mjs", { prompt: "ordinary prompt" }, {
+    FHF_HARNESS_CONFIG: invalidConfigPath,
+  }),
+  (r) => r.code === 2 && r.stderr.includes("Harness configuration is unavailable or invalid") && r.stderr.includes("Harness config is invalid"));
+expect("prompt-router blocks an unconfigured Smoke workspace",
+  run("prompt-router.mjs", { cwd: smokeRoot, prompt: "write a new smoke test" }, {
+    FHF_HARNESS_CONFIG: smokeConfigPath,
+  }),
+  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED"));
+expect("prompt-router exposes setup guidance for a setup prompt",
+  run("prompt-router.mjs", { cwd: smokeRoot, prompt: "run the workspace setup" }, {
+    FHF_HARNESS_CONFIG: smokeConfigPath,
+  }),
+  (r) => r.code === 0 && r.stdout.includes("WORKSPACE BLOCKED"));
+expect("manual-task-guard blocks an unconfigured Smoke workspace",
+  run("manual-task-guard.mjs", { cwd: smokeRoot, tool_input: { command: "git status" } }, {
+    FHF_HARNESS_CONFIG: smokeConfigPath,
+  }),
+  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED"));
+expect("manual-task-guard allows the Smoke setup command before configuration",
+  run("manual-task-guard.mjs", { cwd: smokeRoot, tool_input: { command: "node .harness/setup.mjs" } }, {
+    FHF_HARNESS_CONFIG: smokeConfigPath,
+  }), 0);
 expect("context read guard applies a lower overlay budget",
   run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: largeRead, limit: 80 } }, {
     FHF_HARNESS_CONFIG: customConfigPath,
@@ -370,6 +459,16 @@ expect("validate-cypress-rules blocks raw intercepts in specs",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: directInterceptSpec } }), 2);
 expect("validate-cypress-rules blocks literal routes in specs",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: literalRouteSpec } }), 2);
+expect("validate-cypress-rules exempts a pure re-export barrel from the freeze rule",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: barrelConfig } }), 0);
+expect("validate-cypress-rules still requires freeze when a barrel also declares an object",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: unfrozenConfig } }), 2);
+expect("validate-cypress-rules allows a smoke spec at the critical cap",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: smokeLoadSpec } }), 0);
+expect("validate-cypress-rules blocks more than three @critical tags on a smoke spec",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: smokeOverCapSpec } }), 2);
+expect("validate-cypress-rules blocks quarantine without a ticket and date",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: smokeQuarantineSpec } }), 2);
 expect("scenario-content-guard flags missing fields with exit 2",
   run("scenario-content-guard.mjs", { tool_input: { file_path: "cypress/configs/scenarios/x.scenarios.js", content: "export const scenarios = [{}]" } }), 2);
 expect("coverage-strategy-guard flags visit-before-intercept with exit 2",

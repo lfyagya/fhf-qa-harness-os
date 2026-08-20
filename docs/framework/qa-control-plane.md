@@ -105,9 +105,9 @@ ambiguous relationship remains in the review queue.
 
 ## Routing
 
-- E2E / functional / regression: `AG Frontend Automation/front-end-automation`, branch `dev`.
-- Production smoke / availability / auth / structure: `ProdSmokeExecution/front-end-automation`,
-  branch `staging`, GET-only.
+- E2E / functional / regression: the configured E2E checkout, branch `dev`.
+- Production smoke / availability / auth / structure: the configured Smoke checkout, branch
+  `staging`, GET-only.
 - API request/response plus Oracle state: consult `fhf-backend-automation` read-only when it is
   available; its owner maintains the independent pytest harness.
 

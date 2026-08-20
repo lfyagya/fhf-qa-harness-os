@@ -25,12 +25,12 @@
     "evidenceDir": "docs/evidence",
     "lanes": {
       "e2e": {
-        "root": "AG Frontend Automation/front-end-automation",
+        "rootEnv": "FHF_E2E_ROOT",
         "package": "CypressFHF/fhf-dashboards",
         "branch": "dev"
       },
       "smoke": {
-        "root": "ProdSmokeExecution/front-end-automation",
+        "rootEnv": "FHF_SMOKE_ROOT",
         "package": "CypressFHF/fhf-dashboards",
         "branch": "staging"
       }
@@ -52,6 +52,241 @@
       }
     }
   },
+  "workspaceContract": {
+    "version": 1,
+    "setupFile": ".harness/workspace.local.json",
+    "setupExample": ".harness/workspace.example.json",
+    "setupCommand": "node .harness/setup.mjs",
+    "lanes": {
+      "smoke": {
+        "required": true,
+        "branch": "staging",
+        "moduleSpecsPathPrefix": "Test-Case-Automation-Using-Claude-Agents",
+        "requiredInputs": [
+          {
+            "field": "consumerRoot",
+            "label": "FHF workspace root",
+            "description": "The FHF aggregation checkout containing shared instructions and the configured lane layout."
+          },
+          {
+            "field": "moduleSpecsRoot",
+            "label": "Application specs repository root",
+            "description": "The separate Test-Case-Automation-Using-Claude-Agents checkout containing specs/."
+          },
+          {
+            "field": "smokeRoot",
+            "label": "Smoke repository root",
+            "description": "This Smoke checkout. It is supplied locally and is never inferred from its folder name."
+          }
+        ],
+        "requiredLocalPaths": [
+          {
+            "path": ".claude/settings.json",
+            "type": "file"
+          },
+          {
+            "path": ".cursor/hooks.json",
+            "type": "file"
+          },
+          {
+            "path": ".gitignore",
+            "type": "file"
+          },
+          {
+            "path": "CLAUDE.md",
+            "type": "file"
+          },
+          {
+            "path": "AGENTS.md",
+            "type": "file"
+          },
+          {
+            "path": "CypressFHF/fhf-dashboards/CLAUDE.md",
+            "type": "file"
+          },
+          {
+            "path": "CypressFHF/fhf-dashboards",
+            "type": "directory"
+          },
+          {
+            "path": "CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke",
+            "type": "directory"
+          },
+          {
+            "path": "docs/framework/testing-standards/TESTS.md",
+            "type": "file"
+          },
+          {
+            "path": "docs/framework/execution-strategy.md",
+            "type": "file"
+          },
+          {
+            "path": "docs/framework/triage-runbook.md",
+            "type": "file"
+          }
+        ],
+        "requiredWorkspacePaths": [
+          {
+            "field": "consumerRoot",
+            "path": "CLAUDE.md",
+            "type": "file",
+            "label": "FHF workspace instructions"
+          },
+          {
+            "field": "consumerRoot",
+            "path": "AGENTS.md",
+            "type": "file",
+            "label": "FHF workspace agent roster"
+          },
+          {
+            "field": "moduleSpecsRoot",
+            "path": "specs",
+            "type": "directory",
+            "label": "Application specification directory"
+          }
+        ],
+        "optionalInputs": [
+          {
+            "field": "backendRoot",
+            "type": "directory",
+            "label": "Read-only backend evidence repository"
+          },
+          {
+            "field": "jiraMcp",
+            "type": "boolean",
+            "label": "Jira MCP/OAuth access"
+          },
+          {
+            "field": "confluenceMcp",
+            "type": "boolean",
+            "label": "Confluence MCP/OAuth access"
+          },
+          {
+            "field": "cypressCloud",
+            "type": "boolean",
+            "label": "Cypress Cloud metadata access"
+          }
+        ],
+        "blockUntilReady": true
+      },
+      "e2e": {
+        "required": true,
+        "branch": "dev",
+        "requireBranch": false,
+        "moduleSpecsPathPrefix": "Test-Case-Automation-Using-Claude-Agents",
+        "requiredInputs": [
+          {
+            "field": "consumerRoot",
+            "label": "FHF workspace root",
+            "description": "The FHF aggregation checkout containing shared instructions and the configured lane layout."
+          },
+          {
+            "field": "moduleSpecsRoot",
+            "label": "Application specs repository root",
+            "description": "The separate Test-Case-Automation-Using-Claude-Agents checkout containing specs/."
+          },
+          {
+            "field": "e2eRoot",
+            "label": "E2E repository root",
+            "description": "This E2E checkout. It is supplied locally and is never inferred from its folder name."
+          }
+        ],
+        "requiredLocalPaths": [
+          {
+            "path": ".claude/settings.json",
+            "type": "file"
+          },
+          {
+            "path": ".cursor/hooks.json",
+            "type": "file"
+          },
+          {
+            "path": ".gitignore",
+            "type": "file"
+          },
+          {
+            "path": "CLAUDE.md",
+            "type": "file"
+          },
+          {
+            "path": "AGENTS.md",
+            "type": "file"
+          },
+          {
+            "path": "CypressFHF/fhf-dashboards/CLAUDE.md",
+            "type": "file"
+          },
+          {
+            "path": "CypressFHF/fhf-dashboards",
+            "type": "directory"
+          },
+          {
+            "path": "CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/e2e",
+            "type": "directory"
+          },
+          {
+            "path": "docs/framework/testing-strategy.md",
+            "type": "file"
+          },
+          {
+            "path": "docs/framework/framework-standards.md",
+            "type": "file"
+          },
+          {
+            "path": "docs/README.md",
+            "type": "file"
+          }
+        ],
+        "requiredWorkspacePaths": [
+          {
+            "field": "consumerRoot",
+            "path": "CLAUDE.md",
+            "type": "file",
+            "label": "FHF workspace instructions"
+          },
+          {
+            "field": "consumerRoot",
+            "path": "AGENTS.md",
+            "type": "file",
+            "label": "FHF workspace agent roster"
+          },
+          {
+            "field": "moduleSpecsRoot",
+            "path": "specs",
+            "type": "directory",
+            "label": "Application specification directory"
+          }
+        ],
+        "optionalInputs": [
+          {
+            "field": "backendRoot",
+            "type": "directory",
+            "label": "Read-only backend evidence repository"
+          },
+          {
+            "field": "jiraMcp",
+            "type": "boolean",
+            "label": "Jira MCP/OAuth access"
+          },
+          {
+            "field": "confluenceMcp",
+            "type": "boolean",
+            "label": "Confluence MCP/OAuth access"
+          },
+          {
+            "field": "cypressCloud",
+            "type": "boolean",
+            "label": "Cypress Cloud metadata access"
+          }
+        ],
+        "blockUntilReady": true
+      },
+      "root": {
+        "required": false,
+        "blockUntilReady": false
+      }
+    }
+  },
   "approval": {
     "jiraWrites": true,
     "confluenceWrites": true,
@@ -61,14 +296,20 @@
   },
   "connectors": {
     "atlassianMcp": {
-      "required": true,
+      "required": false,
+      "availability": "optional",
       "sources": [
         "jira",
         "confluence",
         "teamworkGraph"
       ],
       "authentication": "oauth",
-      "transport": "claude.ai-connector"
+      "transport": "claude.ai-connector",
+      "laneAccess": {
+        "root": "required-for-command-center",
+        "e2e": "optional",
+        "smoke": "optional"
+      }
     },
     "cypressCloud": {
       "required": false,
@@ -430,9 +671,9 @@
   "moduleSpecPathsBase": "paths.consumerRoot",
   "moduleSpecPaths": {
     "ancillary": [
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/general-dashboard.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard-export-activity.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/general-dashboard/general-dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard/follow-up-dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard/follow-up-dashboard-export-activity.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/all-product-dashboard.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/verification-dashboard.yaml"
     ],
@@ -682,6 +923,12 @@
           "priority": 90,
           "match": "\\b(night brief|triage runbook|failed.?spec.?only|re-?run optimization|studio ai)\\b",
           "hint": "Cloud triage / re-run / Studio policy → read docs/framework/triage-runbook.md and docs/framework/execution-strategy.md; for failures spawn cypress-debugger (E2E replay timeline mandatory). Studio AI: .claude/rules/studio-ai-policy.md."
+        },
+        {
+          "id": "regression-sprint-records",
+          "priority": 95,
+          "match": "\\b(regression (pack|plan|checklist|record|records|scope|design)|release confidence|sprint \\d+\\.\\d+(\\.\\d+)?)\\b",
+          "hint": "Per-sprint regression pack → read documentation.owners['regression-sprint-records'] at front-end-automation-e2e/docs/evidence/regression-effort/records/<sprint-id>/ (README.md, regression-plan.md, regression-checklist.yaml, release-confidence.md). The FHF meta-root docs/evidence/regression-effort/ keeps only the workflow and templates; records moved out 2026-08-17. Resolve the path directly and list the directory — content search skips that nested repository, so a text search will report the pack as absent. Never answer a sprint regression question from the meta-root strategy docs."
         }
       ]
     },
@@ -761,15 +1008,13 @@
           ],
           "denyWriteByLane": {
             "root": [
-              "./CypressFHF/fhf-dashboards/src",
-              "./AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards/src",
-              "./ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards/src"
+              "./fhf-dashboards/src"
             ],
             "e2e": [
-              "./CypressFHF/fhf-dashboards/src"
+              "../fhf-dashboards/src"
             ],
             "smoke": [
-              "./CypressFHF/fhf-dashboards/src"
+              "../fhf-dashboards/src"
             ]
           }
         }
@@ -903,6 +1148,8 @@
             "scripts/harness/test-evaluation-evidence.mjs",
             "scripts/harness/test-calibration.mjs",
             "scripts/harness/test-consumer-runtime.mjs",
+            "scripts/harness/test-workspace-contract.mjs",
+            "scripts/harness/test-execution-setup.mjs",
             "scripts/harness/eval-harness.mjs"
         ],
         "consumer": [
@@ -922,8 +1169,155 @@
       ]
     }
   },
+  "policyGovernance": {
+    "version": 1,
+    "scope": "classification-placement-and-adoption-gates",
+    "categories": {
+      "regulatory": {
+        "authority": "official-government-primary-source",
+        "owner": "legal-compliance",
+        "adoptionGate": "confirmed-applicability-and-owner-approval",
+        "contentOwner": "application-contract-source-citation"
+      },
+      "public-commitment": {
+        "authority": "official-first-help-financial-publication",
+        "owner": "product-and-compliance",
+        "adoptionGate": "effective-version-and-owner-approval",
+        "contentOwner": "application-contract-source-citation"
+      },
+      "internal-business-policy": {
+        "authority": "approved-versioned-fhf-policy",
+        "owner": "named-business-owner",
+        "adoptionGate": "approved",
+        "contentOwner": "application-contract"
+      },
+      "application-contract": {
+        "authority": "approved-product-specification",
+        "owner": "documentation.owners.application",
+        "adoptionGate": "approved",
+        "contentOwner": "module-component-or-common-spec"
+      },
+      "implementation-observation": {
+        "authority": "live-source-api-db",
+        "owner": "implementing-system",
+        "adoptionGate": "evidence-only",
+        "contentOwner": "source-code-or-api-db-evidence"
+      },
+      "execution-evidence": {
+        "authority": "generated-repository-evidence",
+        "owner": "evidence-producer",
+        "adoptionGate": "evidence-only",
+        "contentOwner": "configured-evidence-owner"
+      },
+      "proposal": {
+        "authority": "jira-confluence-web-research-or-derived-index",
+        "owner": "requesting-owner",
+        "adoptionGate": "proposal-only",
+        "contentOwner": "approved-owner-review-queue"
+      }
+    },
+    "adoptionStates": [
+      "proposed",
+      "approved",
+      "retired"
+    ],
+    "applicabilityStates": [
+      "confirmed",
+      "conditional",
+      "not-applicable",
+      "unknown"
+    ],
+    "ruleRecord": {
+      "requiredFields": [
+        "id",
+        "category",
+        "owner",
+        "source",
+        "source-version-or-effective-date",
+        "jurisdiction",
+        "adoption-state",
+        "applicability-state",
+        "conditions",
+        "decision",
+        "blocked-outcome",
+        "evidence"
+      ]
+    },
+    "decisionPolicy": {
+      "enforceOnlyWhen": {
+        "adoptionState": "approved",
+        "applicabilityStates": [
+          "confirmed",
+          "conditional"
+        ],
+        "conditionalRequires": [
+          "jurisdiction",
+          "conditions"
+        ]
+      },
+      "failClosedWhen": [
+        "missing-required-field",
+        "unknown-applicability",
+        "source-conflict",
+        "missing-owner-approval"
+      ],
+      "onFailure": "block-adoption-or-enforcement-and-escalate-to-owner"
+    },
+    "placement": {
+      "harnessConfig": [
+        "source-classification",
+        "placement-contract",
+        "adoption-gates",
+        "hard-safety-boundaries",
+        "routing-and-bounded-defaults"
+      ],
+      "applicationContract": [
+        "business-intent",
+        "business-rules-and-conditions",
+        "allowed-values-and-state-transitions",
+        "jurisdiction-and-effective-source-citations"
+      ],
+      "implementation": [
+        "executable-frontend-api-and-backend-behavior"
+      ],
+      "runtimeOverlay": [
+        "ticket-module-route-reason-and-run-selection",
+        "narrower-context-and-loop-budgets"
+      ],
+      "runtimeEvidence": [
+        "execution-results",
+        "api-db-observations",
+        "coverage-and-gate-artifacts"
+      ],
+      "localSetupOrEnvironment": [
+        "machine-specific-paths",
+        "credentials-tokens-and-secrets"
+      ]
+    },
+    "boundaries": {
+      "do": [
+        "classify-each-rule-before-use",
+        "cite-the-primary-source-and-record-version-or-effective-date",
+        "name-the-owner-jurisdiction-and-applicability",
+        "keep-one-canonical-product-rule-and-reference-it",
+        "trace-intent-through-implementation-enforcement-and-test-evidence",
+        "fail-closed-on-unknown-or-conflicting-authority"
+      ],
+      "doNot": [
+        "store-secrets-credentials-or-machine-paths-in-static-policy",
+        "store-detailed-product-business-logic-in-harness-config",
+        "promote-web-research-jira-confluence-or-derived-notes-automatically",
+        "infer-legal-or-jurisdictional-applicability",
+        "treat-ui-guards-or-passing-tests-as-backend-enforcement",
+        "duplicate-the-same-rule-across-config-docs-and-specs"
+      ]
+    }
+  },
   "documentation": {
     "sourcePrecedence": [
+      "applicable-law-and-regulator-primary-source",
+      "approved-internal-policy",
+      "official-public-commitment",
       "live-source-api-db",
       "application-contract",
       "generated-repository-evidence",
@@ -939,7 +1333,8 @@
       "planning": "docs/planning/roadmap/effort-breakdown-by-module-and-subdashboard.md",
       "selectors": "docs/planning/data-cy-hook-backlog.md",
       "execution": "docs/framework/execution-strategy.md",
-      "triage": "docs/framework/triage-runbook.md"
+      "triage": "docs/framework/triage-runbook.md",
+      "regression-sprint-records": "front-end-automation-e2e/docs/evidence/regression-effort/records"
     }
   }
 }

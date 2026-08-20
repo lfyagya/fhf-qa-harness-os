@@ -47,10 +47,22 @@ function traceOptions() {
 function configuredTraceFiles() {
   const explicit = traceOptions();
   if (explicit.length > 0) return explicit;
-  const consumerRoot = path.resolve(ROOT, config.paths.consumerRoot);
+  const consumerRoot = path.resolve(
+    ROOT,
+    process.env.FHF_CONSUMER_ROOT ?? config.paths.consumerRoot,
+  );
   const roots = [ROOT, consumerRoot];
-  for (const lane of Object.values(config.paths.lanes ?? {})) {
-    roots.push(path.resolve(consumerRoot, lane.root));
+  let setup = {};
+  const setupFile = path.resolve(
+    consumerRoot,
+    process.env.FHF_HARNESS_WORKSPACE_CONFIG ?? config.workspaceContract?.setupFile ?? ".harness/workspace.local.json",
+  );
+  if (fs.existsSync(setupFile)) {
+    try { setup = JSON.parse(fs.readFileSync(setupFile, "utf8")); } catch {}
+  }
+  for (const [name, lane] of Object.entries(config.paths.lanes ?? {})) {
+    const configured = lane.root ?? (lane.rootEnv ? process.env[lane.rootEnv] : null) ?? setup[`${name}Root`];
+    if (configured) roots.push(path.isAbsolute(configured) ? path.resolve(configured) : path.resolve(consumerRoot, configured));
   }
   return [...new Set(roots.map((root) => path.resolve(root, config.engineering.context.runtime.traceFile)))].filter((file) => fs.existsSync(file));
 }
@@ -104,7 +116,12 @@ check(override.status === 0 && routeFromOutput(override.stdout) === "qa-control-
 const invalid = runRouter("ordinary prompt", {
   FHF_HARNESS_OVERLAY: JSON.stringify({ version: 1, engineering: { harness: {} } }),
 });
-check(invalid.status === 0 && invalid.stdout.includes("Harness config unavailable"), "invalid overlay was not rejected");
+check(
+  invalid.status === 2
+    && invalid.stderr.includes("WORKSPACE BLOCKED")
+    && invalid.stderr.includes("section is not allowed"),
+  "invalid overlay was not rejected",
+);
 
 const calibration = JSON.parse(fs.readFileSync(path.join(ROOT, evaluation.calibrationCases), "utf8"));
 if (calibration.cases.length === 0) {

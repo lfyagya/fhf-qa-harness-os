@@ -8,6 +8,7 @@ import { extname } from 'path';
 import { CY_WAIT_NUMBER_RE, SMOKE_MUTATION_RE, isSmokePath } from './lib/cypress-rule-patterns.mjs';
 import { hookContent, hookFilePath } from './lib/hook-payload.mjs';
 import { emitAllow } from './lib/hook-runtime.mjs';
+import { enforceWorkspaceReady } from './lib/workspace-contract.mjs';
 
 let payload = {};
 try {
@@ -16,6 +17,7 @@ try {
   emitAllow(payload);
   process.exit(0);
 }
+enforceWorkspaceReady({ root: payload.cwd ?? process.cwd() });
 process.on('exit', code => code === 0 && emitAllow(payload));
 
 const filePath = hookFilePath(payload);

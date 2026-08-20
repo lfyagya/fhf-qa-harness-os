@@ -12,6 +12,7 @@
 // under SubagentStart; say what actually happened.
 import { readFileSync } from "fs";
 import { engineeringConfig } from "./lib/harness-config.mjs";
+import { enforceWorkspaceReady } from "./lib/workspace-contract.mjs";
 
 let payload = {};
 try {
@@ -19,6 +20,8 @@ try {
 } catch {
   if (!process.argv.includes("--deny-matched-subagent")) process.exit(0);
 }
+
+enforceWorkspaceReady({ root: payload.cwd ?? process.cwd() });
 
 const isSubagentStart = payload.hook_event_name === "SubagentStart";
 const subagentType = String(

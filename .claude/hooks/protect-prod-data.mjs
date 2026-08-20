@@ -30,7 +30,7 @@
 //
 // See .claude/rules/prod-data-handling.md for the full policy.
 import { readFileSync } from 'fs';
-import { loadHarnessConfig } from './lib/harness-config.mjs';
+import { detectLane, loadHarnessConfig } from './lib/harness-config.mjs';
 import { hookFilePath, hookInput } from './lib/hook-payload.mjs';
 import { emitAllow } from './lib/hook-runtime.mjs';
 
@@ -66,25 +66,10 @@ function deny(what, detail) {
   console.error('If you need it, ask the owner; they re-launch with FHF_ALLOW_PROD_DATA=1.');
   console.error('The agent must not set this itself.');
   console.error('For E2E Test Replay only: set FHF_LANE=e2e on the shell command, or run from');
-  console.error('the E2E package cwd (AG Frontend Automation/.../fhf-dashboards).');
+  console.error('the configured E2E checkout.');
   console.error('Safe alternatives: reports/junit/*.xml, the Cypress Cloud MCP or CLI');
   console.error('run/spec/test metadata lists, or the terminal run log.');
   process.exit(2);
-}
-
-function e2ePackageMarkers(config) {
-  const e2e = config?.paths?.lanes?.e2e;
-  const markers = ['AG Frontend Automation'];
-  if (e2e?.root) markers.push(String(e2e.root).replace(/\\/g, '/'));
-  if (e2e?.package) markers.push(String(e2e.package).replace(/\\/g, '/'));
-  return markers.filter(Boolean);
-}
-
-function smokePackageMarkers(config) {
-  const smoke = config?.paths?.lanes?.smoke;
-  const markers = ['ProdSmokeExecution'];
-  if (smoke?.root) markers.push(String(smoke.root).replace(/\\/g, '/'));
-  return markers.filter(Boolean);
 }
 
 /** E2E full-read context: explicit lane env, or cwd under the E2E package and not smoke. */
@@ -102,12 +87,9 @@ export function isE2eFullReadContext(payloadObj = {}, command = '', env = proces
     || process.cwd()
     || '',
   ).replace(/\\/g, '/');
-  const haystack = `${cwd}\n${command}`.replace(/\\/g, '/');
-
-  const inSmoke = smokePackageMarkers(config).some((m) => haystack.includes(m.replace(/\\/g, '/')));
-  if (inSmoke) return false;
-
-  return e2ePackageMarkers(config).some((m) => haystack.includes(m.replace(/\\/g, '/')));
+  const lane = detectLane(cwd, config);
+  if (lane === 'smoke') return false;
+  return lane === 'e2e';
 }
 
 const toolName = payload?.tool_name ?? payload?.name ?? '';

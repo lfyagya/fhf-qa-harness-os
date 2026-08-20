@@ -28,6 +28,9 @@ import {
   CONSUMER_VERIFIER_TEXT,
   PORTABLE_RUNTIME_STATE_TEXT,
   RECORD_LOOP_EVENT_TEXT,
+  WORKSPACE_SETUP_TEXT,
+  laneMarker,
+  workspaceExample,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -46,8 +49,12 @@ const ONLY_ROOT = process.argv.includes("--only-root");
 const ONLY_BASELINE = process.argv.includes("--only-baseline");
 
 const SUB_REPOS = {
-  e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation"),
-  smoke: path.join(FHF_ROOT, "ProdSmokeExecution", "front-end-automation"),
+  e2e: process.env.FHF_E2E_TARGET_ROOT
+    ? path.resolve(process.env.FHF_E2E_TARGET_ROOT)
+    : path.join(FHF_ROOT, "front-end-automation-e2e"),
+  smoke: process.env.FHF_SMOKE_TARGET_ROOT
+    ? path.resolve(process.env.FHF_SMOKE_TARGET_ROOT)
+    : path.join(FHF_ROOT, "front-end-automation-smoke"),
 };
 
 const CLAUDE_SUBFOLDERS = ["hooks", "agents", "rules", "skills"];
@@ -109,15 +116,21 @@ function dirsMatch(srcDir, destDir, prefix) {
   }
 }
 
-function checkConsumerVerifier(repoPath) {
+function checkConsumerVerifier(repoPath, lane) {
   requireFile(path.join(repoPath, ".harness", "verify.mjs"));
   requireFile(path.join(repoPath, ".harness", "README.md"));
   requireFile(path.join(repoPath, ".harness", "portable-runtime-state.mjs"));
   requireFile(path.join(repoPath, ".harness", "record-loop-event.mjs"));
+  requireFile(path.join(repoPath, ".harness", "setup.mjs"));
+  requireFile(path.join(repoPath, ".harness", "lane.json"));
+  requireFile(path.join(repoPath, ".harness", "workspace.example.json"));
   checkExactText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
-  checkExactText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme());
+  checkExactText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme(lane));
   checkExactText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
   checkExactText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
+  checkExactText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
 }
 
 function checkHarnessRoot() {
@@ -149,7 +162,7 @@ function checkFhfRoot() {
   checkExactText(cursorHooksPath, `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
   checkExactText(copilotPath, parentCopilotInstructions());
   checkExactText(geminiPath, parentGeminiInstructions());
-  checkConsumerVerifier(FHF_ROOT);
+  checkConsumerVerifier(FHF_ROOT, "root");
 }
 
 // Lane repos (E2E/Smoke): vendored .claude tree + portable shims + doc overlays.
@@ -195,7 +208,7 @@ function checkSubRepo(repoPath, lane) {
   checkExactText(path.join(githubDir, "copilot-instructions.md"), copilotInstructions(lane));
   checkExactText(geminiPath, geminiInstructions(lane));
   checkExactText(path.join(cursorDir, "hooks.json"), `${JSON.stringify(cursorHooks(VENDORED_HOOKS, lane), null, 2)}\n`);
-  checkConsumerVerifier(repoPath);
+  checkConsumerVerifier(repoPath, lane);
 }
 
 function checkAgentsRoster() {
@@ -284,7 +297,7 @@ function checkBaseline() {
   checkExactText(path.join(BASELINE_ROOT, "ARCHITECTURE.md"), baselineArchitecture());
   checkExactText(path.join(BASELINE_ROOT, "CONTRIBUTING.md"), baselineContributing());
   checkExactText(path.join(BASELINE_ROOT, "docs", "README.md"), baselineDocsReadme());
-  checkConsumerVerifier(BASELINE_ROOT);
+  checkConsumerVerifier(BASELINE_ROOT, "root");
 }
 
 if (

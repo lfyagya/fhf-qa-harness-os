@@ -13,7 +13,11 @@ This ADR itself is the first real use of the governance process it establishes â
 
 ## Decision
 
-Relocated the harness to its own sibling repository, `fhf-harness-os`. FHF (and its two sub-repos, `AG Frontend Automation` and `ProdSmokeExecution`) became consumers: their `.claude/` content is now generated output, regenerated from this repo via `scripts/harness/sync-loader-shims.mjs` and verified with `check-loader-drift.mjs`. Hook commands in every consumer's `settings.json` resolve the selected project at runtime through `CLAUDE_PROJECT_DIR` or `CURSOR_PROJECT_DIR`; no developer checkout path is part of the committed contract.
+Relocated the harness to its own sibling repository, `fhf-harness-os`. FHF and its two lane consumer
+checkouts became consumers: their `.claude/` content is generated output, regenerated from this repo
+via `scripts/harness/sync-loader-shims.mjs` and verified with `check-loader-drift.mjs`. Hook commands
+in every consumer's `settings.json` resolve the selected project at runtime through `CLAUDE_PROJECT_DIR`
+or `CURSOR_PROJECT_DIR`; no developer checkout path is part of the committed contract.
 
 ## Consequences
 

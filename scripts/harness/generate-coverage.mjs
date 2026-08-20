@@ -11,7 +11,9 @@ import {
 // This script is harness engine code (lives in fhf-harness-os) but scans and writes into
 // the FHF consumer repo, which is a sibling directory, not a subdirectory of this repo.
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const FHF_ROOT = path.resolve(HARNESS_ROOT, "..", "FHF");
+const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
+  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
+  : path.resolve(HARNESS_ROOT, "..", "FHF");
 const OUT_JSON = path.join(FHF_ROOT, "docs", "evidence", "coverage-computed.json");
 const CONTROL_PLANE_CONFIG_PATH = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
 const CONTROL_PLANE = JSON.parse(fs.readFileSync(CONTROL_PLANE_CONFIG_PATH, "utf8"));
@@ -22,10 +24,38 @@ const BACKEND_ROOT = BACKEND_EVIDENCE
 const consentIndex = process.argv.indexOf("--consent");
 const consent = consentIndex >= 0 ? process.argv[consentIndex + 1] : null;
 
-const LANES = {
-  e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation", "CypressFHF", "fhf-dashboards", "cypress"),
-  smoke: path.join(FHF_ROOT, "ProdSmokeExecution", "front-end-automation", "CypressFHF", "fhf-dashboards", "cypress"),
-};
+function workspaceSetup() {
+  const file = path.resolve(
+    FHF_ROOT,
+    process.env.FHF_HARNESS_WORKSPACE_CONFIG ?? CONTROL_PLANE.workspaceContract?.setupFile ?? ".harness/workspace.local.json",
+  );
+  if (!fs.existsSync(file)) return {};
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    return parsed?.optional && typeof parsed.optional === "object"
+      ? { ...parsed, ...parsed.optional }
+      : parsed;
+  } catch {
+    return {};
+  }
+}
+
+const SETUP = workspaceSetup();
+function laneCypressRoot(lane) {
+  const laneConfig = CONTROL_PLANE.paths.lanes[lane] ?? {};
+  const configured = laneConfig.root
+    ?? (laneConfig.rootEnv ? process.env[laneConfig.rootEnv] : null)
+    ?? SETUP[`${lane}Root`];
+  if (!configured) return null;
+  const repoRoot = path.isAbsolute(configured) ? path.resolve(configured) : path.resolve(FHF_ROOT, configured);
+  return path.join(repoRoot, laneConfig.package ?? "", "cypress");
+}
+
+const LANES = Object.fromEntries(
+  Object.keys(CONTROL_PLANE.paths.lanes ?? {})
+    .map((lane) => [lane, laneCypressRoot(lane)])
+    .filter(([, root]) => root),
+);
 
 // Canonical tokens, longest-normalized first so prefix matching can't collide
 // (post-funding before funding, doc-repository before anything shorter).

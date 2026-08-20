@@ -2,6 +2,7 @@
 // PostToolUse:Edit|Write — flag changes that may violate lane or coverage strategy.
 // exit 2 = violation, stderr fed back to Claude to fix; exit 0 = clean.
 import { readFileSync } from 'fs';
+import { detectLane } from './lib/harness-config.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -13,13 +14,15 @@ const content = payload.tool_input?.new_string ?? payload.tool_input?.content ??
 if (!content) process.exit(0);
 
 const warnings = [];
+let lane = 'root';
+try { lane = detectLane(payload.cwd ?? process.env.CLAUDE_CWD ?? process.cwd()); } catch {}
 
 // Smoke spec in E2E path or vice versa
-if (filePath.includes('ProdSmokeExecution') && /[\\/]e2e[\\/]/.test(filePath))
-  warnings.push('E2E test path detected inside ProdSmokeExecution repo — smoke tests go in /smoke/');
+if (lane === 'smoke' && /[\\/]e2e[\\/]/.test(filePath))
+  warnings.push('E2E test path detected in the Smoke checkout — Smoke tests go in /smoke/');
 
-if (filePath.includes('AG Frontend Automation') && /[\\/]smoke[\\/]/.test(filePath))
-  warnings.push('Smoke test path detected inside AG Frontend Automation repo — smoke tests live in ProdSmokeExecution');
+if (lane === 'e2e' && /[\\/]smoke[\\/]/.test(filePath))
+  warnings.push('Smoke test path detected in the E2E checkout — Smoke tests belong in the Smoke checkout');
 
 // cy.interceptXxxApis() must come before cy.visit() in specs
 if (filePath.endsWith('.cy.js')) {

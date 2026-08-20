@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { engineeringConfig } from './lib/harness-config.mjs';
 import { hookFilePath } from './lib/hook-payload.mjs';
 import { emitAllow } from './lib/hook-runtime.mjs';
+import { enforceWorkspaceReady } from './lib/workspace-contract.mjs';
 
 let payload = {};
 try {
@@ -13,6 +14,8 @@ try {
   emitAllow(payload);
   process.exit(0);
 }
+
+enforceWorkspaceReady({ root: payload.cwd ?? process.cwd() });
 
 const filePath = hookFilePath(payload);
 const patterns = engineeringConfig().harness.boundaries.applicationSource.pathPatterns

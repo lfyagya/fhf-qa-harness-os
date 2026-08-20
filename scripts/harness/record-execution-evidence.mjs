@@ -13,7 +13,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const FHF_ROOT = path.resolve(HARNESS_ROOT, "..", "FHF");
+const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
+  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
+  : path.resolve(HARNESS_ROOT, "..", "FHF");
 const OUT = path.join(FHF_ROOT, "docs", "evidence", "execution-history.md");
 
 const raw = process.argv[2];

@@ -5,8 +5,8 @@ This repo is the **harness**: the scaffolding that compensates for what a model 
 It is not a QA test suite. It contains no Cypress specs, no application docs, no coverage data. Those are payload, and payload lives in the configured consumer workspace:
 
 - `paths.consumerRoot` in `config/qa-control-plane.json` — QA docs, coverage evidence, and the automation backlog
-- `paths.lanes.e2e.root` — the E2E lane on its configured branch
-- `paths.lanes.smoke.root` — the Smoke lane on its configured branch
+- `paths.lanes.e2e.rootEnv` — the E2E lane root selected by local environment/setup
+- `paths.lanes.smoke.rootEnv` — the Smoke lane root selected by local environment/setup
 
 `fhf-backend-automation` is independently owned and is not a consumer of this harness. When it is
 available, use it only for read-only API or Oracle evidence; never install, sync, edit, or write there.
@@ -44,10 +44,12 @@ and Smoke repositories are clone-ready consumers: commit their generated `.claud
 `.claude/settings.json`, `.claude/harness.config.json`, `.cursor/hooks.json`,
 `.github/copilot-instructions.md`, `GEMINI.md`, `.harness/`, and documentation overlays (`README.md`,
 `ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/README.md`) so engineers can use the harness after cloning.
-Only runtime state such as `**/cypress/handoff/` and `.claude/hooks/.sweep-retries` remains ignored.
+Smoke clones also commit the setup example and run `node .harness/setup.mjs`; the local
+`.harness/workspace.local.json` remains ignored because it contains checkout paths. Only runtime state
+such as `**/cypress/handoff/` and `.claude/hooks/.sweep-retries` remains ignored.
 Sibling `.cursor/*` and `.github/*` files, plus optional `architecture/`, are consumer-owned and are not drift.
 
-Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path. Local checkout locations belong in environment variables or untracked runtime state, never in committed policy.
+Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path. Local checkout locations belong in the ignored setup file or environment variables, never in committed policy.
 
 ## Configuration layers
 

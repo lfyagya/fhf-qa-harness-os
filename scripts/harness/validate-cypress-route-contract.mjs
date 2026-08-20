@@ -11,8 +11,13 @@ import {
 } from './route-contract-lib.mjs';
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const FHF_ROOT = path.resolve(HARNESS_ROOT, '..', 'FHF');
-const E2E_PACKAGE = path.join(FHF_ROOT, 'AG Frontend Automation', 'front-end-automation', 'CypressFHF', 'fhf-dashboards');
+const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
+  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
+  : path.resolve(HARNESS_ROOT, '..', 'FHF');
+const E2E_ROOT = process.env.FHF_E2E_ROOT
+  ? path.resolve(process.env.FHF_E2E_ROOT)
+  : path.join(FHF_ROOT, 'front-end-automation-e2e');
+const E2E_PACKAGE = path.join(E2E_ROOT, 'CypressFHF', 'fhf-dashboards');
 const DEFAULT_SOURCE = path.join(FHF_ROOT, 'fhf-dashboards', 'src', 'constants', 'routes.js');
 const DEFAULT_CONTRACT = path.join(E2E_PACKAGE, 'cypress', 'configs', 'app', 'application-routes.contract.json');
 const DEFAULT_CYPRESS_ROUTES = path.join(E2E_PACKAGE, 'cypress', 'configs', 'app', 'routes.js');

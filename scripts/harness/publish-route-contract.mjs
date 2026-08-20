@@ -7,12 +7,15 @@ import { fileURLToPath } from 'node:url';
 import { ROUTE_CONTRACT_SCHEMA_VERSION, readApplicationRoutes, sha256 } from './route-contract-lib.mjs';
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const FHF_ROOT = path.resolve(HARNESS_ROOT, '..', 'FHF');
+const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
+  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
+  : path.resolve(HARNESS_ROOT, '..', 'FHF');
+const E2E_ROOT = process.env.FHF_E2E_ROOT
+  ? path.resolve(process.env.FHF_E2E_ROOT)
+  : path.join(FHF_ROOT, 'front-end-automation-e2e');
 const DEFAULT_SOURCE = path.join(FHF_ROOT, 'fhf-dashboards', 'src', 'constants', 'routes.js');
 const DEFAULT_OUTPUT = path.join(
-  FHF_ROOT,
-  'AG Frontend Automation',
-  'front-end-automation',
+  E2E_ROOT,
   'CypressFHF',
   'fhf-dashboards',
   'cypress',

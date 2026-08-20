@@ -6,6 +6,7 @@ import { execSync } from 'child_process';
 import { loadHarnessConfig, detectLane } from './lib/harness-config.mjs';
 import { emitContext, emitEmpty } from './lib/hook-runtime.mjs';
 import { extractFacts, isExternalBackendWorkspace, mergeHandoff } from './lib/memory-state.mjs';
+import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -18,13 +19,25 @@ try {
   config = loadHarnessConfig();
   engineering = config.engineering;
 } catch (error) {
-  emitContext(payload, "UserPromptSubmit", `[router] Harness config unavailable: ${error.message}`);
-  process.exit(0);
+  console.error("WORKSPACE BLOCKED: Harness configuration is unavailable or invalid.");
+  console.error(`- ${error.message}`);
+  console.error("Repair the canonical policy or regenerate the consumer projection, then run node .harness/verify.mjs change.");
+  process.exit(2);
 }
 const { context, memory } = engineering;
 const overlay = config.runtimeOverlay;
 const cwd = payload.cwd ?? process.env.CLAUDE_CWD ?? process.cwd();
 const lane = detectLane(cwd);
+const workspace = workspacePreflight({ root: cwd, config });
+if (!workspace.ready) {
+  const setupPrompt = /(?:workspace|harness)\s+setup|\.harness[\\/]setup\.mjs|\.harness[\\/]verify\.mjs/i.test(prompt);
+  if (!setupPrompt) {
+    console.error(formatWorkspacePreflight(workspace, config));
+    process.exit(2);
+  }
+  emitContext(payload, "UserPromptSubmit", formatWorkspacePreflight(workspace, config));
+  process.exit(0);
+}
 const isExternalBackend = isExternalBackendWorkspace({ cwd });
 
 const facts = extractFacts(payload.prompt ?? "", memory);

@@ -3,6 +3,7 @@
 // exit 2 = BLOCK the Skill invocation.
 import { readFileSync } from "fs";
 import { engineeringConfig } from "./lib/harness-config.mjs";
+import { enforceWorkspaceReady } from "./lib/workspace-contract.mjs";
 
 let payload = {};
 try {
@@ -13,6 +14,8 @@ try {
 
 const skill = String(payload.tool_input?.skill ?? "").toLowerCase();
 if (!skill) process.exit(0);
+
+enforceWorkspaceReady({ root: payload.cwd ?? process.cwd() });
 
 const allowed = new Set(engineeringConfig().harness.skills.map((s) => s.toLowerCase()));
 if (allowed.has(skill)) process.exit(0);

@@ -33,15 +33,50 @@ function walkFiles(dir, extensions, output = []) {
 function resolveConfig(configPath = DEFAULT_CONFIG) {
   const file = path.resolve(configPath);
   const config = readJson(file);
-  const consumerRoot = path.resolve(HARNESS_ROOT, config.paths.consumerRoot);
+  const consumerRoot = path.resolve(
+    HARNESS_ROOT,
+    process.env.FHF_CONSUMER_ROOT ?? config.paths.consumerRoot,
+  );
+  const setup = workspaceSetup({ ...config, consumerRoot });
+  const moduleSpecsRoot = path.resolve(
+    consumerRoot,
+    process.env.FHF_MODULE_SPECS_ROOT ?? setup.moduleSpecsRoot ?? consumerRoot,
+  );
   const resolved = {
     ...config,
     configFile: file,
     consumerRoot,
+    moduleSpecsRoot,
     evidenceDir: path.join(consumerRoot, config.paths.evidenceDir),
   };
   validateConfig(resolved);
   return resolved;
+}
+
+function workspaceSetup(config) {
+  const configured = process.env.FHF_HARNESS_WORKSPACE_CONFIG;
+  const file = path.resolve(config.consumerRoot, configured || config.workspaceContract?.setupFile || ".harness/workspace.local.json");
+  if (!fs.existsSync(file)) return {};
+  try {
+    const parsed = readJson(file);
+    return parsed?.optional && typeof parsed.optional === "object"
+      ? { ...parsed, ...parsed.optional }
+      : parsed;
+  } catch {
+    return {};
+  }
+}
+
+function laneRoot(config, lane) {
+  const value = config.paths?.lanes?.[lane] ?? {};
+  const setup = workspaceSetup(config);
+  const configured = value.root
+    ?? (value.rootEnv ? process.env[value.rootEnv] : null)
+    ?? setup[`${lane}Root`];
+  if (!configured) return null;
+  return path.isAbsolute(configured)
+    ? path.resolve(configured)
+    : path.resolve(config.consumerRoot, configured);
 }
 
 function validateConfig(config) {
@@ -214,7 +249,7 @@ function deliveryStage(status) {
 
 function specTargetDetails(modules, config) {
   return modules.flatMap((module) => (config.moduleSpecPaths?.[module] ?? []).map((relativePath) => {
-    const file = path.join(config.consumerRoot, relativePath);
+    const file = path.join(config.moduleSpecsRoot ?? config.consumerRoot, relativePath);
     return {
       path: relativePath,
       exists: fs.existsSync(file),
@@ -346,10 +381,10 @@ function emptyStages(config) {
 
 function repositoryTicketEvidence(config) {
   const index = new Map();
-  const roots = Object.entries(config.paths.lanes).map(([lane, value]) => ({
-    lane,
-    root: path.join(config.consumerRoot, value.root, value.package ?? ""),
-  }));
+  const roots = Object.entries(config.paths.lanes).map(([lane, value]) => {
+    const root = laneRoot(config, lane);
+    return root ? { lane, root: path.join(root, value.package ?? "") } : null;
+  }).filter(Boolean);
   for (const { lane, root } of roots) {
     for (const file of walkFiles(root, [".js", ".ts", ".json", ".py"])) {
       const relative = path.relative(root, file).replace(/\\/g, "/");
@@ -564,11 +599,14 @@ function discoverExecution(config) {
   const configured = parseExecutionHistory(path.join(config.consumerRoot, config.paths.executionHistory));
   const lanePath = (lane) => {
     const value = config.paths.lanes[lane];
-    return path.join(config.consumerRoot, value.root, value.package ?? "");
+    const root = laneRoot(config, lane);
+    return root ? path.join(root, value.package ?? "") : null;
   };
   const discovered = [
-    junitRun(path.join(lanePath("e2e"), "reports", "junit", "merged.xml"), "e2e"),
-    junitRun(path.join(lanePath("smoke"), "reports", "junit", "merged.xml"), "smoke"),
+    ...["e2e", "smoke"].flatMap((lane) => {
+      const root = lanePath(lane);
+      return root ? [junitRun(path.join(root, "reports", "junit", "merged.xml"), lane)] : [];
+    }),
   ];
   const backend = config.paths.optionalReadOnlyEvidence?.backend;
   if (backend && fs.existsSync(path.join(config.consumerRoot, backend.root))) {

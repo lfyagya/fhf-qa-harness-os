@@ -4,7 +4,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const FHF_ROOT = path.resolve(HARNESS_ROOT, "..", "FHF");
+const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
+  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
+  : path.resolve(HARNESS_ROOT, "..", "FHF");
 const DOCS_ROOT = path.join(FHF_ROOT, "docs");
 const CONFIG = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
 const LINK_RE = /\[[^\]]*\]\(([^)]+)\)/g;
@@ -38,8 +40,18 @@ if (documentation) {
   const precedence = documentation.sourcePrecedence;
   if (!Array.isArray(precedence) || precedence.length === 0 || new Set(precedence).size !== precedence.length) {
     issues.push("documentation.sourcePrecedence must be a non-empty list without duplicates");
-  } else if (precedence.at(-1) !== "obsidian-derived-index") {
-    issues.push("obsidian-derived-index must remain the lowest-precedence source");
+  } else {
+    const requiredAuthorityOrder = [
+      "applicable-law-and-regulator-primary-source",
+      "approved-internal-policy",
+      "official-public-commitment",
+    ];
+    if (requiredAuthorityOrder.some((source, index) => precedence[index] !== source)) {
+      issues.push("documentation.sourcePrecedence must begin with law, approved policy, then public commitment");
+    }
+    if (precedence.at(-1) !== "obsidian-derived-index") {
+      issues.push("obsidian-derived-index must remain the lowest-precedence source");
+    }
   }
 
   const owners = Object.entries(documentation.owners ?? {});
@@ -50,6 +62,164 @@ if (documentation) {
     }
   }
 
+}
+
+const policyGovernance = config?.policyGovernance;
+if (!policyGovernance || policyGovernance.version !== 1) {
+  issues.push("policyGovernance.version must be 1");
+} else {
+  const requiredCategories = [
+    "regulatory",
+    "public-commitment",
+    "internal-business-policy",
+    "application-contract",
+    "implementation-observation",
+    "execution-evidence",
+    "proposal",
+  ];
+  for (const category of requiredCategories) {
+    const definition = policyGovernance.categories?.[category];
+    for (const field of ["authority", "owner", "adoptionGate", "contentOwner"]) {
+      if (typeof definition?.[field] !== "string" || !definition[field]) {
+        issues.push(`policyGovernance.categories.${category}.${field} must be configured`);
+      }
+    }
+  }
+
+  const validateUniqueList = (value, label) => {
+    if (!Array.isArray(value) || value.length === 0 || new Set(value).size !== value.length) {
+      issues.push(`${label} must be a non-empty list without duplicates`);
+      return false;
+    }
+    return true;
+  };
+
+  if (validateUniqueList(policyGovernance.adoptionStates, "policyGovernance.adoptionStates")) {
+    for (const state of ["proposed", "approved", "retired"]) {
+      if (!policyGovernance.adoptionStates.includes(state)) {
+        issues.push(`policyGovernance.adoptionStates must include ${state}`);
+      }
+    }
+  }
+  if (validateUniqueList(policyGovernance.applicabilityStates, "policyGovernance.applicabilityStates")) {
+    for (const state of ["confirmed", "conditional", "not-applicable", "unknown"]) {
+      if (!policyGovernance.applicabilityStates.includes(state)) {
+        issues.push(`policyGovernance.applicabilityStates must include ${state}`);
+      }
+    }
+  }
+  const ruleFields = policyGovernance.ruleRecord?.requiredFields;
+  const requiredRuleFields = [
+    "id",
+    "category",
+    "owner",
+    "source",
+    "source-version-or-effective-date",
+    "jurisdiction",
+    "adoption-state",
+    "applicability-state",
+    "conditions",
+    "decision",
+    "blocked-outcome",
+    "evidence",
+  ];
+  if (validateUniqueList(ruleFields, "policyGovernance.ruleRecord.requiredFields")) {
+    for (const field of requiredRuleFields) {
+      if (!ruleFields.includes(field)) issues.push(`policyGovernance.ruleRecord.requiredFields must include ${field}`);
+    }
+  }
+
+  const enforceOnlyWhen = policyGovernance.decisionPolicy?.enforceOnlyWhen;
+  if (enforceOnlyWhen?.adoptionState !== "approved") {
+    issues.push("policyGovernance may enforce only approved rules");
+  }
+  if (!enforceOnlyWhen?.applicabilityStates?.includes("confirmed") ||
+      !enforceOnlyWhen?.applicabilityStates?.includes("conditional")) {
+    issues.push("policyGovernance enforceable applicability must include confirmed and conditional");
+  }
+  if (!enforceOnlyWhen?.conditionalRequires?.includes("jurisdiction") ||
+      !enforceOnlyWhen?.conditionalRequires?.includes("conditions")) {
+    issues.push("conditional policy requires jurisdiction and conditions");
+  }
+  const requiredFailureSignals = [
+    "missing-required-field",
+    "unknown-applicability",
+    "source-conflict",
+    "missing-owner-approval",
+  ];
+  const failureSignals = policyGovernance.decisionPolicy?.failClosedWhen;
+  if (validateUniqueList(failureSignals, "policyGovernance.decisionPolicy.failClosedWhen")) {
+    for (const signal of requiredFailureSignals) {
+      if (!failureSignals.includes(signal)) {
+        issues.push(`policyGovernance.decisionPolicy.failClosedWhen must include ${signal}`);
+      }
+    }
+  }
+  if (policyGovernance.decisionPolicy?.onFailure !== "block-adoption-or-enforcement-and-escalate-to-owner") {
+    issues.push("policyGovernance decision failures must block and escalate to the owner");
+  }
+
+  for (const key of [
+    "harnessConfig",
+    "applicationContract",
+    "implementation",
+    "runtimeOverlay",
+    "runtimeEvidence",
+    "localSetupOrEnvironment",
+  ]) {
+    validateUniqueList(policyGovernance.placement?.[key], `policyGovernance.placement.${key}`);
+  }
+  validateUniqueList(policyGovernance.boundaries?.do, "policyGovernance.boundaries.do");
+  validateUniqueList(policyGovernance.boundaries?.doNot, "policyGovernance.boundaries.doNot");
+}
+
+const workspaceContract = config?.workspaceContract;
+if (!workspaceContract || workspaceContract.version !== 1) {
+  issues.push("workspaceContract.version must be 1");
+} else {
+  for (const lane of ["e2e", "smoke"]) {
+    const laneConfig = config.paths?.lanes?.[lane];
+    if (!laneConfig?.root && (typeof laneConfig?.rootEnv !== "string" || !laneConfig.rootEnv)) {
+      issues.push(`paths.lanes.${lane} must use a configured rootEnv instead of a checkout folder name`);
+    }
+  }
+  for (const key of ["setupFile", "setupExample", "setupCommand"]) {
+    if (typeof workspaceContract[key] !== "string" || path.isAbsolute(workspaceContract[key])) {
+      issues.push(`workspaceContract.${key} must be a relative string`);
+    }
+  }
+  const smoke = workspaceContract.lanes?.smoke;
+  if (!smoke?.required || smoke.branch !== "staging" || smoke.blockUntilReady !== true) {
+    issues.push("workspaceContract.lanes.smoke must be required, staging-bound, and blocking");
+  }
+  const e2e = workspaceContract.lanes?.e2e;
+  if (!e2e?.required || e2e.branch !== "dev" || e2e.blockUntilReady !== true) {
+    issues.push("workspaceContract.lanes.e2e must be required, dev-bound, and blocking");
+  }
+  if (typeof smoke.moduleSpecsPathPrefix !== "string" || !smoke.moduleSpecsPathPrefix) {
+    issues.push("workspaceContract.lanes.smoke.moduleSpecsPathPrefix must be configured");
+  }
+  if (typeof e2e?.moduleSpecsPathPrefix !== "string" || !e2e.moduleSpecsPathPrefix) {
+    issues.push("workspaceContract.lanes.e2e.moduleSpecsPathPrefix must be configured");
+  }
+  if (!(e2e?.requiredInputs ?? []).some((input) => input.field === "e2eRoot")) {
+    issues.push("workspaceContract.lanes.e2e.requiredInputs must include e2eRoot");
+  }
+  for (const input of smoke.requiredInputs ?? []) {
+    if (!input.field || !input.label || !input.description) {
+      issues.push("workspaceContract.lanes.smoke.requiredInputs need field, label, and description");
+    }
+  }
+  for (const entry of [...(smoke.requiredLocalPaths ?? []), ...(smoke.requiredWorkspacePaths ?? [])]) {
+    if (!entry.path || !["file", "directory"].includes(entry.type)) {
+      issues.push("workspaceContract path entries need a path and file/directory type");
+    }
+  }
+  for (const input of smoke.optionalInputs ?? []) {
+    if (!input.field || !input.label || !["boolean", "directory"].includes(input.type)) {
+      issues.push("workspaceContract optionalInputs need field, label, and boolean/directory type");
+    }
+  }
 }
 
 if (engineering) {
@@ -118,9 +288,16 @@ if (engineering) {
       issues.push(`applicationSource.pathPatterns[${index}] is invalid: ${error.message}`);
     }
   }
+  const expectedApplicationSourcePaths = {
+    root: "./fhf-dashboards/src",
+    e2e: "../fhf-dashboards/src",
+    smoke: "../fhf-dashboards/src",
+  };
   for (const lane of ["root", "e2e", "smoke"]) {
     if (!Array.isArray(appBoundary?.denyWriteByLane?.[lane]) || appBoundary.denyWriteByLane[lane].length === 0) {
       issues.push(`applicationSource.denyWriteByLane.${lane} must not be empty`);
+    } else if (!appBoundary.denyWriteByLane[lane].includes(expectedApplicationSourcePaths[lane])) {
+      issues.push(`applicationSource.denyWriteByLane.${lane} must protect ${expectedApplicationSourcePaths[lane]}`);
     }
   }
 
@@ -328,9 +505,11 @@ if (!cloudCli) {
   } else {
     for (const lane of ["e2e", "smoke"]) {
       const lanePath = config.paths?.lanes?.[lane];
-      const projectConfig = lanePath && path.resolve(
+      const configuredRoot = lanePath?.root ?? (lanePath?.rootEnv ? process.env[lanePath.rootEnv] : null);
+      if (!configuredRoot) continue;
+      const projectConfig = path.resolve(
         FHF_ROOT,
-        repoPath(lanePath.root),
+        repoPath(configuredRoot),
         repoPath(lanePath.package),
         repoPath(cloudCli.projectIdSource),
       );

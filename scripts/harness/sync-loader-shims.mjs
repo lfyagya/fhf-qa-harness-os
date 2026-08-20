@@ -30,6 +30,11 @@ import {
   CONSUMER_VERIFIER_TEXT,
   PORTABLE_RUNTIME_STATE_TEXT,
   RECORD_LOOP_EVENT_TEXT,
+  EXECUTION_SETUP_TEXT,
+  WORKSPACE_SETUP_TEXT,
+  executionProfileExample,
+  laneMarker,
+  workspaceExample,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,8 +48,12 @@ const BASELINE_ROOT = process.env.FHF_BASELINE_TARGET
   : null;
 
 const SUB_REPOS = {
-  e2e: path.join(FHF_ROOT, "AG Frontend Automation", "front-end-automation"),
-  smoke: path.join(FHF_ROOT, "ProdSmokeExecution", "front-end-automation"),
+  e2e: process.env.FHF_E2E_TARGET_ROOT
+    ? path.resolve(process.env.FHF_E2E_TARGET_ROOT)
+    : path.join(FHF_ROOT, "front-end-automation-e2e"),
+  smoke: process.env.FHF_SMOKE_TARGET_ROOT
+    ? path.resolve(process.env.FHF_SMOKE_TARGET_ROOT)
+    : path.join(FHF_ROOT, "front-end-automation-smoke"),
 };
 
 // FHF root gets the full generated .claude tree — it's the project root Claude Code
@@ -260,9 +269,16 @@ function syncHarnessRoot() {
   writeText(path.join(HARNESS_ROOT, ".claude", "settings.json"), harnessSettings());
 }
 
-function syncRuntimeEvidence(repoPath) {
+function syncRuntimeEvidence(repoPath, lane) {
   writeText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
   writeText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
+  writeText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
+  writeText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
+  writeText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
+  if (lane === "e2e" || lane === "smoke") {
+    writeText(path.join(repoPath, ".harness", "prepare-execution.mjs"), EXECUTION_SETUP_TEXT);
+    writeText(path.join(repoPath, ".harness", "execution.example.json"), executionProfileExample(lane));
+  }
 }
 
 function syncFhfRoot() {
@@ -275,8 +291,8 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, ".github", "copilot-instructions.md"), parentCopilotInstructions());
   writeText(path.join(FHF_ROOT, "GEMINI.md"), parentGeminiInstructions());
   writeText(path.join(FHF_ROOT, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
-  writeText(path.join(FHF_ROOT, ".harness", "README.md"), consumerVerifierReadme());
-  syncRuntimeEvidence(FHF_ROOT);
+  writeText(path.join(FHF_ROOT, ".harness", "README.md"), consumerVerifierReadme("root"));
+  syncRuntimeEvidence(FHF_ROOT, "root");
 }
 
 function syncBaseline() {
@@ -296,8 +312,8 @@ function syncBaseline() {
   writeText(path.join(BASELINE_ROOT, "CONTRIBUTING.md"), baselineContributing());
   writeText(path.join(BASELINE_ROOT, "docs", "README.md"), baselineDocsReadme());
   writeText(path.join(BASELINE_ROOT, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
-  writeText(path.join(BASELINE_ROOT, ".harness", "README.md"), consumerVerifierReadme());
-  syncRuntimeEvidence(BASELINE_ROOT);
+  writeText(path.join(BASELINE_ROOT, ".harness", "README.md"), consumerVerifierReadme("root"));
+  syncRuntimeEvidence(BASELINE_ROOT, "root");
 }
 
 // Managed Cypress lanes vendor and commit the full generated tree. Engineers clone these repos
@@ -321,8 +337,8 @@ function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, ".github", "copilot-instructions.md"), copilotInstructions(lane));
   writeText(path.join(repoPath, "GEMINI.md"), geminiInstructions(lane));
   writeText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
-  writeText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme());
-  syncRuntimeEvidence(repoPath);
+  writeText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme(lane));
+  syncRuntimeEvidence(repoPath, lane);
 }
 
 function removeEmptyLegacyCodexDirectory(repoPath) {

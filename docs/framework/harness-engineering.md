@@ -9,6 +9,7 @@ settings are generated projections, not additional sources of truth.
 ```text
 qa-control-plane.json
   ├─ connectors.cypressCloud → MCP/CLI diagnostics, auth boundary, lane access
+  ├─ policyGovernance     → source class, placement, adoption, applicability
   ├─ engineering.context  → priority routing, context budget, compaction
   ├─ engineering.memory   → session boundary, exact facts, handoff, Obsidian boundary
   ├─ engineering.harness  → agents, skills, hooks, boundaries, runtime adapters
@@ -41,6 +42,56 @@ An optional `FHF_HARNESS_OVERLAY` is session configuration, not a second source 
 identify a ticket/module/run, select a configured route, or lower context and retry budgets. It may
 not widen permissions, change hook or agent topology, disable data protections, or raise hard
 safety limits. The effective configuration is fingerprinted in runtime loop state and traces.
+
+### Policy and rule governance
+
+`policyGovernance` is the one-time, tool-neutral contract for classifying a rule, deciding whether it
+may be adopted, and placing its durable content. It is meta-policy: it does not contain statutes,
+loan thresholds, queue conditions, dropdown values, or module state machines. Those product facts
+belong to the configured `documentation.owners.application` specification and carry source
+citations. Architecture decision: [`../adr/0013-policy-classification-and-placement.md`](../adr/0013-policy-classification-and-placement.md).
+
+| Category | Authority | Required owner decision |
+|---|---|---|
+| Regulatory | Official government primary source | Legal/compliance confirms jurisdiction and applicability |
+| Public commitment | Official FHF publication | Product/compliance confirms the effective version |
+| Internal business policy | Approved, versioned FHF policy | Named business owner approves it |
+| Application contract | Approved module/component/common spec | Product, development, and QA use one canonical rule |
+| Implementation observation | Live source/API/DB behavior | Evidence only; it exposes drift but does not create policy |
+| Execution evidence | Generated run, coverage, or gate artifact | Evidence only; a passing test does not approve a rule |
+| Proposal | Jira, Confluence, web research, or derived notes | Proposal-only until an owner adopts it |
+
+Adoption and applicability are separate. A rule may be enforced only when its adoption state is
+`approved`, its applicability is `confirmed` or explicitly `conditional`, every required rule-record
+field is present, and a conditional rule names its jurisdiction and conditions. Missing ownership,
+unknown applicability, or conflicting authority fails closed and escalates to the named owner.
+
+Placement is deliberate:
+
+- Keep classification, placement, hard boundaries, approval gates, routing, and bounded defaults in
+  `config/qa-control-plane.json`.
+- Keep business intent, thresholds, formulas, status/dropdown values, conditions, and state transitions
+  in the application specification. Reference shared rules; do not copy them into the harness.
+- Keep executable behavior in source code and treat live source/API/DB as implementation evidence.
+- Keep ticket/module/run selection and lower budgets in the validated runtime overlay.
+- Keep run results, coverage, and API/DB observations in evidence artifacts; they never become policy
+  automatically.
+- Keep machine paths in ignored workspace setup and credentials only in approved environment/secret
+  stores.
+
+Do classify each rule, cite its primary source and effective version, name its owner and jurisdiction,
+and trace intent through enforcement and test evidence. Do not infer legal applicability, adopt web or
+ticket research automatically, treat a UI guard as backend authorization, or duplicate one rule across
+config, documentation, and specifications.
+
+### Smoke workspace preflight
+
+The Smoke consumer deliberately keeps its FHF workspace and application-specification repository as
+external payload. Its generated `.harness/workspace.example.json` is the setup form; each engineer
+creates the ignored `.harness/workspace.local.json` with `consumerRoot` and `moduleSpecsRoot` before
+working. The default `.harness/verify.mjs` checks the `staging` branch, local Smoke documentation,
+workspace instructions, and every configured module-spec target. Missing required inputs block work;
+Jira, Confluence, backend evidence, and Cypress Cloud are optional warnings for local Smoke runs.
 
 Loop state and traces are separate runtime artifacts. They record goal, plan, progress, failures,
 budgets, artifacts, verdicts, approvals, and provenance, but never rewrite static policy. Durable

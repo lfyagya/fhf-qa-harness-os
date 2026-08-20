@@ -27,6 +27,28 @@ if (ADAPTERS.codex.instructionFile !== "AGENTS.md" || ADAPTERS.codex.hookCapabil
 
 export const HARNESS_CONFIG_TEXT = `${JSON.stringify(HARNESS_CONFIG, null, 2)}\n`;
 
+export function laneMarker(lane) {
+  return `${JSON.stringify({ schema: "fhf-harness/lane/v1", lane }, null, 2)}\n`;
+}
+
+export function workspaceExample(lane) {
+  const example = {
+    schema: "fhf-harness/workspace-setup/v1",
+    lane,
+    consumerRoot: "",
+    moduleSpecsRoot: "",
+  };
+  if (lane === "e2e") example.e2eRoot = "";
+  if (lane === "smoke") example.smokeRoot = "";
+  example.optional = {
+    backendRoot: "",
+    jiraMcp: false,
+    confluenceMcp: false,
+    cypressCloud: false,
+  };
+  return `${JSON.stringify(example, null, 2)}\n`;
+}
+
 export const VENDORED_HOOKS = "project-hooks";
 
 const cursorWriteMatcher = "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch";
@@ -280,9 +302,19 @@ executing tests.
 }
 
 export function docsReadme(lane) {
-  return `# ${lane === "e2e" ? "E2E" : "Smoke"} Docs Pointer
+  if (lane === "e2e") {
+    return `# E2E Docs Pointer
 
-Shared documentation is routed by \`../../docs/README.md\`. Read only the path required by the task.
+Read \`docs/framework/testing-strategy.md\` and \`docs/framework/framework-standards.md\`,
+then only the documentation required by the task. Use the Smoke lane as the structural
+baseline when generating remaining E2E coverage; this checkout stays the E2E lane.
+Product contracts remain in the configured application-spec repository.
+`;
+  }
+  return `# Smoke Docs Pointer
+
+Read the local \`docs/framework/DOCUMENTATION-INDEX.md\` and then only the documentation required by
+the task. Product contracts remain in the configured application-spec repository.
 `;
 }
 
@@ -292,27 +324,62 @@ export function rootReadme(lane) {
 
 Read \`CLAUDE.md\`, then \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
 Path: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/${isE2e ? "e2e" : "smoke"}/\`.
-${isE2e ? "Dev/QA mutations require synthetic data and cleanup; never run against production." : "Production smoke is GET-only and must never trigger a side effect."}
+${isE2e
+  ? "Dev/QA mutations require synthetic data and cleanup; never run against production."
+  : "Production smoke is GET-only and must never trigger a side effect. Run `node .harness/setup.mjs`, then `node .harness/verify.mjs`, before starting work."}
 `;
 }
 
 export function architectureOverlay(lane) {
   return `# ${lane === "e2e" ? "E2E" : "Smoke"} Architecture Pointer
 
-Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\`.
+Read \`CLAUDE.md\` and \`docs/framework/testing-standards/TESTS.md\`.
+
+## Policy placement
+
+The generated \`.claude/harness.config.json#policyGovernance\` section is the reusable decision
+contract. It classifies authority, adoption, applicability, placement, and fail-closed outcomes. It
+does not own loan thresholds, statuses, dropdown values, calculations, or state transitions.
+
+- Put reusable classifications, adoption gates, hard safety boundaries, and routing defaults in the
+  harness config.
+- Put approved business rules and source citations in the configured application specification.
+- Treat frontend/API/DB behavior as implementation evidence, and run/coverage artifacts as execution
+  evidence; neither automatically becomes policy.
+- Put machine paths in ignored workspace setup and credentials only in environment/secret stores.
+
+A rule is enforceable only when it is approved and its applicability is confirmed or explicitly
+conditional with jurisdiction and conditions. Missing fields, unknown applicability, conflicting
+authority, or missing owner approval blocks enforcement and requires owner resolution.
 `;
+}
+
+export function executionProfileExample(lane) {
+  const example = {
+    schema: "fhf-harness/execution-profile/v1",
+    lane,
+    packageRoot: "CypressFHF/fhf-dashboards",
+    baseUrl: "",
+    workspace: { consumerRoot: "", moduleSpecsRoot: "" },
+    dependencySource: "",
+    credentials: { cypressEnv: "" },
+    optional: { cypressCloud: false },
+  };
+  example.credentials.npmrc = "";
+  return `${JSON.stringify(example, null, 2)}\n`;
 }
 
 export function contributingOverlay(lane) {
   return `# Contributing (${lane === "e2e" ? "E2E" : "Smoke"})
 
-Read \`CLAUDE.md\` and \`../../docs/framework/testing-standards/TESTS.md\` before changing tests.
+Run \`node .harness/verify.mjs\`, then read \`CLAUDE.md\` and
+\`docs/framework/testing-standards/TESTS.md\` before changing tests.
 `;
 }
 
 function toolInstructions(tool, lane) {
   const isE2e = lane === "e2e";
-  const sharedRouter = tool === "Copilot" ? "../../../CLAUDE.md" : "../../CLAUDE.md";
+  const sharedRouter = "CLAUDE.md";
   return `# ${tool} Instructions â€” ${isE2e ? "E2E" : "Smoke"}
 
 Read \`${sharedRouter}\`, then the repository's \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
@@ -330,13 +397,23 @@ export function geminiInstructions(lane) {
   return toolInstructions("Gemini", lane);
 }
 
-export function consumerVerifierReadme() {
+export function consumerVerifierReadme(lane = "root") {
+  const name = lane === "e2e" ? "E2E" : lane === "smoke" ? "Smoke" : "baseline";
+  const required = lane === "e2e" || lane === "smoke";
   return `# Consumer harness verification
 
 This clone does not contain \`fhf-harness-os/scripts/harness/*\`.
 
-Run \`node .harness/verify.mjs\` here. Canonical checks (\`test-hooks\`, \`test-adapter-contract\`,
-\`test-sync-loader\`, \`check-docs-links\`, \`check-loader-drift\`) run only from \`fhf-harness-os\`.
+For the ${name} lane, run \`node .harness/setup.mjs\` once and provide the local FHF workspace root
+and the separate application-spec repository root. The generated \`.harness/workspace.example.json\`
+is the input form; \`.harness/workspace.local.json\` is ignored and must never contain credentials.
+Run \`node .harness/verify.mjs\` here before starting work. It validates the vendored projection,
+the selected branch, local ${name} documentation, the FHF workspace instructions, and every configured
+application-spec target.${required ? ` Missing required setup blocks ${name} work.` : ""} Canonical checks (\`test-hooks\`,
+\`test-adapter-contract\`, \`test-sync-loader\`, \`check-docs-links\`, \`check-loader-drift\`) run
+only from \`fhf-harness-os\`. ${required ? `For an executable local or Cloud worktree, copy \`.harness/execution.example.json\` to a profile outside the worktree and run
+\`node .harness/prepare-execution.mjs --profile <external-profile.json> --mode local\` (or
+\`cloud\`). The profile contains local file paths only; it must never contain credential values.` : ""}
 Runtime loop evidence is recorded with \`node .harness/record-loop-event.mjs '<json>'\`; state and
 trace files under \`cypress/handoff/\` are transient and ignored.
 `;
@@ -354,5 +431,15 @@ export const PORTABLE_RUNTIME_STATE_TEXT = fs.readFileSync(
 
 export const RECORD_LOOP_EVENT_TEXT = fs.readFileSync(
   path.join(HARNESS_ROOT, "scripts", "harness", "record-loop-event.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const WORKSPACE_SETUP_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "workspace-setup.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const EXECUTION_SETUP_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "execution-setup.mjs"),
   "utf8",
 ).replace(/\r\n/g, "\n");

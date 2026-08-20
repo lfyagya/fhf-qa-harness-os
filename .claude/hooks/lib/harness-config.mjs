@@ -121,12 +121,69 @@ function applyOverlay(base, overlay) {
 
 export function loadHarnessConfig() {
   const file = CANDIDATES.find((candidate) => fs.existsSync(candidate));
-  if (!file) throw new Error(`Harness config not found. Checked: ${CANDIDATES.join(", ")}`);
-  return applyOverlay(JSON.parse(fs.readFileSync(file, "utf8")), readOverlay());
+  if (!file) {
+    throw new Error(
+      `Harness config not found. Checked: ${CANDIDATES.join(", ")}. `
+      + "Run the consumer projection verifier or regenerate the projection from fhf-harness-os.",
+    );
+  }
+  let base;
+  try {
+    base = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new Error(
+      `Harness config is invalid at ${file}: ${error.message}. `
+      + "Repair the canonical policy or regenerate this projection; do not continue with a partial config.",
+    );
+  }
+  if (!isPlainObject(base)) {
+    throw new Error(
+      `Harness config is invalid at ${file}: the root value must be a JSON object. `
+      + "Repair the canonical policy or regenerate this projection; do not continue with a partial config.",
+    );
+  }
+  return applyOverlay(base, readOverlay());
+}
+
+function markerLane(cwd) {
+  let current = path.resolve(cwd || process.cwd());
+  while (true) {
+    const marker = path.join(current, ".harness", "lane.json");
+    if (fs.existsSync(marker)) {
+      try {
+        const value = JSON.parse(fs.readFileSync(marker, "utf8"));
+        if (typeof value.lane === "string" && value.lane.length > 0) return value.lane;
+      } catch {
+        return null;
+      }
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function hasConsumerProjection(cwd) {
+  let current = path.resolve(cwd || process.cwd());
+  while (true) {
+    if (fs.existsSync(path.join(current, ".claude", "harness.config.json"))) return true;
+    const parent = path.dirname(current);
+    if (parent === current) return false;
+    current = parent;
+  }
 }
 
 export function detectLane(cwd, config = loadHarnessConfig()) {
   const resolved = path.resolve(cwd || process.cwd()).replace(/\\/g, "/").toLowerCase();
+  const configuredLanes = new Set([
+    "root",
+    ...Object.keys(config.paths?.lanes ?? {}),
+    ...Object.keys(config.workspaceContract?.lanes ?? {}),
+  ]);
+  const marked = markerLane(cwd);
+  if (marked && configuredLanes.has(marked)) return marked;
+  const explicit = String(process.env.FHF_LANE ?? "").trim().toLowerCase();
+  if (explicit && configuredLanes.has(explicit)) return explicit;
   const lanes = Object.entries(config.paths?.lanes ?? {})
     .map(([name, value]) => ({
       name,
@@ -138,6 +195,7 @@ export function detectLane(cwd, config = loadHarnessConfig()) {
     const needle = `/${root}`;
     if (resolved.includes(`${needle}/`) || resolved.endsWith(needle)) return name;
   }
+  if (hasConsumerProjection(cwd)) return "unknown";
   return "root";
 }
 

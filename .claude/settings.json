@@ -207,9 +207,7 @@
   "sandbox": {
     "filesystem": {
       "denyWrite": [
-        "./CypressFHF/fhf-dashboards/src",
-        "./AG Frontend Automation/front-end-automation/CypressFHF/fhf-dashboards/src",
-        "./ProdSmokeExecution/front-end-automation/CypressFHF/fhf-dashboards/src"
+        "./fhf-dashboards/src"
       ]
     }
   }

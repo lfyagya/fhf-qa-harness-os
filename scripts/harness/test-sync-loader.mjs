@@ -44,7 +44,7 @@ try {
 
   const legacyCodexDirs = [
     path.join(root, ".codex"),
-    path.join(root, "ProdSmokeExecution", "front-end-automation", ".codex"),
+    path.join(root, "front-end-automation-smoke", ".codex"),
   ];
   legacyCodexDirs.forEach((directory) => fs.mkdirSync(directory, { recursive: true }));
   const initialized = run(["--force"]);
@@ -68,8 +68,8 @@ try {
   ].join("\n");
   fs.writeFileSync(path.join(root, "AGENTS.md"), roster, "utf8");
   for (const lane of [
-    path.join(root, "AG Frontend Automation", "front-end-automation"),
-    path.join(root, "ProdSmokeExecution", "front-end-automation"),
+    path.join(root, "front-end-automation-e2e"),
+    path.join(root, "front-end-automation-smoke"),
   ]) {
     fs.writeFileSync(path.join(lane, "AGENTS.md"), "# Fixture\n", "utf8");
   }
@@ -97,13 +97,14 @@ try {
   assert.equal(fs.readFileSync(manifest, "utf8"), beforeManifest);
   assert.deepEqual(transactionArtifacts(root), []);
 
-  const e2eReadme = path.join(root, "AG Frontend Automation", "front-end-automation", "README.md");
-  const ownerCursor = path.join(root, "AG Frontend Automation", "front-end-automation", ".cursor", "BUGBOT.md");
+  const e2eReadme = path.join(root, "front-end-automation-e2e", "README.md");
+  const ownerCursor = path.join(root, "front-end-automation-e2e", ".cursor", "BUGBOT.md");
   assert.equal(fs.existsSync(path.join(root, ".harness", "verify.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "record-loop-event.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "portable-runtime-state.mjs")), true);
-  assert.equal(fs.existsSync(path.join(root, "ProdSmokeExecution", "front-end-automation", ".harness", "verify.mjs")), true);
-  assert.equal(fs.existsSync(path.join(root, "ProdSmokeExecution", "front-end-automation", ".harness", "record-loop-event.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "verify.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "prepare-execution.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "record-loop-event.mjs")), true);
 
   const rootOnly = path.join(root, "root-only");
   const rootOnlyRun = spawnSync(process.execPath, [script, "--force", "--only-root"], {
@@ -116,8 +117,8 @@ try {
   });
   assert.equal(rootOnlyRun.status, 0, rootOnlyRun.stderr);
   assert.equal(fs.existsSync(path.join(rootOnly, ".claude", "harness.config.json")), true);
-  assert.equal(fs.existsSync(path.join(rootOnly, "AG Frontend Automation")), false);
-  assert.equal(fs.existsSync(path.join(rootOnly, "ProdSmokeExecution")), false);
+  assert.equal(fs.existsSync(path.join(rootOnly, "front-end-automation-e2e")), false);
+  assert.equal(fs.existsSync(path.join(rootOnly, "front-end-automation-smoke")), false);
 
   const baselineOnly = path.join(root, "baseline-only");
   const baselineEnv = {
@@ -150,7 +151,7 @@ try {
 
   const linkedSource = path.join(root, "linked-source");
   const linkedFhf = path.join(root, "linked-fhf");
-  const linkedE2e = path.join(linkedFhf, "AG Frontend Automation", "front-end-automation");
+  const linkedE2e = path.join(linkedFhf, "front-end-automation-e2e");
   fs.mkdirSync(linkedSource, { recursive: true });
   execFileSync("git", ["init", linkedSource]);
   execFileSync("git", ["-C", linkedSource, "config", "user.email", "harness@example.invalid"]);
@@ -172,14 +173,19 @@ try {
   assert.equal(linked.status, 0, linked.stderr);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".claude", "harness.config.json")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "verify.mjs")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "prepare-execution.mjs")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "record-loop-event.mjs")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "portable-runtime-state.mjs")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".cursor", "hooks.json")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".github", "copilot-instructions.md")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, "GEMINI.md")), true);
+  const e2eArchitecture = fs.readFileSync(path.join(linkedE2e, "ARCHITECTURE.md"), "utf8");
+  assert.match(e2eArchitecture, /harness\.config\.json#policyGovernance/);
+  assert.match(e2eArchitecture, /does not own loan thresholds, statuses, dropdown values/);
+  assert.match(e2eArchitecture, /unknown applicability.*blocks enforcement/s);
   assert.equal(fs.existsSync(path.join(linkedFhf, ".claude", "harness.config.json")), false);
 
-  const linkedSmoke = path.join(linkedFhf, "ProdSmokeExecution", "front-end-automation");
+  const linkedSmoke = path.join(linkedFhf, "front-end-automation-smoke");
   fs.mkdirSync(path.dirname(linkedSmoke), { recursive: true });
   execFileSync("git", ["-C", linkedSource, "worktree", "add", "-b", "smoke-projection", linkedSmoke]);
   const smoke = spawnSync(process.execPath, [script, "--force", "--only-smoke"], {
@@ -192,6 +198,9 @@ try {
   });
   assert.equal(smoke.status, 0, smoke.stderr);
   assert.equal(fs.existsSync(path.join(linkedSmoke, ".claude", "harness.config.json")), true);
+  const smokeArchitecture = fs.readFileSync(path.join(linkedSmoke, "ARCHITECTURE.md"), "utf8");
+  assert.match(smokeArchitecture, /harness\.config\.json#policyGovernance/);
+  assert.match(smokeArchitecture, /credentials only in environment\/secret stores/);
   const smokeCheck = spawnSync(process.execPath, [driftScript, "--only-smoke"], {
     encoding: "utf8",
     env: {

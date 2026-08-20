@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { loadHarnessConfig } from './lib/harness-config.mjs';
 import { emitAllow } from './lib/hook-runtime.mjs';
+import { enforceWorkspaceReady, isWorkspaceBootstrapCommand } from './lib/workspace-contract.mjs';
 
 let payload = {};
 try {
@@ -15,6 +16,9 @@ try {
 
 const config = loadHarnessConfig();
 const cmd = (payload.tool_input?.command ?? '').toLowerCase();
+if (!isWorkspaceBootstrapCommand(cmd)) {
+  enforceWorkspaceReady({ root: payload.cwd ?? process.cwd(), config });
+}
 const workingDirectory = String(
   payload.tool_input?.working_directory ?? payload.cwd ?? process.cwd(),
 ).toLowerCase();
@@ -38,7 +42,7 @@ const BLOCKED_PATTERNS = [
   { re: /rm\s+-rf\s+[^/]/, msg: 'rm -rf on non-root path — use Remove-Item or be explicit' },
   { re: /git\s+push\s+--force/, msg: 'force push — requires explicit user approval' },
   { re: /git\s+reset\s+--hard/, msg: 'git reset --hard — destructive; requires explicit user approval' },
-  { re: /npx\s+cypress\s+run.*--spec.*production/, msg: 'Cypress run against production — smoke only in ProdSmokeExecution' },
+  { re: /npx\s+cypress\s+run.*--spec.*production/, msg: 'Cypress run against production — use the configured Smoke checkout' },
   { re: /DROP\s+TABLE|TRUNCATE\s+TABLE/i, msg: 'Destructive SQL in shell — blocked' },
   ...cloudCredentialPatterns,
 ];

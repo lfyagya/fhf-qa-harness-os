@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { loadHarnessConfig, detectLane } from "./lib/harness-config.mjs";
 import { emitContext } from "./lib/hook-runtime.mjs";
 import { readFreshHandoff } from "./lib/memory-state.mjs";
+import { formatWorkspacePreflight, workspacePreflight } from "./lib/workspace-contract.mjs";
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, "utf8")); } catch { process.exit(0); }
@@ -11,6 +12,7 @@ try { payload = JSON.parse(readFileSync(0, "utf8")); } catch { process.exit(0); 
 const config = loadHarnessConfig();
 const { context, memory, harness, loops } = config.engineering;
 const lane = detectLane(payload.cwd ?? process.cwd(), config);
+const workspace = workspacePreflight({ root: payload.cwd ?? process.cwd(), config });
 const handoff = readFreshHandoff(payload, memory);
 const lines = [
   "[fhf-harness] Tool-neutral runtime contract:",
@@ -20,6 +22,9 @@ const lines = [
   `- Application source boundary=${harness.boundaries.applicationSource.mode}; shell and file writes are guarded.`,
   `- Same-failure limit=${loops.sameFailureLimit}; terminal states=${loops.terminalStates.join(", ")}.`,
 ];
+
+if (!workspace.ready) lines.push(formatWorkspacePreflight(workspace, config));
+else if (workspace.warnings.length > 0) lines.push(`- Optional integrations: ${workspace.warnings.join(" ")}`);
 
 if (handoff?.facts && Object.keys(handoff.facts).length > 0) {
   lines.push(`- Fresh handoff facts: ${JSON.stringify(handoff.facts)}`);

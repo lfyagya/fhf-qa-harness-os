@@ -6,9 +6,9 @@
 // exit 0 = clean; writes a handoff artifact only when specs were actually checked.
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { checkSpecContent, isSmokePath, SMOKE_MUTATION_RE } from './lib/cypress-rule-patterns.mjs';
-import { loadHarnessConfig } from './lib/harness-config.mjs';
+import { detectLane, loadHarnessConfig } from './lib/harness-config.mjs';
 import { emitEmpty } from './lib/hook-runtime.mjs';
 import { isExternalBackendWorkspace, mergeHandoff } from './lib/memory-state.mjs';
 
@@ -21,8 +21,14 @@ if (isExternalBackendWorkspace({ cwd: ROOT })) {
 }
 const config = loadHarnessConfig();
 const engineering = config.engineering;
+function laneRoot(lane) {
+  const value = config.paths?.lanes?.[lane];
+  const configured = value?.root ?? (value?.rootEnv ? process.env[value.rootEnv] : null);
+  if (configured) return resolve(ROOT, configured);
+  return detectLane(ROOT, config) === lane ? ROOT : null;
+}
 const REPOS = [
-  ...['e2e', 'smoke'].map((lane) => join(ROOT, config.paths.lanes[lane].root)),
+  ...['e2e', 'smoke'].map(laneRoot).filter(Boolean),
   ROOT, // parent itself, in case a session is opened inside a sub-repo (ROOT is then that repo)
 ];
 const RETRY_FILE = join(ROOT, '.claude', 'hooks', '.sweep-retries');

@@ -10,8 +10,8 @@ clear it's one of these two:
 
 |Signal|Repo|
 |---|---|
-|"smoke", "production", "prod", availability/auth/structure check|`ProdSmokeExecution\front-end-automation`|
-|"E2E", "functional", "regression", dev/QA environment|`AG Frontend Automation\front-end-automation`|
+|"smoke", "production", "prod", availability/auth/structure check|Configured Smoke checkout|
+|"E2E", "functional", "regression", dev/QA environment|Configured E2E checkout|
 
 If it targets either repo: **stop here.** Tell the user: "This is FHF Cypress work — use the
 `cypress-generator` agent instead of Cypress Author. It knows this repo's command-first
