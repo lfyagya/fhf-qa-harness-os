@@ -2,11 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { resolveConsumerRoot } from "./workspace-paths.mjs";
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
-  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
-  : path.resolve(HARNESS_ROOT, "..", "FHF");
+const FHF_ROOT = resolveConsumerRoot(HARNESS_ROOT);
 const DOCS_ROOT = path.join(FHF_ROOT, "docs");
 const CONFIG = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
 const LINK_RE = /\[[^\]]*\]\(([^)]+)\)/g;

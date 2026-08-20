@@ -9,16 +9,14 @@ import {
   readCypressDashboardRoutes,
   sha256,
 } from './route-contract-lib.mjs';
+import { loadWorkspacePathsConfig, resolveConsumerRoot, resolveLaneRoot } from './workspace-paths.mjs';
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
-  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
-  : path.resolve(HARNESS_ROOT, '..', 'FHF');
-const E2E_ROOT = process.env.FHF_E2E_ROOT
-  ? path.resolve(process.env.FHF_E2E_ROOT)
-  : path.join(FHF_ROOT, 'front-end-automation-e2e');
-const E2E_PACKAGE = path.join(E2E_ROOT, 'CypressFHF', 'fhf-dashboards');
-const DEFAULT_SOURCE = path.join(FHF_ROOT, 'fhf-dashboards', 'src', 'constants', 'routes.js');
+const WORKSPACE_PATHS = loadWorkspacePathsConfig(HARNESS_ROOT);
+const FHF_ROOT = resolveConsumerRoot(HARNESS_ROOT);
+const E2E_ROOT = resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, 'e2e');
+const E2E_PACKAGE = path.resolve(E2E_ROOT, WORKSPACE_PATHS.lanes.e2e.package);
+const DEFAULT_SOURCE = path.join(FHF_ROOT, WORKSPACE_PATHS.applicationRoot, 'src', 'constants', 'routes.js');
 const DEFAULT_CONTRACT = path.join(E2E_PACKAGE, 'cypress', 'configs', 'app', 'application-routes.contract.json');
 const DEFAULT_CYPRESS_ROUTES = path.join(E2E_PACKAGE, 'cypress', 'configs', 'app', 'routes.js');
 

@@ -49,7 +49,7 @@ Smoke clones also commit the setup example and run `node .harness/setup.mjs`; th
 such as `**/cypress/handoff/` and `.claude/hooks/.sweep-retries` remains ignored.
 Sibling `.cursor/*` and `.github/*` files, plus optional `architecture/`, are consumer-owned and are not drift.
 
-Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path. Local checkout locations belong in the ignored setup file or environment variables, never in committed policy.
+Regenerate with `node scripts/harness/sync-loader-shims.mjs`, then run `engineering.harness.verify.canonical` from this repo. Consumer clones run `node .harness/verify.mjs`. Generated adapters resolve hooks through `CLAUDE_PROJECT_DIR` / `CURSOR_PROJECT_DIR`; they must not embed a developer home path. Canonical scripts resolve the consumer root from `FHF_CONSUMER_ROOT`, then `paths.consumerRoot`; sync and drift retain `FHF_SYNC_TARGET_ROOT` as a more-specific compatibility override. Lane roots resolve from their `rootEnv`, then configured `paths.lanes.<lane>.root`. Local checkout locations belong in the ignored setup file or environment variables, never in committed policy.
 
 ## Configuration layers
 

@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveConsumerRoot } from "./workspace-paths.mjs";
 import {
   publishEvidenceBundle,
 } from "./evidence-export-policy.mjs";
@@ -11,9 +12,7 @@ import {
 // This script is harness engine code (lives in fhf-harness-os) but scans and writes into
 // the FHF consumer repo, which is a sibling directory, not a subdirectory of this repo.
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const FHF_ROOT = process.env.FHF_CONSUMER_ROOT
-  ? path.resolve(process.env.FHF_CONSUMER_ROOT)
-  : path.resolve(HARNESS_ROOT, "..", "FHF");
+const FHF_ROOT = resolveConsumerRoot(HARNESS_ROOT);
 const OUT_JSON = path.join(FHF_ROOT, "docs", "evidence", "coverage-computed.json");
 const CONTROL_PLANE_CONFIG_PATH = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
 const CONTROL_PLANE = JSON.parse(fs.readFileSync(CONTROL_PLANE_CONFIG_PATH, "utf8"));

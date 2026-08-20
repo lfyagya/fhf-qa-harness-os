@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveConsumerRoot, resolveLaneRoot } from "./workspace-paths.mjs";
 import { createHash } from "node:crypto";
 import { withFileLock } from "./evidence-export-policy.mjs";
 import {
@@ -40,20 +41,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const HARNESS_ROOT = path.resolve(__dirname, "..", "..");
-const FHF_ROOT = process.env.FHF_SYNC_TARGET_ROOT
-  ? path.resolve(process.env.FHF_SYNC_TARGET_ROOT)
-  : path.resolve(HARNESS_ROOT, "..", "FHF");
+const FHF_ROOT = resolveConsumerRoot(HARNESS_ROOT, { explicit: process.env.FHF_SYNC_TARGET_ROOT });
 const BASELINE_ROOT = process.env.FHF_BASELINE_TARGET
   ? path.resolve(process.env.FHF_BASELINE_TARGET)
   : null;
 
 const SUB_REPOS = {
-  e2e: process.env.FHF_E2E_TARGET_ROOT
-    ? path.resolve(process.env.FHF_E2E_TARGET_ROOT)
-    : path.join(FHF_ROOT, "front-end-automation-e2e"),
-  smoke: process.env.FHF_SMOKE_TARGET_ROOT
-    ? path.resolve(process.env.FHF_SMOKE_TARGET_ROOT)
-    : path.join(FHF_ROOT, "front-end-automation-smoke"),
+  e2e: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "e2e", { explicit: process.env.FHF_E2E_TARGET_ROOT }),
+  smoke: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "smoke", { explicit: process.env.FHF_SMOKE_TARGET_ROOT }),
 };
 
 // FHF root gets the full generated .claude tree — it's the project root Claude Code

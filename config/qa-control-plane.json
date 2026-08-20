@@ -19,6 +19,7 @@
   },
   "paths": {
     "consumerRoot": "../FHF",
+    "applicationRoot": "fhf-dashboards",
     "applicationIntelligence": "Test-Case-Automation-Using-Claude-Agents/specs",
     "chainRisk": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
     "executionHistory": "docs/evidence/execution-history.md",
@@ -26,11 +27,13 @@
     "lanes": {
       "e2e": {
         "rootEnv": "FHF_E2E_ROOT",
+        "root": "front-end-automation-e2e",
         "package": "CypressFHF/fhf-dashboards",
         "branch": "dev"
       },
       "smoke": {
         "rootEnv": "FHF_SMOKE_ROOT",
+        "root": "front-end-automation-smoke",
         "package": "CypressFHF/fhf-dashboards",
         "branch": "staging"
       }
@@ -1149,6 +1152,7 @@
             "scripts/harness/test-calibration.mjs",
             "scripts/harness/test-consumer-runtime.mjs",
             "scripts/harness/test-workspace-contract.mjs",
+            "scripts/harness/test-workspace-paths.mjs",
             "scripts/harness/test-execution-setup.mjs",
             "scripts/harness/eval-harness.mjs"
         ],
