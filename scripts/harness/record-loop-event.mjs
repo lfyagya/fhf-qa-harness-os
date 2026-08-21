@@ -27,6 +27,49 @@ async function loadConfig() {
 }
 
 const config = await loadConfig();
+
+function activeExecutionBudget() {
+  const policy = config.engineering?.taskProtocol?.executionBudget;
+  const envName = config.engineering?.taskProtocol?.activeManifestEnv;
+  const manifestFile = envName ? process.env[envName] : null;
+  if (!manifestFile) return null;
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.resolve(manifestFile), "utf8"));
+  } catch (error) {
+    throw new Error(`Cannot read active task manifest for execution budget: ${error.message}`);
+  }
+  const budget = manifest.plan?.executionBudget;
+  if (!budget || typeof budget !== "object" || Array.isArray(budget)) {
+    throw new Error(`${policy?.manifestPath ?? "plan.executionBudget"} is required for an active task`);
+  }
+  for (const field of policy?.requiredFields ?? []) {
+    const value = budget[field];
+    const ceiling = policy?.hardCeilings?.[field];
+    if (!Number.isInteger(value) || value < 1 || !Number.isInteger(ceiling) || value > ceiling) {
+      throw new Error(`Active task execution budget ${field} is invalid or exceeds its hard ceiling`);
+    }
+  }
+  return budget;
+}
+
+function budgetExceeded(state) {
+  const budget = state.executionBudget;
+  if (!budget) return null;
+  if (state.recordedToolResults > budget.maxRecordedToolResults) {
+    return { field: "maxRecordedToolResults", limit: budget.maxRecordedToolResults, actual: state.recordedToolResults };
+  }
+  if (state.retryableFailures > budget.maxRetryableFailures) {
+    return { field: "maxRetryableFailures", limit: budget.maxRetryableFailures, actual: state.retryableFailures };
+  }
+  const startedAt = Date.parse(state.createdAt);
+  const elapsedMinutes = Number.isFinite(startedAt) ? (Date.now() - startedAt) / 60000 : null;
+  if (elapsedMinutes !== null && elapsedMinutes > budget.maxWallClockMinutes) {
+    return { field: "maxWallClockMinutes", limit: budget.maxWallClockMinutes, actual: elapsedMinutes };
+  }
+  return null;
+}
+
 const input = process.argv[2];
 if (!input) {
   console.error("Usage: node record-loop-event.mjs '<json>'");
@@ -83,11 +126,17 @@ const runtime = config.engineering.context.runtime;
 const stateFile = path.resolve(path.join(ROOT, runtime.stateFile));
 const traceFile = path.resolve(path.join(ROOT, runtime.traceFile));
 const previous = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, "utf8")) : null;
+const executionBudget = activeExecutionBudget();
 if (previous && previous.runId !== event.runId) {
   console.error(`Loop state belongs to ${previous.runId}, not ${event.runId}. Start a new runtime workspace.`);
   process.exit(2);
 }
-const state = previous
+if (previous && JSON.stringify(previous.executionBudget ?? null) !== JSON.stringify(executionBudget)) {
+  console.error("Active task execution budget differs from the persisted loop state.");
+  process.exit(2);
+}
+const retryableFailure = Boolean(event.failure && typeof event.failure === "object" && event.failure.retryable === true);
+let state = previous
   ? updateLoopState(previous, {
       stepCount: event.stepCount ?? previous.stepCount,
       currentStep: event.currentStep ?? previous.currentStep,
@@ -97,9 +146,39 @@ const state = previous
       failures: event.failure ? [...previous.failures, event.failure] : previous.failures,
       artifacts: event.artifact ? { ...previous.artifacts, [event.artifact.name]: event.artifact.path } : previous.artifacts,
       verdicts: event.verdict ? [...previous.verdicts, event.verdict] : previous.verdicts,
+      recordedToolResults: previous.recordedToolResults + (event.type === "tool_result" ? 1 : 0),
+      retryableFailures: previous.retryableFailures + (retryableFailure ? 1 : 0),
     }, config)
-  : createLoopState({ goal: event.goal, runId: event.runId, lane, config });
+  : createLoopState({ goal: event.goal, runId: event.runId, lane, config, executionBudget });
+
+if (!previous && (event.type === "tool_result" || retryableFailure)) {
+  state = updateLoopState(state, {
+    recordedToolResults: state.recordedToolResults + (event.type === "tool_result" ? 1 : 0),
+    retryableFailures: state.retryableFailures + (retryableFailure ? 1 : 0),
+  }, config);
+}
+
+const exceeded = budgetExceeded(state);
+if (exceeded) {
+  state = updateLoopState(state, {
+    status: "blocked",
+    failures: [...state.failures, { category: "budget", ...exceeded }],
+  }, config);
+  writeRuntimeArtifact(stateFile, state);
+  appendTrace(traceFile, { ...event, executionBudget: state.executionBudget }, config);
+  appendTrace(traceFile, {
+    runId: event.runId,
+    goal: event.goal,
+    lane,
+    type: "budget_exceeded",
+    status: "blocked",
+    executionBudget: state.executionBudget,
+    exceeded,
+  }, config);
+  console.error(`Execution budget exceeded: ${exceeded.field} (${exceeded.actual}/${exceeded.limit})`);
+  process.exit(1);
+}
 
 writeRuntimeArtifact(stateFile, state);
-appendTrace(traceFile, event, config);
+appendTrace(traceFile, { ...event, executionBudget: state.executionBudget }, config);
 console.log(`Recorded ${event.type} for ${event.runId}`);

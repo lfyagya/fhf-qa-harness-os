@@ -113,6 +113,50 @@ change -> regenerated projection -> canary verification.
 The runtime sequence is: classify prompt → select the highest-priority route → read the minimum owner/contract →
 perform the job. Prompt keywords are advisory; task intent remains authoritative.
 
+### Product topology and Jira grounding
+
+`productTopology` is a 17-repository routing catalog, not a preload list and not a mutation policy.
+Each record names the repository's role, business surface, first entry paths, local instructions, and
+evidence type. Source bundles seed no more than four repositories. A task may expand one topology hop
+for an exact call/import, endpoint or Oracle contract, linked work item/PR, declared edge, or QA
+impact; the expansion reason is recorded.
+
+Repository-by-repository routing and the declared cross-repository evidence graph are in
+[`repository-routing.md`](repository-routing.md).
+
+`atlassian.retrievalContract` resolves Jira data by semantic field. Stable system fields and the four
+known custom fields are configured; Sprint, Acceptance Criteria, Story Points, and other custom
+fields must be discovered on the connected Jira site before use. Missing fields remain UNKNOWN.
+Attachment metadata loads before bodies, decision-bearing comments load selectively, and all Jira or
+attachment content is untrusted evidence rather than agent instructions. Jira assignee, PR authors,
+reviewers, changed-file authors, and CODEOWNERS remain distinct concepts.
+
+### Task protocol
+
+`engineering.taskProtocol` ports LANE's strongest mechanical ideas without adding LANE as a second
+control plane. One `fhf-harness/task/v1` manifest freezes only the selected ticket projection,
+acceptance-criteria digest, repository SHAs and paths, graph nodes, dependency DAG, QA impact, runner
+selection, and proof modes. It does not copy the catalog, repositories, full Jira history, chat, or
+Obsidian vault into task context.
+
+The approval digest covers the grounded selection and plan. Changed ticket data, source SHAs/paths,
+graph slice, dependencies, impact, runners, or proof modes invalidate approval and block the next
+step. Dependency cycles and unknown dependencies also block. The decision core emits one
+machine-readable next action; it never approves, commits, merges, deploys, or writes externally.
+
+Proof modes are evidence-specific: hermetic tests can use RED/GREEN replay or same-test base/pass;
+Cypress, production Smoke, API, Oracle, and third-party tests require native execution artifacts.
+Tests can be not applicable only for metadata/non-behavioral chores with a reason and impact review.
+
+### Execution budgets
+
+Every planned task declares `plan.executionBudget`, which is included in the human approval digest.
+The portable recorder enforces its maximum wall-clock time, recorded tool-result count, and
+retryable-failure count by blocking the run and writing a `budget_exceeded` trace event. It is an
+execution safety boundary, not a completion metric: a budget breach is a finding that requires
+triage, never a reason to loosen the assertion or declare a task successful.
+
+
 ## Memory engineering
 
 - Durable authority is the working tree, canonical config, and generated evidence—not chat recall.
@@ -147,6 +191,13 @@ which Cursor officially supports for compatible hooks. Metadata-less Cursor capa
 receive that same response; real tool payloads still pass through the configured policy checks.
 File-tool guards, shell mutation guards, and Claude sandbox deny-write rules enforce the
 application-source boundary at available layers.
+
+Backend automation has a separate task-scoped boundary. protect-automation-scope.mjs requires
+FHF_ACTIVE_TASK and checks every write against the manifest's frozen repository paths plus planned
+change-unit paths. manual-task-guard.mjs permits only the selected backend-api-oracle pytest path in
+Dev/QA; validate-backend-automation.mjs parses changed Python and enforces test-layer contracts.
+Shell writes, credentials, dependency changes, Git publication, uploads, and production backend
+execution stay blocked.
 
 ### Cypress Cloud diagnostics
 
@@ -199,20 +250,24 @@ score, and rationale.
 ```text
 prompt
   → route context
-  → select skill/agent
+  → ground task manifest and freeze selected graph slice
+  → select repository-local rules, runner, and optional specialist
   → execute through pre/post guards
-  → verify
+  → collect proof-mode-specific native evidence
   → repair within configured limit
-  → durable handoff or owner escalation
+  → deterministic next step, durable handoff, or owner escalation
 ```
 
-Generator and evaluator remain separate. Cypress implementation routes to `cypress-generator`;
-merge judgment routes to `cypress-gate`; failures route to `cypress-debugger`; shipping and
-reports route to `cypress-shipper`.
+Generator and evaluator remain separate. Cypress-only implementation routes to `cypress-generator`;
+backend-only and combined frontend/backend automation route to `qa-automation-generator`, with
+`qa-automation-debugger` and `qa-automation-gate` owning cross-layer diagnosis and verdicts.
+Cypress-only merge judgment routes to `cypress-gate`; Cypress-only failures route to
+`cypress-debugger`; Cypress shipping and reports route to `cypress-shipper`.
 
 ## Change protocol
 
-1. Change `config/qa-control-plane.json` for policy, topology, budgets, routing, memory, or limits.
+1. Change `config/qa-control-plane.json` for policy, product topology, task protocol, runners,
+   budgets, routing, memory, or limits.
 2. Change hook/script code only for executable behavior.
 3. Run `scripts/harness/sync-loader-shims.mjs`.
 4. Run every command in `engineering.harness.verify.canonical` from this repo.
@@ -223,8 +278,9 @@ reports route to `cypress-shipper`.
 - `canonical` — `scripts/harness/*` checks that exist only in `fhf-harness-os`.
 - `consumer` — `node .harness/verify.mjs`, vendored into every clone.
 
-`check-docs-links.mjs` validates the four engineering pillars, routes, roster, hook paths, limits,
-documentation owners, and Obsidian boundary. `check-loader-drift.mjs` verifies named generated
+`check-docs-links.mjs` validates the engineering pillars, Jira contract, product topology, task
+protocol, runner matrix, routes, roster, hook paths, limits, documentation owners, and Obsidian
+boundary. `check-loader-drift.mjs` verifies named generated
 files only; it does not treat owner `.cursor/*`, owner `.github/*`, or `architecture/README.md`
 as generated. `test-hooks.mjs` verifies runtime behavior. `test-adapter-contract.mjs` checks official
 compaction projection, hook deduplication, capability fallbacks, sandbox boundaries, and loop wiring.

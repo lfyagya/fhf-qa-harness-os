@@ -10,8 +10,8 @@
     {
       "id": "test-failure",
       "prompt": "the Cypress spec is failing after the API change",
-      "expectedRoute": "test-failure",
-      "expectedAgent": "cypress-debugger"
+      "expectedRoute": "cross-layer-test-failure",
+      "expectedAgent": "qa-automation-debugger"
     },
     {
       "id": "test-flake",
@@ -47,6 +47,60 @@
       "id": "documentation",
       "prompt": "remove duplicate documentation and update the source of truth",
       "expectedRoute": "documentation",
+      "expectedAgent": null
+    },
+    {
+      "id": "cross-repository-ticket",
+      "prompt": "the same feature needs frontend and backend changes with functional and regression testing",
+      "expectedRoute": "cross-repository-change",
+      "expectedAgent": null
+    },
+    {
+      "id": "work-item-intake",
+      "prompt": "implement SERV-12356 using its acceptance criteria",
+      "expectedRoute": "work-item-intake",
+      "expectedAgent": null
+    },
+    {
+      "id": "backend-test",
+      "prompt": "create a backend pytest test for the REST API response",
+      "expectedRoute": "backend-test",
+      "expectedAgent": "qa-automation-generator"
+    },
+    {
+      "id": "cross-layer-test-generation",
+      "prompt": "generate frontend Cypress and backend API pytest automation for the same Jira ticket",
+      "expectedRoute": "cross-layer-test-generation",
+      "expectedAgent": "qa-automation-generator"
+    },
+    {
+      "id": "backend-test-failure",
+      "prompt": "the backend Oracle pytest test is failing",
+      "expectedRoute": "backend-test-failure",
+      "expectedAgent": "qa-automation-debugger"
+    },
+    {
+      "id": "cross-layer-pre-merge",
+      "prompt": "review before merge the frontend Cypress and backend pytest automation",
+      "expectedRoute": "cross-layer-pre-merge",
+      "expectedAgent": "qa-automation-gate"
+    },
+    {
+      "id": "product-question",
+      "prompt": "how does the contracts dashboard workflow work in the product?",
+      "expectedRoute": "product-question",
+      "expectedAgent": null
+    },
+    {
+      "id": "oracle-change",
+      "prompt": "show the Oracle contract change impact and test flow",
+      "expectedRoute": "oracle-change",
+      "expectedAgent": null
+    },
+    {
+      "id": "agent-workflow",
+      "prompt": "review the LangGraph agent workflow",
+      "expectedRoute": "agent-workflow",
       "expectedAgent": null
     }
   ]

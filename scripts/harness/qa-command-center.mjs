@@ -608,7 +608,7 @@ function discoverExecution(config) {
       return root ? [junitRun(path.join(root, "reports", "junit", "merged.xml"), lane)] : [];
     }),
   ];
-  const backend = config.paths.optionalReadOnlyEvidence?.backend;
+  const backend = config.paths.automationLanes?.backend;
   if (backend && fs.existsSync(path.join(config.consumerRoot, backend.root))) {
     discovered.push(junitRun(
       path.join(config.consumerRoot, backend.root, backend.execution.junit),

@@ -64,6 +64,9 @@ try {
     "| Review before merge | `cypress-gate` |",
     "| Debug failures/flakiness | `cypress-debugger` |",
     "| Open PR or report coverage | `cypress-shipper` |",
+    "| Build backend/cross-layer tests | `qa-automation-generator` |",
+    "| Review backend/cross-layer tests | `qa-automation-gate` |",
+    "| Debug backend/cross-layer tests | `qa-automation-debugger` |",
     "",
   ].join("\n");
   fs.writeFileSync(path.join(root, "AGENTS.md"), roster, "utf8");
@@ -102,6 +105,7 @@ try {
   assert.equal(fs.existsSync(path.join(root, ".harness", "verify.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "record-loop-event.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "portable-runtime-state.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, ".harness", "backend-task-runner.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "verify.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "prepare-execution.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "record-loop-event.mjs")), true);

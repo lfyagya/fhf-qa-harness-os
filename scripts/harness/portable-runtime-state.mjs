@@ -51,7 +51,7 @@ export function effectiveConfigFingerprint(config) {
   return `sha256:${sha256(JSON.stringify(requireConfig(config)))}`;
 }
 
-export function createLoopState({ goal, runId, config, lane = "root" } = {}) {
+export function createLoopState({ goal, runId, config, lane = "root", executionBudget = null } = {}) {
   const effective = requireConfig(config);
   if (!goal || !runId) throw new Error("Loop state requires goal and runId");
   const loops = effective.engineering?.loops ?? {};
@@ -72,6 +72,9 @@ export function createLoopState({ goal, runId, config, lane = "root" } = {}) {
       gateRepairLimit: loops.gateRepairLimit,
       specSweepLimit: loops.specSweepLimit,
     },
+    executionBudget,
+    recordedToolResults: 0,
+    retryableFailures: 0,
     lastProgressAt: 0,
     failures: [],
     artifacts: {},
@@ -98,6 +101,12 @@ export function updateLoopState(state, patch = {}, config) {
   if (next.stepCount < state.stepCount) throw new Error("Loop stepCount cannot move backwards");
   if (next.lastProgressAt > next.stepCount) throw new Error("Loop lastProgressAt cannot exceed stepCount");
   if (next.repairCycles > next.budgets.gateRepairLimit) throw new Error("Loop gate repair limit exceeded");
+  if (!Number.isInteger(next.recordedToolResults) || next.recordedToolResults < 0) {
+    throw new Error("Loop recordedToolResults must be a non-negative integer");
+  }
+  if (!Number.isInteger(next.retryableFailures) || next.retryableFailures < 0) {
+    throw new Error("Loop retryableFailures must be a non-negative integer");
+  }
   if (!["in_progress", "completed", "blocked", "escalated"].includes(next.status)) {
     throw new Error(`Invalid loop status: ${next.status}`);
   }

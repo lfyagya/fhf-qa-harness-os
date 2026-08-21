@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Accepted |
+| **Status** | Superseded in part by ADR-0017 |
 | **Date** | 2026-08-13 |
 
 ## Context
@@ -16,6 +16,9 @@ created a misleading sync and drift contract.
 Remove backend from the managed lane, sync, drift, adapter, and prompt-routing configuration. The
 backend repository remains an external read-only evidence source when it is available. File edits and
 shell mutations targeting its path are blocked by the existing protected-path hooks.
+
+ADR-0017 preserves the key decision that this repository is not a generated consumer, but replaces
+the blanket read-only boundary with active-manifest-scoped automation writes and Dev/QA pytest runs.
 
 ## Consequences
 

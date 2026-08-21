@@ -2,11 +2,14 @@
 // Hook self-test — pipes fixture payloads through every hook and asserts exit codes.
 // The harness must test itself: a hook with the wrong exit code silently talks to nobody.
 // Run: node scripts/harness/test-hooks.mjs   (CI runs it next to check-loader-drift.mjs)
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { approvalDigest } from "./task-protocol-lib.mjs";
+import { loadHarnessConfig } from "../../.claude/hooks/lib/harness-config.mjs";
+import { recordCapabilityOutcome } from "../../.claude/hooks/lib/capability-control.mjs";
 
 const HOOKS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks");
 const HARNESS_ROOT = path.resolve(HOOKS, "..", "..");
@@ -95,6 +98,94 @@ smokeConfig.workspaceContract.lanes.smoke.requiredLocalPaths = [];
 smokeConfig.workspaceContract.lanes.smoke.requiredWorkspacePaths = [];
 smokeConfig.moduleSpecPaths = {};
 writeFileSync(smokeConfigPath, JSON.stringify(smokeConfig));
+const backendRoot = path.join(tmp, "fhf-backend-automation");
+const backendTestDir = path.join(backendRoot, "tests", "api", "users");
+mkdirSync(backendTestDir, { recursive: true });
+const backendTestPath = path.join(backendTestDir, "test_users.py");
+const backendBadTestPath = path.join(backendTestDir, "test_bad.py");
+writeFileSync(backendTestPath, [
+  "from tests.commons.assertions import assert_status_code",
+  "",
+  "def test_users(api_client):",
+  "    assert_status_code(api_client.get_users(), 200)",
+].join("\n"));
+writeFileSync(backendBadTestPath, [
+  "def test_users(api_client):",
+  "    assert api_client.get_users().status_code == 200",
+].join("\n"));
+execFileSync("git", ["init", "--quiet", backendRoot]);
+execFileSync("git", ["-C", backendRoot, "add", "."]);
+execFileSync("git", [
+  "-C", backendRoot,
+  "-c", "user.name=FHF Harness",
+  "-c", "user.email=fhf-harness@example.invalid",
+  "commit", "--quiet", "-m", "fixture",
+]);
+const backendSha = execFileSync("git", ["-C", backendRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const activeTaskPath = path.join(tmp, "active-task.json");
+const activeTask = {
+  schema: "fhf-harness/task/v1",
+  id: "SERV-12360-agent-contact",
+  stage: "implementing",
+  ticketFamily: { primary: "SERV-12360", related: ["SERV-12359"] },
+  grounding: {
+    jira: { issueDigest: "a".repeat(64) },
+    acceptanceCriteriaDigest: "b".repeat(64),
+    catalogVersion: customConfig.productTopology.catalogVersion,
+    repositories: [{
+      id: "fhf-backend-automation",
+      baseSha: backendSha,
+      headSha: backendSha,
+      selectedPaths: ["tests/api/users", "api/users"],
+    }],
+  },
+  selection: {
+    routeId: "cross-layer-test-generation",
+    module: "agent-contact",
+    graphNodes: ["jira:SERV-12360", "repo:fhf-backend-automation"],
+    sourceBundles: ["full-stack-change"],
+    expansionReasons: ["linked backend implementation ticket"],
+  },
+  plan: {
+    changeUnits: [{
+      id: "backend-tests",
+      repoId: "fhf-backend-automation",
+      paths: ["tests/api/users", "api/users"],
+      dependsOn: [],
+    }],
+    impact: { functional: ["agent contact API"], regression: ["agent contact"], smoke: [] },
+    tests: [{
+      id: "backend-agent-contact",
+      runnerId: "backend-api-oracle",
+      repoId: "fhf-backend-automation",
+      path: "tests/api/users/test_users.py",
+      environment: "qa",
+      proofMode: "external-execution-evidence",
+    }],
+  },
+  approval: { required: true, approvedDigest: null, reference: "owner-approved-fixture" },
+  evidence: { artifacts: [] },
+};
+activeTask.approval.approvedDigest = approvalDigest(
+  activeTask,
+  customConfig.engineering.taskProtocol.approval.boundFields,
+);
+writeFileSync(activeTaskPath, JSON.stringify(activeTask));
+const activeTaskEnv = { FHF_ACTIVE_TASK: activeTaskPath };
+const staleTaskPath = path.join(tmp, "stale-task.json");
+const staleTask = structuredClone(activeTask);
+staleTask.plan.impact.regression.push("changed after approval");
+writeFileSync(staleTaskPath, JSON.stringify(staleTask));
+const staleTaskEnv = { FHF_ACTIVE_TASK: staleTaskPath };
+const wrongRevisionTaskPath = path.join(tmp, "wrong-revision-task.json");
+const wrongRevisionTask = structuredClone(activeTask);
+wrongRevisionTask.grounding.repositories[0].headSha = "d".repeat(40);
+wrongRevisionTask.approval.approvedDigest = approvalDigest(
+  wrongRevisionTask,
+  customConfig.engineering.taskProtocol.approval.boundFields,
+);
+writeFileSync(wrongRevisionTaskPath, JSON.stringify(wrongRevisionTask));
+const wrongRevisionTaskEnv = { FHF_ACTIVE_TASK: wrongRevisionTaskPath };
 const validOverlay = JSON.stringify({
   version: customConfig.engineering.context.runtimeOverlay.version,
   session: {
@@ -208,8 +299,26 @@ expect("protect-app-source blocks fhf-dashboards/src write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/work/FHF/fhf-dashboards/src/App.tsx" } }), 2);
 expect("protect-app-source allows CypressFHF package write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/x/CypressFHF/fhf-dashboards/cypress/tests/a.cy.js" } }), 0);
-expect("protect-app-source blocks external backend writes",
-  run("protect-app-source.mjs", { tool_input: { file_path: "C:/work/FHF/fhf-backend-automation/tests/api/test_users.py" } }), 2);
+expect("protect-app-source leaves backend automation to its scoped boundary",
+  run("protect-app-source.mjs", { tool_input: { file_path: backendTestPath } }), 0);
+expect("protect-automation-scope blocks backend writes without an active task",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
+expect("protect-automation-scope allows a selected backend test path",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
+expect("protect-automation-scope blocks stale task approval",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, staleTaskEnv), 2);
+expect("protect-automation-scope blocks a changed backend repository revision",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, wrongRevisionTaskEnv), 2);
+expect("protect-automation-scope blocks an unplanned backend path",
+  run("protect-automation-scope.mjs", {
+    cwd: backendRoot,
+    tool_input: { file_path: path.join(backendRoot, "tests", "api", "contracts", "test_contracts.py") },
+  }, activeTaskEnv), 2);
+expect("protect-automation-scope blocks backend credentials",
+  run("protect-automation-scope.mjs", {
+    cwd: backendRoot,
+    tool_input: { file_path: path.join(backendRoot, "tests", ".env") },
+  }, activeTaskEnv), 2);
 expect("protect-app-source emits runtime-neutral JSON",
   run("protect-app-source.mjs", {
     hook_event_name: "preToolUse",
@@ -326,9 +435,24 @@ expect("manual-task-guard blocks backend dependency installs",
   }), 2);
 expect("manual-task-guard blocks backend test runs",
   run("manual-task-guard.mjs", {
-    cwd: "C:/work/fhf-backend-automation",
-    tool_input: { working_directory: "C:/work/fhf-backend-automation", command: "pytest tests/api" },
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "pytest tests/api/users/test_users.py" },
   }), 2);
+expect("manual-task-guard allows the exact selected backend pytest path",
+  run("manual-task-guard.mjs", {
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "python -m pytest tests/api/users/test_users.py" },
+  }, activeTaskEnv), 0);
+expect("manual-task-guard blocks a broader backend pytest selection",
+  run("manual-task-guard.mjs", {
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "pytest tests/api" },
+  }, activeTaskEnv), 2);
+expect("manual-task-guard blocks a production backend pytest command",
+  run("manual-task-guard.mjs", {
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "pytest tests/api/users/test_users.py --environment production" },
+  }, activeTaskEnv), 2);
 expect("manual-task-guard allows read-only backend searches",
   run("manual-task-guard.mjs", {
     tool_input: { command: "rg oracle C:/work/fhf-backend-automation" },
@@ -352,6 +476,7 @@ expect("manual-task-guard emits runtime-neutral JSON",
 for (const hook of [
   "manual-task-guard.mjs",
   "protect-app-source.mjs",
+  "protect-automation-scope.mjs",
   "protect-second-brain-boundary.mjs",
   "pre-validate-cypress-rules.mjs",
   "protect-prod-data.mjs",
@@ -381,6 +506,8 @@ expect("block-generic-agents blocks general-purpose",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "general-purpose" } }), 2);
 expect("block-generic-agents allows cypress-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-generator" } }), 0);
+expect("block-generic-agents allows qa-automation-generator",
+  run("block-generic-agents.mjs", { tool_input: { subagent_type: "qa-automation-generator" } }), 0);
 expect("block-generic-agents blocks retired agent names",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-runner" } }), 2);
 expect("block-generic-agents denies a Cursor-matched subagent",
@@ -411,6 +538,12 @@ expect("prompt-router blocks malformed harness config with repair guidance",
     FHF_HARNESS_CONFIG: invalidConfigPath,
   }),
   (r) => r.code === 2 && r.stderr.includes("Harness configuration is unavailable or invalid") && r.stderr.includes("Harness config is invalid"));
+expect("prompt-router blocks ticket grounding and requests Jira OAuth access",
+  run("prompt-router.mjs", { prompt: "work SERV-11887" }),
+  (r) => r.code === 2 && r.stderr.includes("CAPABILITY BLOCKED") && r.stderr.includes("OAuth") && r.stderr.includes("sanitized ticket export"));
+expect("prompt-router blocks a declared connector until a live ticket read is recorded",
+  run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "true", CLAUDE_CWD: tmp }),
+  (r) => r.code === 2 && r.stderr.includes("no observed probe result") && r.stderr.includes("ticket contents remain outside runtime state"));
 expect("prompt-router blocks an unconfigured Smoke workspace",
   run("prompt-router.mjs", { cwd: smokeRoot, prompt: "write a new smoke test" }, {
     FHF_HARNESS_CONFIG: smokeConfigPath,
@@ -439,6 +572,8 @@ expect("block-forbidden-skills blocks a skill absent from the allowlist",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-author" } }), 2);
 expect("block-forbidden-skills allows an allowlisted skill",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-explain" } }), 0);
+expect("block-forbidden-skills allows backend-test-author",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "backend-test-author" } }), 0);
 expect("block-forbidden-skills matches skill names case-insensitively",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "Cypress-Docs" } }), 0);
 expect("block-forbidden-skills noops on a payload without a skill",
@@ -473,6 +608,16 @@ expect("scenario-content-guard flags missing fields with exit 2",
   run("scenario-content-guard.mjs", { tool_input: { file_path: "cypress/configs/scenarios/x.scenarios.js", content: "export const scenarios = [{}]" } }), 2);
 expect("coverage-strategy-guard flags visit-before-intercept with exit 2",
   run("coverage-strategy-guard.mjs", { tool_input: { file_path: "cypress/tests/a.cy.js", content: "cy.visit('/x'); cy.intercept('GET','/api');" } }), 2);
+expect("validate-backend-automation passes a selected helper-based pytest test",
+  run("validate-backend-automation.mjs", {
+    cwd: backendRoot,
+    tool_input: { file_path: backendTestPath },
+  }, activeTaskEnv), 0);
+expect("validate-backend-automation blocks raw assert in backend tests",
+  run("validate-backend-automation.mjs", {
+    cwd: backendRoot,
+    tool_input: { file_path: backendBadTestPath },
+  }, activeTaskEnv), 2);
 
 // UserPromptSubmit — router must exit 0 and speak on stdout (context channel)
 expect("prompt-router flags drift on stdout, exit 0",
@@ -487,17 +632,22 @@ expect("prompt-router injects one owner for documentation work",
 expect("prompt-router prioritizes test creation over generic documentation",
   run("prompt-router.mjs", { prompt: "write a new test and document the scenario" }),
   (r) => r.code === 0 && r.stdout.includes("[router:new-test]") && !r.stdout.includes("[router:documentation]"));
-expect("prompt-router does not route external backend work to Cypress agents",
+expect("prompt-router routes backend automation generation to the cross-layer specialist",
   run("prompt-router.mjs", {
-    cwd: "C:/work/fhf-backend-automation",
+    cwd: backendRoot,
     prompt: "write a new test for the backend API",
   }),
-  cursorEmitsNeutral);
+  (r) => r.code === 0 && r.stdout.includes("[router:backend-test]") && r.stdout.includes("qa-automation-generator"));
+expect("prompt-router routes combined frontend and backend generation to one specialist",
+  run("prompt-router.mjs", {
+    prompt: "generate frontend Cypress and backend API pytest automation for this ticket",
+  }),
+  (r) => r.code === 0 && r.stdout.includes("[router:cross-layer-test-generation]") && r.stdout.includes("qa-automation-generator"));
 const externalBackendHandoff = path.join(tmp, "fhf-backend-automation", "cypress", "handoff", "session-latest.json");
 expect("prompt-router does not write a handoff in the external backend",
   run("prompt-router.mjs", {
     cwd: path.join(tmp, "fhf-backend-automation"),
-    prompt: "Work SERV-12345 using /api/backend",
+    prompt: "Work the selected API using /api/backend",
   }),
   (r) => r.code === 0 && !existsSync(externalBackendHandoff));
 expect("prompt-router routes planning to one ledger",
@@ -537,10 +687,11 @@ expect("prompt-router emits the shared Claude/Cursor context format",
     }
   });
 
+recordCapabilityOutcome({ id: "jira-ticket-read", subject: "SERV-12345", root: tmp, config: loadHarnessConfig(), outcome: "ready" });
 const memoryPrompt = run("prompt-router.mjs", {
   session_id: "memory-session",
   prompt: "Work SERV-12345 in insurance.cy.js using [data-cy=\"save-button\"] and /api/insurance; keep docs/evidence/run.json",
-}, { CLAUDE_CWD: tmp });
+}, { CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" });
 expect("prompt-router persists only configured exact facts", memoryPrompt, (r) => {
   try {
     const handoff = JSON.parse(readFileSync(path.join(tmp, "cypress", "handoff", "session-latest.json"), "utf8"));

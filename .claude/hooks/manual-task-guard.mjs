@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { loadHarnessConfig } from './lib/harness-config.mjs';
 import { emitAllow } from './lib/hook-runtime.mjs';
+import { authorizeAutomationRun } from './lib/task-scope.mjs';
 import { enforceWorkspaceReady, isWorkspaceBootstrapCommand } from './lib/workspace-contract.mjs';
 
 let payload = {};
@@ -15,15 +16,17 @@ try {
 }
 
 const config = loadHarnessConfig();
-const cmd = (payload.tool_input?.command ?? '').toLowerCase();
-if (!isWorkspaceBootstrapCommand(cmd)) {
+const command = String(payload.tool_input?.command ?? '');
+const cmd = command.toLowerCase();
+if (!isWorkspaceBootstrapCommand(command)) {
   enforceWorkspaceReady({ root: payload.cwd ?? process.cwd(), config });
 }
 const workingDirectory = String(
   payload.tool_input?.working_directory ?? payload.cwd ?? process.cwd(),
-).toLowerCase();
+);
+const workingDirectoryLower = workingDirectory.toLowerCase();
 const externalBackendPath = /(?:^|[\\/])fhf-backend-automation(?:[\\/]|$)/i;
-const isExternalBackend = externalBackendPath.test(cmd) || externalBackendPath.test(workingDirectory);
+const isExternalBackend = externalBackendPath.test(cmd) || externalBackendPath.test(workingDirectoryLower);
 const readOnlyBackendCommand = /^(?:git\s+(?:status|diff|log|show|ls-files)(?:\s+[^;&|><`$()]*)?|(?:rg|grep|find|get-content|cat|type|dir|ls|test-path|pwd)\b[^;&|><`$()]*)$/i;
 const cloudCredentialPatterns = (
   config.connectors?.cypressCloud?.cli?.guard?.inlineCredentialPatterns ?? []
@@ -48,14 +51,17 @@ const BLOCKED_PATTERNS = [
 ];
 
 if (isExternalBackend && !readOnlyBackendCommand.test(cmd)) {
-  console.error('BASH BLOCKED: fhf-backend-automation is available for read-only evidence only.');
-  console.error('Use a direct read/search tool or a simple read-only shell command.');
-  process.exit(2);
+  const decision = authorizeAutomationRun({ command, cwd: workingDirectory, config });
+  if (!decision.allowed) {
+    console.error(`BASH BLOCKED: ${decision.reason}`);
+    console.error('Backend writes use scoped file tools; pytest runs require FHF_ACTIVE_TASK and an exact selected test path.');
+    process.exit(2);
+  }
 }
 
-if (protectedApplicationPaths.some((pattern) => pattern.test(cmd) || pattern.test(workingDirectory)) && shellMutation.test(cmd)) {
-  console.error('BASH BLOCKED: protected application and external backend paths are read-only.');
-  console.error('Open an upstream change in the repository owned by that team.');
+if (protectedApplicationPaths.some((pattern) => pattern.test(cmd) || pattern.test(workingDirectoryLower)) && shellMutation.test(cmd)) {
+  console.error('BASH BLOCKED: application source is read-only.');
+  console.error('Use application source as implementation evidence; do not edit it from the QA harness.');
   process.exit(2);
 }
 

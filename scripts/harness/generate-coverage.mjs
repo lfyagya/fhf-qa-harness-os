@@ -16,7 +16,7 @@ const FHF_ROOT = resolveConsumerRoot(HARNESS_ROOT);
 const OUT_JSON = path.join(FHF_ROOT, "docs", "evidence", "coverage-computed.json");
 const CONTROL_PLANE_CONFIG_PATH = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
 const CONTROL_PLANE = JSON.parse(fs.readFileSync(CONTROL_PLANE_CONFIG_PATH, "utf8"));
-const BACKEND_EVIDENCE = CONTROL_PLANE.paths?.optionalReadOnlyEvidence?.backend;
+const BACKEND_EVIDENCE = CONTROL_PLANE.paths?.automationLanes?.backend;
 const BACKEND_ROOT = BACKEND_EVIDENCE
   ? path.join(FHF_ROOT, BACKEND_EVIDENCE.root)
   : null;
@@ -159,7 +159,7 @@ function backendModule(file) {
 
 function collectBackendEvidence() {
   if (!BACKEND_ROOT || !fs.existsSync(BACKEND_ROOT)) {
-    return { availability: "unavailable", access: "read-only", rubric: BACKEND_LAYERS, modules: {} };
+    return { availability: "unavailable", access: "task-scoped-write-and-run", rubric: BACKEND_LAYERS, modules: {} };
   }
 
   const modules = Object.fromEntries(MODULES.map((module) => [module, {}]));
@@ -185,7 +185,7 @@ function collectBackendEvidence() {
   }
   return {
     availability: "available",
-    access: "read-only",
+    access: "task-scoped-write-and-run",
     rubric: BACKEND_LAYERS,
     modules: Object.fromEntries(displayOrder.map((module) => {
       const state = modules[module];

@@ -6,6 +6,8 @@ import { execSync } from 'child_process';
 import { loadHarnessConfig, detectLane } from './lib/harness-config.mjs';
 import { emitContext, emitEmpty } from './lib/hook-runtime.mjs';
 import { extractFacts, isExternalBackendWorkspace, mergeHandoff } from './lib/memory-state.mjs';
+import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
+import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
 import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
 
 let payload = {};
@@ -38,6 +40,22 @@ if (!workspace.ready) {
   emitContext(payload, "UserPromptSubmit", formatWorkspacePreflight(workspace, config));
   process.exit(0);
 }
+const ticket = ticketKeyFromPrompt(payload.prompt ?? "");
+if (ticket) {
+  let access;
+  try {
+    access = capabilityStatus({ id: "jira-ticket-read", subject: ticket, root: cwd, config });
+  } catch (error) {
+    console.error("JIRA ACCESS REQUIRED");
+    console.error(`- ${error.message}`);
+    process.exit(2);
+  }
+  if (access.exitCode !== 0) {
+    console.error(formatCapabilityStatus(access));
+    process.exit(2);
+  }
+  lines.push(formatCapabilityStatus(access));
+}
 const isExternalBackend = isExternalBackendWorkspace({ cwd });
 
 const facts = extractFacts(payload.prompt ?? "", memory);
@@ -47,6 +65,13 @@ function routeApplies(route) {
   if (Array.isArray(route.lanes) && route.lanes.length > 0) return route.lanes.includes(lane);
   if (isExternalBackend && /spawn cypress-/i.test(route.hint ?? "")) return false;
   return true;
+}
+
+function appendRoute(route) {
+  lines.push(`[router:${route.id}] ${route.hint}`);
+  if (Array.isArray(route.sourceBundles) && route.sourceBundles.length > 0) {
+    lines.push(`[router] Source bundle seed: ${route.sourceBundles.join(", ")}. Expand only with a recorded topology reason.`);
+  }
 }
 
 // 1. Topic drift — "one session = one job"
@@ -62,10 +87,8 @@ const explicitRoute = overlay?.session?.routeId
   ? routes.find((route) => route.id === overlay.session.routeId)
   : null;
 if (explicitRoute && routeApplies(explicitRoute)) {
-  lines.push(
-    `[router:${explicitRoute.id}] ${explicitRoute.hint}`,
-    `[router] Explicit session route override: ${overlay.session.reason ?? "no reason supplied"}`,
-  );
+  appendRoute(explicitRoute);
+  lines.push(`[router] Explicit session route override: ${overlay.session.reason ?? "no reason supplied"}`);
 } else {
   if (overlay?.session?.routeId) {
     lines.push(`[router] Session route override '${overlay.session.routeId}' was not applicable to lane '${lane}'.`);
@@ -73,7 +96,7 @@ if (explicitRoute && routeApplies(explicitRoute)) {
   for (const route of routes) {
     if (!routeApplies(route)) continue;
     if (new RegExp(route.match, 'i').test(prompt)) {
-      lines.push(`[router:${route.id}] ${route.hint}`);
+      appendRoute(route);
       break;
     }
   }

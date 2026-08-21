@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse:Edit|Write — block writes into protected application and external paths.
+// PreToolUse:Edit|Write — block writes into protected application source.
 // exit 2 = BLOCK the tool call.
 import { readFileSync } from 'fs';
 import { engineeringConfig } from './lib/harness-config.mjs';
@@ -23,7 +23,7 @@ const patterns = engineeringConfig().harness.boundaries.applicationSource.pathPa
 
 if (patterns.some((pattern) => pattern.test(filePath))) {
   console.error('BLOCKED: path is read-only per engineering.harness.boundaries.applicationSource.');
-  console.error('Application source and the external backend repository are read-only.');
+  console.error('Application source is implementation evidence; automation changes belong in selected automation repositories.');
   process.exit(2);
 }
 emitAllow(payload);

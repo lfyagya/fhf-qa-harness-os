@@ -29,6 +29,9 @@ import {
   CONSUMER_VERIFIER_TEXT,
   PORTABLE_RUNTIME_STATE_TEXT,
   RECORD_LOOP_EVENT_TEXT,
+  TASK_PROTOCOL_LIB_TEXT,
+  TASK_PROTOCOL_CLI_TEXT,
+  BACKEND_TASK_RUNNER_TEXT,
   WORKSPACE_SETUP_TEXT,
   laneMarker,
   workspaceExample,
@@ -116,6 +119,9 @@ function checkConsumerVerifier(repoPath, lane) {
   requireFile(path.join(repoPath, ".harness", "README.md"));
   requireFile(path.join(repoPath, ".harness", "portable-runtime-state.mjs"));
   requireFile(path.join(repoPath, ".harness", "record-loop-event.mjs"));
+  requireFile(path.join(repoPath, ".harness", "task-protocol-lib.mjs"));
+  requireFile(path.join(repoPath, ".harness", "task-protocol.mjs"));
+  if (lane === "root") requireFile(path.join(repoPath, ".harness", "backend-task-runner.mjs"));
   requireFile(path.join(repoPath, ".harness", "setup.mjs"));
   requireFile(path.join(repoPath, ".harness", "lane.json"));
   requireFile(path.join(repoPath, ".harness", "workspace.example.json"));
@@ -123,6 +129,11 @@ function checkConsumerVerifier(repoPath, lane) {
   checkExactText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme(lane));
   checkExactText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
   checkExactText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "task-protocol.mjs"), TASK_PROTOCOL_CLI_TEXT);
+  if (lane === "root") {
+    checkExactText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
+  }
   checkExactText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
   checkExactText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
   checkExactText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
@@ -219,7 +230,7 @@ function checkAgentsRoster() {
   const text = fs.readFileSync(agentsMdPath, "utf8");
   const tableRows = text.split("\n").filter((line) => line.trim().startsWith("|"));
   const mentioned = new Set(
-    tableRows.flatMap((line) => [...line.matchAll(/`(cypress-[a-z-]+)`/g)].map((m) => m[1]))
+    tableRows.flatMap((line) => [...line.matchAll(/`((?:cypress|qa-automation)-[a-z-]+)`/g)].map((m) => m[1]))
   );
 
   for (const name of mentioned) {

@@ -22,10 +22,13 @@ const effective = structuredClone(config);
 effective.runtimeOverlay = overlay;
 effective.engineering.loops.sameFailureLimit = 1;
 
-const state = createLoopState({ goal: "verify runtime contracts", runId: "run-1", lane: "e2e", config: effective });
+const executionBudget = { maxWallClockMinutes: 60, maxRecordedToolResults: 30, maxRetryableFailures: 2 };
+const state = createLoopState({ goal: "verify runtime contracts", runId: "run-1", lane: "e2e", config: effective, executionBudget });
 assert.equal(state.schema, "fhf-harness/loop-state/v1");
 assert.equal(state.overlay.session.ticket, "SERV-123");
 assert.equal(state.baseConfigFingerprint.startsWith("sha256:"), true);
+assert.deepEqual(state.executionBudget, executionBudget);
+assert.equal(state.recordedToolResults, 0);
 const progressed = updateLoopState(state, { stepCount: 1, lastProgressAt: 1, currentStep: "verify" }, effective);
 assert.equal(progressed.lastProgressAt, 1);
 assert.throws(() => updateLoopState(progressed, { repairCycles: progressed.budgets.gateRepairLimit + 1 }, effective));

@@ -45,6 +45,8 @@ export function workspaceExample(lane) {
     jiraMcp: false,
     confluenceMcp: false,
     cypressCloud: false,
+    figmaMcp: false,
+    testRail: false,
   };
   return `${JSON.stringify(example, null, 2)}\n`;
 }
@@ -233,7 +235,8 @@ export function baselineClaude() {
 
 This is the shared, clone-ready harness baseline. For E2E work, checkout \`dev\`; for production
 smoke work, checkout \`staging\`. The selected branch provides the lane-specific instructions and
-execution boundaries. \`fhf-backend-automation\` is read-only evidence only.
+execution boundaries. \`fhf-backend-automation\` is task-scoped: use the active manifest for
+selected writes and Dev/QA pytest runs; application source remains read-only.
 `;
 }
 
@@ -246,6 +249,11 @@ Read \`CLAUDE.md\`. Choose the branch that matches the work before editing tests
 | --- | --- | --- |
 | E2E / Dev-QA | \`dev\` | \`cypress-generator\`, \`cypress-gate\`, \`cypress-debugger\`, \`cypress-shipper\` |
 | Production smoke | \`staging\` | \`cypress-generator\`, \`cypress-gate\`, \`cypress-debugger\`, \`cypress-shipper\` |
+| Backend-only or combined FE/BE automation | active task manifest | \`qa-automation-generator\`, \`qa-automation-gate\`, \`qa-automation-debugger\` |
+
+For a ticket, Figma reference, Cypress diagnostic, backend proof, or TestRail case/report, run
+\`node .harness/capability-doctor.mjs --capability <id> --subject <task-safe-label>\` before grounding or execution.
+If it requests access, stop and request OAuth Jira Browse/Read or a sanitized ticket export; a declared connector still requires a successful live ticket read.
 
 Generated harness files live in \`.claude/\`, \`.cursor/hooks.json\`,
 \`.github/copilot-instructions.md\`, \`GEMINI.md\`, and \`.harness/\`. Edit their canonical source
@@ -386,6 +394,8 @@ Read \`${sharedRouter}\`, then the repository's \`CypressFHF/fhf-dashboards/CLAU
 ${isE2e
   ? "Use Dev/QA only. Mutations require synthetic data and cleanup; never run against production."
   : "Production smoke is GET-only. Never mutate, submit, export, download, upload, or send."}
+For a Jira ticket, run \`node .harness/capability-doctor.mjs --capability jira-ticket-read --subject <SERV-ID>\` before grounding.
+If it requests access, stop and request OAuth Jira Browse/Read or a sanitized ticket export; a declared connector still requires a successful live ticket read.
 `;
 }
 
@@ -398,8 +408,15 @@ export function geminiInstructions(lane) {
 }
 
 export function consumerVerifierReadme(lane = "root") {
-  const name = lane === "e2e" ? "E2E" : lane === "smoke" ? "Smoke" : "baseline";
+  const name = lane === "e2e" ? "E2E" : lane === "smoke" ? "Smoke" : "FHF root";
   const required = lane === "e2e" || lane === "smoke";
+  const backendRunner = lane === "root"
+    ? `For backend API/Oracle execution, validate the active task and run
+\`node .harness/backend-task-runner.mjs preflight --manifest <absolute-task.json> --test-id <id>\`
+before replacing \`preflight\` with \`run\`. The runner forces the exact manifest-selected pytest
+path, Dev/QA, sequential execution, current source SHA, scoped dirty paths, and fresh JUnit evidence.
+It never uploads TestRail or sends email.\n`
+    : "";
   return `# Consumer harness verification
 
 This clone does not contain \`fhf-harness-os/scripts/harness/*\`.
@@ -416,6 +433,14 @@ only from \`fhf-harness-os\`. ${required ? `For an executable local or Cloud wor
 \`cloud\`). The profile contains local file paths only; it must never contain credential values.` : ""}
 Runtime loop evidence is recorded with \`node .harness/record-loop-event.mjs '<json>'\`; state and
 trace files under \`cypress/handoff/\` are transient and ignored.
+For task-required Jira, Figma, Cypress Cloud, backend, or TestRail access, run
+\`node .harness/capability-doctor.mjs --capability <id> --subject <task-safe-label>\`. It requests
+the exact safe access or approved fallback when a selected capability cannot be read; it never accepts credentials.
+TestRail is task-selected for case lookup/reporting only; uploads always need separate explicit approval.
+Use \`node .harness/task-protocol.mjs contract\` to inspect the task schema, then \`validate\`,
+\`digest\`, and \`next\` against one runtime-only task manifest. These commands are read-only and
+never approve, commit, merge, deploy, or write externally.
+${backendRunner}
 `;
 }
 
@@ -436,6 +461,31 @@ export const RECORD_LOOP_EVENT_TEXT = fs.readFileSync(
 
 export const WORKSPACE_SETUP_TEXT = fs.readFileSync(
   path.join(HARNESS_ROOT, "scripts", "harness", "workspace-setup.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const JIRA_ACCESS_DOCTOR_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "jira-access-doctor.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const CAPABILITY_DOCTOR_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "capability-doctor.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const TASK_PROTOCOL_LIB_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "task-protocol-lib.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const TASK_PROTOCOL_CLI_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "task-protocol.mjs"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+export const BACKEND_TASK_RUNNER_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "backend-task-runner.mjs"),
   "utf8",
 ).replace(/\r\n/g, "\n");
 

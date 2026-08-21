@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
@@ -19,6 +20,8 @@ const evaluation = config.engineering.context.evaluation;
 const golden = JSON.parse(fs.readFileSync(path.join(ROOT, evaluation.goldenRoutes), "utf8"));
 const failures = [];
 const args = process.argv.slice(2);
+const ROUTER_EVAL_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "fhf-router-eval-"));
+process.on("exit", () => fs.rmSync(ROUTER_EVAL_ROOT, { recursive: true, force: true }));
 
 function routeFromOutput(stdout) {
   const match = stdout.match(/\[router:([^\]]+)\]/);
@@ -26,11 +29,23 @@ function routeFromOutput(stdout) {
 }
 
 function runRouter(prompt, env = {}) {
+  const ticket = String(prompt).match(/\b(SERV-\d+)\b/i)?.[1]?.toUpperCase();
+  if (ticket) {
+    const directory = path.join(ROUTER_EVAL_ROOT, "cypress", "handoff", "jira-access");
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, `${ticket}.json`), JSON.stringify({
+      schema: "fhf-harness/jira-ticket-access-state/v1",
+      ticket,
+      outcome: "readable",
+      attempts: 1,
+      updatedAt: new Date().toISOString(),
+    }));
+  }
   return spawnSync(process.execPath, [path.join(ROOT, ".claude", "hooks", "prompt-router.mjs")], {
     cwd: ROOT,
-    input: JSON.stringify({ prompt, cwd: ROOT }),
+    input: JSON.stringify({ prompt, cwd: ROUTER_EVAL_ROOT }),
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    env: { ...process.env, FHF_JIRA_MCP: "true", ...env },
   });
 }
 

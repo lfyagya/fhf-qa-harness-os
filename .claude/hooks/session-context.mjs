@@ -20,6 +20,7 @@ const lines = [
   "- For each prompt, evaluate engineering.context.routes by highest priority; task intent breaks ties.",
   `- Session scope=${memory.sessionScope}; preserve only configured exact facts in ${memory.handoffFile}.`,
   `- Application source boundary=${harness.boundaries.applicationSource.mode}; shell and file writes are guarded.`,
+  `- Backend automation boundary=${harness.boundaries.automationSource.mode}; active manifest env=${harness.boundaries.automationSource.activeManifestEnv}.`,
   `- Same-failure limit=${loops.sameFailureLimit}; terminal states=${loops.terminalStates.join(", ")}.`,
 ];
 

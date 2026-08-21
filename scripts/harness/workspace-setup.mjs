@@ -57,10 +57,12 @@ try {
     consumerRoot: await ask("FHF workspace root", existing.consumerRoot),
     moduleSpecsRoot: await ask("Application specs repository root", existing.moduleSpecsRoot),
     optional: {
-      backendRoot: await ask("Read-only backend repository root (optional)", existing.optional?.backendRoot ?? ""),
+      backendRoot: await ask("Backend automation repository root (optional; task-scoped writes/runs)", existing.optional?.backendRoot ?? ""),
       jiraMcp: await askBoolean("Jira MCP/OAuth is configured", existing.optional?.jiraMcp ?? false),
       confluenceMcp: await askBoolean("Confluence MCP/OAuth is configured", existing.optional?.confluenceMcp ?? false),
       cypressCloud: await askBoolean("Cypress Cloud metadata access is configured", existing.optional?.cypressCloud ?? false),
+      figmaMcp: await askBoolean("Figma MCP/OAuth read access is configured", existing.optional?.figmaMcp ?? false),
+      testRail: await askBoolean("TestRail read/reporting access is configured", existing.optional?.testRail ?? false),
     },
   };
   if (meta.rootField) {
@@ -69,6 +71,11 @@ try {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, `${JSON.stringify(values, null, 2)}\n`, "utf8");
   console.log(`Wrote ${path.relative(root, target).replaceAll("\\", "/")}`);
+  console.log(
+    values.optional.jiraMcp
+      ? "Jira is declared configured. Ticket intake still requires a live read probe: node .harness/capability-doctor.mjs --capability jira-ticket-read --subject <SERV-ID>."
+      : "Jira ticket intake will request OAuth Jira Browse/Read access or a sanitized ticket export: node .harness/capability-doctor.mjs --capability jira-ticket-read --subject <SERV-ID>.",
+  );
   console.log(`Run node .harness/verify.mjs to validate the complete ${meta.name} workspace.`);
 } finally {
   rl.close();

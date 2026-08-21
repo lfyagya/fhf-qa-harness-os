@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { HARNESS_CONFIG_TEXT, claudeSettings, cursorHooks } from "./loader-templates.mjs";
+import { HARNESS_CONFIG_TEXT, baselineAgents, claudeSettings, copilotInstructions, cursorHooks, geminiInstructions } from "./loader-templates.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, "config", "qa-control-plane.json"), "utf8"));
@@ -93,6 +93,16 @@ check(
     engineering.harness.adapters.codex.hookCapability === "instruction-only",
   "Codex must degrade explicitly to its verified instruction-only capability",
 );
+for (const [name, text] of [
+  ["Codex baseline", baselineAgents()],
+  ["Copilot", copilotInstructions("e2e")],
+  ["Gemini", geminiInstructions("smoke")],
+]) {
+  check(
+    text.includes("capability-doctor.mjs") && text.includes("live ticket read"),
+    `${name} instruction adapter must enforce the Jira ticket-access gate`,
+  );
+}
 check(
   Array.isArray(engineering.harness.verify?.canonical) &&
     engineering.harness.verify.canonical.includes("scripts/harness/test-sync-loader.mjs"),

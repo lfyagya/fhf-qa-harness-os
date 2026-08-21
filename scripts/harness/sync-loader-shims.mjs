@@ -31,7 +31,12 @@ import {
   CONSUMER_VERIFIER_TEXT,
   PORTABLE_RUNTIME_STATE_TEXT,
   RECORD_LOOP_EVENT_TEXT,
+  TASK_PROTOCOL_LIB_TEXT,
+  TASK_PROTOCOL_CLI_TEXT,
+  BACKEND_TASK_RUNNER_TEXT,
   EXECUTION_SETUP_TEXT,
+  JIRA_ACCESS_DOCTOR_TEXT,
+  CAPABILITY_DOCTOR_TEXT,
   WORKSPACE_SETUP_TEXT,
   executionProfileExample,
   laneMarker,
@@ -267,7 +272,14 @@ function syncHarnessRoot() {
 function syncRuntimeEvidence(repoPath, lane) {
   writeText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
   writeText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
+  writeText(path.join(repoPath, ".harness", "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT);
+  writeText(path.join(repoPath, ".harness", "task-protocol.mjs"), TASK_PROTOCOL_CLI_TEXT);
+  if (lane === "root") {
+    writeText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
+  }
   writeText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
+  writeText(path.join(repoPath, ".harness", "jira-access-doctor.mjs"), JIRA_ACCESS_DOCTOR_TEXT);
+  writeText(path.join(repoPath, ".harness", "capability-doctor.mjs"), CAPABILITY_DOCTOR_TEXT);
   writeText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
   writeText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
   if (lane === "e2e" || lane === "smoke") {

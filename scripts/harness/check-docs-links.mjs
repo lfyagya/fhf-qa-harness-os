@@ -221,6 +221,101 @@ if (!workspaceContract || workspaceContract.version !== 1) {
   }
 }
 
+const jiraContract = config?.atlassian?.retrievalContract;
+if (!jiraContract || jiraContract.version !== 1) {
+  issues.push("atlassian.retrievalContract.version must be 1");
+} else {
+  for (const field of [
+    "issueKey",
+    "summary",
+    "details",
+    "status",
+    "priority",
+    "labels",
+    "components",
+    "assignee",
+    "parent",
+    "attachments",
+    "linkedWorkItems",
+    "module",
+    "sprint",
+    "acceptanceCriteria",
+  ]) {
+    if (typeof jiraContract.requiredSemanticFields?.[field] !== "string") {
+      issues.push(`atlassian.retrievalContract.requiredSemanticFields.${field} must be configured`);
+    }
+  }
+  if (jiraContract.fieldDiscovery?.unknownOutcome !== "record-unknown-do-not-guess") {
+    issues.push("Jira field discovery must record unknown fields instead of guessing");
+  }
+  if (jiraContract.attachments?.load !== "metadata-first" ||
+      !jiraContract.attachments?.trustBoundary?.includes("never-agent-instructions")) {
+    issues.push("Jira attachments must be metadata-first untrusted evidence, never agent instructions");
+  }
+  if (jiraContract.people?.rule !== "do-not-equate-jira-assignee-with-all-people-working") {
+    issues.push("Jira people routing must distinguish assignee from implementation contributors");
+  }
+}
+
+const topology = config?.productTopology;
+const topologyRepos = topology?.repositories ?? {};
+const topologyBundles = topology?.sourceBundles ?? {};
+if (!topology || topology.version !== 1 || topology.mutationAuthority !== "none-use-engineering-harness-boundaries-and-repository-local-instructions") {
+  issues.push("productTopology must be routing-only and must not grant mutation authority");
+} else {
+  if (!Number.isInteger(topology.progressiveLoading?.maximumInitialRepositories) ||
+      topology.progressiveLoading.maximumInitialRepositories < 1 ||
+      topology.progressiveLoading.noSilentTruncation !== true) {
+    issues.push("productTopology progressive loading must set a positive initial repository limit and noSilentTruncation=true");
+  }
+  if (Object.keys(topologyRepos).length < 17) {
+    issues.push("productTopology must catalog all 17 FHF source, contract, and automation repositories");
+  }
+  for (const [id, repo] of Object.entries(topologyRepos)) {
+    if (!repo.root || path.isAbsolute(repo.root)) {
+      issues.push(`productTopology.repositories.${id}.root must be a relative path`);
+      continue;
+    }
+    const root = path.resolve(FHF_ROOT, repoPath(repo.root));
+    if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+      issues.push(`productTopology repository is unavailable: ${id} -> ${repo.root}`);
+    }
+    for (const field of ["kind", "roles", "businessDomains", "entryPaths", "instructions", "evidence"]) {
+      if (repo[field] === undefined || repo[field] === null) issues.push(`productTopology.repositories.${id}.${field} must be configured`);
+    }
+    if (!Array.isArray(repo.roles) || repo.roles.length === 0 ||
+        !Array.isArray(repo.businessDomains) || repo.businessDomains.length === 0 ||
+        !Array.isArray(repo.entryPaths) || repo.entryPaths.length === 0 ||
+        !Array.isArray(repo.instructions)) {
+      issues.push(`productTopology.repositories.${id} has invalid roles/domains/entryPaths/instructions`);
+    }
+  }
+  const knownRepoIds = new Set(Object.keys(topologyRepos));
+  const edgeIds = new Set();
+  for (const edge of topology.edges ?? []) {
+    if (!edge.id || edgeIds.has(edge.id)) issues.push("productTopology edges need unique IDs");
+    edgeIds.add(edge.id);
+    if (!knownRepoIds.has(edge.from) || !knownRepoIds.has(edge.to)) {
+      issues.push(`productTopology edge ${edge.id} references an unknown repository`);
+    }
+    if (!edge.kind || !Array.isArray(edge.evidence) || edge.evidence.length === 0) {
+      issues.push(`productTopology edge ${edge.id} needs kind and evidence`);
+    }
+  }
+  for (const [id, bundle] of Object.entries(topologyBundles)) {
+    if (!Array.isArray(bundle.seedRepositories) || bundle.seedRepositories.length === 0 ||
+        bundle.seedRepositories.length > topology.progressiveLoading.maximumInitialRepositories) {
+      issues.push(`productTopology.sourceBundles.${id} must select 1-${topology.progressiveLoading.maximumInitialRepositories} seed repositories`);
+    }
+    for (const repoId of bundle.seedRepositories ?? []) {
+      if (!knownRepoIds.has(repoId)) issues.push(`productTopology.sourceBundles.${id} references unknown repository ${repoId}`);
+    }
+    if (!Array.isArray(bundle.expandBy) || bundle.expandBy.length === 0 || !bundle.purpose) {
+      issues.push(`productTopology.sourceBundles.${id} needs expansion rules and purpose`);
+    }
+  }
+}
+
 if (engineering) {
   for (const pillar of ["context", "memory", "harness", "loops"]) {
     if (!engineering[pillar] || typeof engineering[pillar] !== "object") {
@@ -247,6 +342,11 @@ if (engineering) {
         issues.push(`engineering.context.routes[${index}] has invalid match: ${error.message}`);
       }
       if (!route.hint) issues.push(`engineering.context.routes[${index}] needs a hint`);
+      for (const bundleId of route.sourceBundles ?? []) {
+        if (!Object.hasOwn(topologyBundles, bundleId)) {
+          issues.push(`engineering.context.routes[${index}] references unknown source bundle ${bundleId}`);
+        }
+      }
       if (route.lanes) {
         const known = new Set(["root", "e2e", "smoke"]);
         if (!Array.isArray(route.lanes) || route.lanes.length === 0 || route.lanes.some((name) => !known.has(name))) {
@@ -256,6 +356,98 @@ if (engineering) {
     });
   }
 
+  const taskProtocol = engineering.taskProtocol;
+  if (!taskProtocol || taskProtocol.version !== 1 || taskProtocol.schema !== "fhf-harness/task/v1") {
+    issues.push("engineering.taskProtocol must configure fhf-harness/task/v1");
+  } else {
+    if (taskProtocol.activeManifestEnv !== "FHF_ACTIVE_TASK") {
+      issues.push("engineering.taskProtocol.activeManifestEnv must be FHF_ACTIVE_TASK");
+    }
+    for (const stage of ["intake", "grounded", "planned", "approved", "implementing", "verified", "complete", "blocked"]) {
+      if (!taskProtocol.stages?.includes(stage)) issues.push(`engineering.taskProtocol.stages must include ${stage}`);
+    }
+    const executionBudget = taskProtocol.executionBudget;
+    const budgetFields = ["maxWallClockMinutes", "maxRecordedToolResults", "maxRetryableFailures"];
+    if (!executionBudget || executionBudget.version !== 1 || executionBudget.manifestPath !== "plan.executionBudget") {
+      issues.push("task protocol execution budget must configure plan.executionBudget");
+    } else {
+      for (const field of budgetFields) {
+        if (!executionBudget.requiredFields?.includes(field) || !Number.isInteger(executionBudget.hardCeilings?.[field]) || executionBudget.hardCeilings[field] < 1) {
+          issues.push(`task protocol execution budget must require a positive hard ceiling for ${field}`);
+        }
+      }
+      if (executionBudget.onExceeded !== "block-and-record-budget-exceeded") {
+        issues.push("task protocol execution budget must fail closed");
+      }
+    }
+    if (taskProtocol.approval?.humanOnly !== true || taskProtocol.approval?.agentMayApprove !== false ||
+        taskProtocol.approval?.onMismatch !== "block-and-request-fresh-human-approval") {
+      issues.push("task protocol approval must be human-only and fail closed when its digest changes");
+    }
+    for (const mode of [
+      "red-green-replay",
+      "existing-regression-base-pass",
+      "external-execution-evidence",
+      "tests-not-applicable",
+    ]) {
+      if (!taskProtocol.proofModes?.[mode]) issues.push(`engineering.taskProtocol.proofModes.${mode} must be configured`);
+    }
+    for (const boundary of ["autoCommit", "autoMerge", "autoDeploy", "autoExternalWrite", "autoApproval"]) {
+      if (taskProtocol.automationBoundaries?.[boundary] !== false) {
+        issues.push(`engineering.taskProtocol.automationBoundaries.${boundary} must remain false`);
+      }
+    }
+  }
+
+  const runners = engineering.executionRunners?.runners;
+  const capabilityControl = engineering.capabilityControl;
+  const requiredCapabilities = [
+    "source-grounding",
+    "jira-ticket-read",
+    "figma-design-read",
+    "cypress-cli",
+    "cypress-cloud-diagnostics",
+    "execution-environment",
+    "backend-api-oracle",
+    "testrail-read-report",
+  ];
+  if (!capabilityControl || capabilityControl.version !== 1 || capabilityControl.manifestPath !== "plan.capabilities" ||
+      typeof capabilityControl.stateDirectory !== "string" || !capabilityControl.stateDirectory.startsWith("cypress/handoff/") ||
+      !Number.isInteger(capabilityControl.maxRetryableUnavailable) || capabilityControl.maxRetryableUnavailable < 1) {
+    issues.push("engineering.capabilityControl must configure a bounded plan.capabilities loop in ignored runtime state");
+  } else {
+    for (const id of requiredCapabilities) {
+      const capability = capabilityControl.capabilities?.[id];
+      if (!capability?.label || !capability?.accessRequest || !capability?.liveProbe || !capability?.escalation || !capability?.outcomes?.ready) {
+        issues.push(`engineering.capabilityControl.capabilities.${id} is incomplete`);
+      }
+    }
+  }
+  if (!runners || typeof runners !== "object" || Object.keys(runners).length === 0) {
+    issues.push("engineering.executionRunners.runners must not be empty");
+  } else {
+    const knownRepoIds = new Set(Object.keys(topologyRepos));
+    for (const [id, runner] of Object.entries(runners)) {
+      const repositories = runner.repositories ?? [runner.repository];
+      if (repositories.some((repoId) => !knownRepoIds.has(repoId))) {
+        issues.push(`engineering.executionRunners.runners.${id} references an unknown repository`);
+      }
+      if ((!runner.command && !runner.commandsByPlatform) ||
+          !Array.isArray(runner.testKinds) || runner.testKinds.length === 0 ||
+          !Array.isArray(runner.proofModes) || runner.proofModes.length === 0 ||
+          !Array.isArray(runner.environments) || runner.environments.length === 0 ||
+          !Array.isArray(runner.nativeEvidence) || runner.nativeEvidence.length === 0) {
+        issues.push(`engineering.executionRunners.runners.${id} is incomplete`);
+      }
+      if (!Array.isArray(runner.requiredCapabilities) || runner.requiredCapabilities.length === 0 ||
+          runner.requiredCapabilities.some((capability) => !capabilityControl?.capabilities?.[capability])) {
+        issues.push(`engineering.executionRunners.runners.${id} must select known requiredCapabilities`);
+      }
+      for (const mode of runner.proofModes ?? []) {
+        if (!taskProtocol?.proofModes?.[mode]) issues.push(`runner ${id} references unknown proof mode ${mode}`);
+      }
+    }
+  }
   if (engineering.memory?.obsidian?.authority !== "derived-only" || engineering.memory?.obsidian?.writeBack !== false) {
     issues.push("Obsidian must remain derived-only with writeBack=false");
   }
@@ -287,6 +479,9 @@ if (engineering) {
       issues.push(`applicationSource.pathPatterns[${index}] is invalid: ${error.message}`);
     }
   }
+  if ((appBoundary?.pathPatterns ?? []).some((source) => /fhf-backend-automation/i.test(source))) {
+    issues.push("applicationSource.pathPatterns must not classify backend automation as application source");
+  }
   const expectedApplicationSourcePaths = {
     root: "./fhf-dashboards/src",
     e2e: "../fhf-dashboards/src",
@@ -297,6 +492,54 @@ if (engineering) {
       issues.push(`applicationSource.denyWriteByLane.${lane} must not be empty`);
     } else if (!appBoundary.denyWriteByLane[lane].includes(expectedApplicationSourcePaths[lane])) {
       issues.push(`applicationSource.denyWriteByLane.${lane} must protect ${expectedApplicationSourcePaths[lane]}`);
+    }
+  }
+
+  const automationBoundary = engineering.harness?.boundaries?.automationSource;
+  if (automationBoundary?.mode !== "task-scoped-write-and-run") {
+    issues.push("engineering.harness.boundaries.automationSource must be task-scoped-write-and-run");
+  }
+  if (automationBoundary?.activeManifestEnv !== taskProtocol?.activeManifestEnv) {
+    issues.push("automationSource.activeManifestEnv must match engineering.taskProtocol.activeManifestEnv");
+  }
+  if (automationBoundary?.requireCurrentApproval !== true) {
+    issues.push("automationSource must require current digest-bound approval");
+  }
+  if (automationBoundary?.shellWrites !== "blocked-use-scoped-file-tools" ||
+      automationBoundary?.dependencyChanges !== "blocked" ||
+      automationBoundary?.gitPublication !== "blocked") {
+    issues.push("automationSource must block shell writes, dependency changes, and Git publication");
+  }
+  const backendBoundary = automationBoundary?.repositories?.["fhf-backend-automation"];
+  if (!backendBoundary || backendBoundary.requiredRunner !== "backend-api-oracle") {
+    issues.push("automationSource must configure fhf-backend-automation with backend-api-oracle");
+  } else {
+    try {
+      new RegExp(backendBoundary.pathPattern, "i");
+    } catch (error) {
+      issues.push(`automationSource backend pathPattern is invalid: ${error.message}`);
+    }
+    for (const field of [
+      "writeStages",
+      "runStages",
+      "allowedEnvironments",
+      "allowedWriteRoots",
+      "deniedWritePatterns",
+      "allowedRunPrefixes",
+    ]) {
+      if (!Array.isArray(backendBoundary[field]) || backendBoundary[field].length === 0) {
+        issues.push(`automationSource backend ${field} must not be empty`);
+      }
+    }
+    if ((backendBoundary.allowedEnvironments ?? []).includes("production")) {
+      issues.push("automationSource backend environments must not include production");
+    }
+    for (const [index, source] of (backendBoundary.deniedWritePatterns ?? []).entries()) {
+      try {
+        new RegExp(source, "i");
+      } catch (error) {
+        issues.push(`automationSource backend deniedWritePatterns[${index}] is invalid: ${error.message}`);
+      }
     }
   }
 

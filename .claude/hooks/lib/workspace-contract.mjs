@@ -29,6 +29,8 @@ function loadSetup(root, config) {
     "FHF_JIRA_MCP",
     "FHF_CONFLUENCE_MCP",
     "FHF_CYPRESS_CLOUD",
+    "FHF_FIGMA_MCP",
+    "FHF_TESTRAIL",
   ];
   const hasEnvironmentSetup = environmentFields.some((field) => process.env[field] !== undefined);
   if (!fs.existsSync(file) && !hasEnvironmentSetup) return { file, values: null, error: null };
@@ -58,11 +60,26 @@ function loadSetup(root, config) {
       jiraMcp: bool(process.env.FHF_JIRA_MCP) ?? bool(parsed.jiraMcp ?? optional.jiraMcp),
       confluenceMcp: bool(process.env.FHF_CONFLUENCE_MCP) ?? bool(parsed.confluenceMcp ?? optional.confluenceMcp),
       cypressCloud: bool(process.env.FHF_CYPRESS_CLOUD) ?? bool(parsed.cypressCloud ?? optional.cypressCloud),
+      figmaMcp: bool(process.env.FHF_FIGMA_MCP) ?? bool(parsed.figmaMcp ?? optional.figmaMcp),
+      testRail: bool(process.env.FHF_TESTRAIL) ?? bool(parsed.testRail ?? optional.testRail),
     };
     return { file, values, error: null };
   } catch (error) {
     return { file, values: null, error: error.message };
   }
+}
+
+export function workspaceConnectorDeclarations({ root = PROJECT_ROOT, config = loadHarnessConfig() } = {}) {
+  const setup = loadSetup(path.resolve(root), config);
+  return {
+    jiraMcp: Boolean(setup.values?.jiraMcp),
+    confluenceMcp: Boolean(setup.values?.confluenceMcp),
+    cypressCloud: Boolean(setup.values?.cypressCloud),
+    figmaMcp: Boolean(setup.values?.figmaMcp),
+    testRail: Boolean(setup.values?.testRail),
+    setupFile: setup.file,
+    setupError: setup.error,
+  };
 }
 
 function resolveInput(root, value) {
@@ -226,10 +243,12 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
     }
   }
 
-  if (!values?.backendRoot) warnings.push("Backend evidence repository is not configured; backend evidence remains unavailable.");
+  if (!values?.backendRoot) warnings.push("Backend automation repository is not configured; backend generation and evidence remain unavailable.");
   if (!values?.jiraMcp) warnings.push("Jira MCP/OAuth is not configured; Jira discovery and writes are unavailable.");
   if (!values?.confluenceMcp) warnings.push("Confluence MCP/OAuth is not configured; Confluence discovery and writes are unavailable.");
   if (!values?.cypressCloud) warnings.push("Cypress Cloud is not configured; use local JUnit and run metadata only.");
+  if (!values?.figmaMcp) warnings.push("Figma is not configured; design-driven visual acceptance remains blocked unless an approved design export is supplied.");
+  if (!values?.testRail) warnings.push("TestRail is not configured; use native local artifacts unless the task requires TestRail lookup or reporting.");
 
   return {
     ready: issues.length === 0,
@@ -247,6 +266,8 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
           jiraMcp: Boolean(values.jiraMcp),
           confluenceMcp: Boolean(values.confluenceMcp),
           cypressCloud: Boolean(values.cypressCloud),
+          figmaMcp: Boolean(values.figmaMcp),
+          testRail: Boolean(values.testRail),
         }
       : null,
   };
