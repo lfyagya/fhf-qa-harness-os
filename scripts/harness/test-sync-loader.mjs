@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -225,6 +226,59 @@ try {
     },
   });
   assert.notEqual(smokePointerCheck.status, 0);
+
+  // A clone with core.autocrlf=true checks generated files out as CRLF. That is not a hand-edit,
+  // so the divergence guard must ignore it — while still catching a real content change, and
+  // still accepting manifests written before hashes were EOL-normalized.
+  const eolRoot = path.join(root, "eol-target");
+  const eolManifest = path.join(eolRoot, "sync-manifest.json");
+  const eolEnv = { FHF_SYNC_TARGET_ROOT: eolRoot, FHF_SYNC_MANIFEST: eolManifest };
+  const eolRun = (args = []) => spawnSync(process.execPath, [script, ...args], {
+    encoding: "utf8",
+    env: { ...process.env, ...eolEnv },
+  });
+
+  assert.equal(eolRun(["--force", "--only-root"]).status, 0);
+  const rulesDir = path.join(eolRoot, ".claude", "rules");
+  const eolFile = path.join(rulesDir, fs.readdirSync(rulesDir).find((n) => n.endsWith(".md")));
+  const projected = fs.readFileSync(eolFile, "utf8");
+
+  // Flip whatever was projected to the opposite line ending, so the guard checks below run
+  // the same way on an LF clone and on a core.autocrlf=true clone.
+  fs.writeFileSync(
+    eolFile,
+    projected.includes("\r\n") ? projected.replaceAll("\r\n", "\n") : projected.replaceAll("\n", "\r\n"),
+    "utf8",
+  );
+  const eolOnly = eolRun(["--only-root"]);
+  assert.equal(eolOnly.status, 0, `EOL-only checkout must not block: ${eolOnly.stderr}`);
+
+  // A real content change on top of that must still block, and must not be overwritten.
+  const handEdited = `${fs.readFileSync(eolFile, "utf8")}hand-edited\n`;
+  fs.writeFileSync(eolFile, handEdited, "utf8");
+  const contentChanged = eolRun(["--only-root"]);
+  assert.notEqual(contentChanged.status, 0, "a real hand-edit must still block");
+  assert.match(contentChanged.stderr, /Sync blocked/);
+  assert.equal(fs.readFileSync(eolFile, "utf8"), handEdited);
+
+  // Legacy manifest: pre-fix runs stored raw-byte hashes. Upgrading must not mass-block.
+  assert.equal(eolRun(["--force", "--only-root"]).status, 0);
+  const legacy = JSON.parse(fs.readFileSync(eolManifest, "utf8"));
+  const legacyKey = Object.keys(legacy).find((k) => k.endsWith(path.basename(eolFile)));
+  const crlf = fs.readFileSync(eolFile, "utf8").replaceAll("\n", "\r\n");
+  fs.writeFileSync(eolFile, crlf, "utf8");
+  legacy[legacyKey] = createHash("sha256").update(crlf).digest("hex");
+  fs.writeFileSync(eolManifest, JSON.stringify(legacy, null, 2), "utf8");
+  const legacyRun = eolRun(["--only-root"]);
+  assert.equal(legacyRun.status, 0, `legacy raw-byte manifest must be accepted: ${legacyRun.stderr}`);
+
+  // Projection output must not depend on how this harness clone checked the source out.
+  assert.equal(eolRun(["--force", "--only-root"]).status, 0);
+  assert.equal(
+    fs.readFileSync(eolFile, "utf8").includes("\r\n"),
+    false,
+    "projected content must be written LF-only regardless of the source checkout",
+  );
 
   console.log("sync-loader safety tests passed");
 } finally {
