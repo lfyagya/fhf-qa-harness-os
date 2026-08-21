@@ -6,6 +6,10 @@ authoring depth (Interaction Impact Tag), AAA structure, and the config/command 
 document starts where a spec already exists and asks: when does it run, and what does its failure
 mean?
 
+**Quick-look form:** `smoke-checklist.md` — a one-screen MUST / SHOULD / MUST NOT derived from this
+document. It is derived, not authoritative: change the reasoning here first, then re-derive it.
+Rows enforceable from source text are guarded in `.claude/hooks/validate-cypress-rules.mjs`.
+
 **Status:** proposed 2026-07-29, not implemented. §6 lists the three changes required.
 Grounded in Cypress Cloud runs 141–155 (project `r5k1ro`), not estimates.
 
@@ -27,7 +31,7 @@ registry. If you find it untracked again, commit it before editing it.
 | Tiers | **1** — every test blocks every push | `buildspec.yml` build phase |
 | Retries | `runMode: 0` | `cypress.config.js:107` |
 | Cloud-reported flake | `0` in every run | runs 141–155 |
-| `@critical`-tagged tests | ~20 of 669, in 9 of 40 specs | `grep tags:` |
+| `@critical`-tagged tests | 19 of 669, in **7** of 39 specs — all Ancillary | `grep -E '\b[A-Z]\.CRITICAL'`, 2026-08-20 |
 | Latest full-suite result | 634 pass / 13 fail | run 155 |
 
 Five things follow, and each is a defect in the *strategy*, not in any individual test.
@@ -483,7 +487,104 @@ does **not** mark anything tested or change counts, so it is not a lever on the 
 
 ---
 
-## 8. Open, and not the agent's call
+## 8. Industry grounding — and the one place this lane diverges
+
+§§2–3 were derived from local measurement (runs 141–155) with no external reference. The
+comparison below uses [Google SRE's testing-reliability guidance](https://sre.google/sre-book/testing-reliability/),
+[Microsoft's testing guidance](https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/testing),
+and [Fowler's subcutaneous-test explanation](https://martinfowler.com/bliki/SubcutaneousTest.html).
+**The tiering decisions hold up; the lane's composition does not.**
+
+### What §§2–3 got right without knowing it
+
+- **"Smoke answers one question: is this dashboard up in production right now?"** (§3) fits
+  Google SRE's description of smoke tests as simple critical system behavior that short-circuits
+  more expensive testing.
+- **The three-per-route cap and the ~80-test gate** (§2, §3) fit Microsoft's recommendation to
+  run fast smoke tests on every commit while reserving broader regression coverage for a slower
+  cadence.
+- **The exclusion table** (§3) lines up almost item-for-item with what the sources push out of
+  smoke: filter permutations, sort ordering, tab-by-tab validation, detail deep links.
+- **`runMode: 0`** (§5) is the strict reading of the reliability bar. Microsoft notes the cost of
+  unreliable tests; a retry that absorbs a real outage is the failure mode §5 already names.
+- **A prod-targeted read-only lane is endorsed, not merely tolerated.** Google SRE's production
+  probes replay known-good requests against production to expose incompatibilities between test and
+  production environments. The acdwrapper drift (D1 in
+  `planning/smoke-ui-api-db-chain-coverage.md`) is that phenomenon exactly.
+- **Canary is not smoke.** Google SRE distinguishes a canary from a test: it is structured user
+  acceptance. Preserve that distinction if canarying is proposed as a substitute for the gate.
+
+### Where the lane diverges: the pyramid is inverted
+
+The sources favour selective UI testing and more coverage below the UI. Microsoft identifies UI and
+end-to-end tests as costly and fragile, while Fowler's **subcutaneous test** exercises the system
+through an API below the UI to retain much of the end-to-end confidence without UI-framework
+complexity.
+
+Measured against that, across both lanes:
+
+| | Count | Sub-modules reached | Industry position |
+|---|---:|---:|---|
+| UI tests (this lane) | 652–669 | 38 of 38 | should be the **thin** layer |
+| API health (backend lane) | 238 | 21 of 38 | should be the **thick** layer |
+| DB connectivity + master data | 153 | 20 of 38 | best-aligned layer — see below |
+
+**A 669-test suite is not a smoke suite by any definition in these sources; it is a UI regression
+suite named smoke.** That is not an argument to delete it — it is the argument for §2's tiering.
+The gate tier *is* the smoke suite; the sweep is regression. §2 already resolves this, and the
+external sources raise its priority from housekeeping to the thing that makes the word "smoke"
+accurate.
+
+The corollary §2 does not cover: **rebalancing beats adding.** The API layer is thinnest where it
+should be thickest. Promoting API-health coverage to all 38 sub-modules does more for deploy
+confidence than any further UI test, and it carries none of the flake cost.
+
+### Gate composition across layers
+
+§3 defines what earns `@critical` within this lane. The documents above support early, fast checks;
+the following dependency-reachability ordering is an internal engineering decision for this suite,
+not an attributed industry quotation.
+
+Dependency reachability is the cheapest, most deterministic, highest-triage-value check available
+— no flake, no live-data dependency. The backend lane's DB-connectivity layer already implements it
+well. Ordering the gate by cost of failure:
+
+| Order | Layer | Gate content | Owner lane |
+|---:|---|---|---|
+| 1 | Environment | app reachable at configured URL; datastore accepts a connection; every configured dependency resolves **at its configured location**; auth succeeds and unauthenticated is rejected | backend + `unauthenticated.smoke.cy.js` |
+| 2 | Schema | every table/view read by the module exists and is queryable; every package, body, procedure, trigger is `VALID`; reference key sets exact | backend |
+| 3 | API | every on-load endpoint returns 200 within its **own** latency budget; envelope shape; item schema; count reconciles with DB | backend |
+| 4 | UI | route loads; primary data container renders; count reconciles — the three per route from §3, and nothing more | this lane |
+
+Run in that order and fail fast: a broken dependency should never be discovered by a UI timeout.
+
+Layer 4 additions to §3's exclusion table, from these sources — **out of the gate, and out of a
+production lane entirely**: any mutating call, any multi-step business workflow, visual/pixel
+assertions, and third-party services under test (Cypress: stub or bypass; never drive Gmail, social
+login, or anything with rate limiting or bot detection).
+
+### Exit criteria
+
+**Smoke has no acceptable failure rate.** A "known failure" in the gate is a broken gate, and a
+green build with a dead module inside it is the §1(5) / §4 aggregate problem restated. This is why
+per-module verdicts (§4) are not a refinement but a precondition — 634/669 reads as 95% healthy
+while Checks sits at 0/10.
+
+Budget check against the sources' "minutes, not hours": §2's 3-minute gate is right. Layers 1–3
+should land inside 5 minutes on their own; if the backend lane's 391 tests cannot, they need the
+same gate/sweep split this document specifies for the UI lane.
+
+### Prerequisite
+
+Per-module gap data lives in `planning/smoke-ui-api-db-chain-coverage.md` (15 of 38 sub-modules have
+the full UI→API→DB chain). That document's own §1 caveat applies here: **the backend suite has never
+been executed in this workspace**, so its 391 tests are counted, not verified. Smoke's exit
+criterion is 100% pass; until a baseline run exists, layers 1–3 above describe intent rather than a
+gate.
+
+---
+
+## 9. Open, and not the agent's call
 
 - **The 13 remaining run-155 failures are not triaged here.** Four are Impound Quick Search failing
   on an absent `[data-cy="search-icon"]` — same shape as the Recon Quick Search tests deleted as
@@ -494,3 +595,16 @@ does **not** mark anything tested or change counts, so it is not a lever on the 
   and see §4a(2) for how that interacts with the coverage gate.
 - **Whether the sweep runs nightly or per-merge** — a cost decision (Cloud minutes vs. staleness).
 - **Whether the gate also runs on `dev`/`qa`,** or only the branches that map to prod.
+- **`common/unauthenticated.smoke.cy.js` registers a raw intercept** and has been failing
+  `validate-cypress-rules.mjs`'s spec-boundary rule the whole time — it is the one remaining
+  blocking violation across all 39 specs (swept 2026-08-20). Fixing it means moving interception
+  into a command, which is a real refactor with its own blast radius, not a tag edit. Decide whether
+  to do that or to grant the auth-error spec an explicit exemption.
+- **Three configured harness gates do not exist**, so the checks that reference them silently never
+  run: `scripts/harness/sync-loader-shims.mjs` and `scripts/harness/check-loader-drift.mjs`
+  (`.claude/harness.config.json:1147,1150`, invoked by the `sync-reminder` hook on every
+  framework-file edit) and `scripts/harness/check-docs-links.mjs` (required by
+  `.claude/rules/session-rules.md` after any documentation change). `scripts/` contains only
+  `evidence/` and `execution/`. Either the tree was never ported into this workspace or the config
+  points at `fhf-harness-os`; until it is resolved, "run the sync" is a reminder with nothing behind
+  it — the same class of unenforced rule §5 exists to eliminate.
