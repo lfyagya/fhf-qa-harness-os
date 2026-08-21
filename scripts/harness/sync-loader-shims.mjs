@@ -124,13 +124,32 @@ function hash(content) {
   return createHash("sha256").update(content).digest("hex");
 }
 
+// Generated content is authored LF-only, but a clone with core.autocrlf=true checks the same
+// bytes out as CRLF. Hashing raw bytes therefore reported an EOL-only checkout as a hand-edit
+// and blocked the sync. Track content, not line endings — the same normalization
+// check-loader-drift.mjs already applies on both sides of its comparison.
+function normalizeEol(content) {
+  return content.replace(/\r\n/g, "\n");
+}
+
+function contentHash(content) {
+  return hash(normalizeEol(content));
+}
+
+// Manifests written before contentHash() stored raw-byte hashes. Accept those too so upgrading
+// doesn't block every file at once and push the operator toward --force, which is precisely the
+// blind overwrite this guard exists to prevent. Entries migrate as each file is next synced.
+function matchesLastSynced(content, lastSynced) {
+  return contentHash(content) === lastSynced || hash(content) === lastSynced;
+}
+
 // Returns true if it's safe to write; records the guard failure and returns false otherwise.
 function guardWrite(filePath, newContent) {
   if (FORCE || !fs.existsSync(filePath)) return true;
-  const currentHash = hash(fs.readFileSync(filePath, "utf8"));
+  const current = fs.readFileSync(filePath, "utf8");
   const lastSynced = manifest[manifestKey(filePath)];
   if (!lastSynced && FIRST_SYNC_GENERATED.has(filePath)) return true;
-  if (!lastSynced || currentHash !== lastSynced) {
+  if (!lastSynced || !matchesLastSynced(current, lastSynced)) {
     blocked.push(filePath);
     return false;
   }
@@ -171,7 +190,7 @@ function writeText(filePath, content) {
   if (!guardWrite(filePath, normalized)) return;
   if (preflight) return;
   stageWrite(filePath, normalized);
-  manifest[manifestKey(filePath)] = hash(normalized);
+  manifest[manifestKey(filePath)] = contentHash(normalized);
 }
 
 function copyDirSync(src, dest) {
@@ -185,11 +204,13 @@ function copyDirSync(src, dest) {
     if (entry.isDirectory()) {
       copyDirSync(s, d);
     } else {
-      const content = fs.readFileSync(s, "utf8");
+      // Normalize on write like writeText does, so projected bytes don't depend on whether
+      // this harness clone checked the source out as LF or CRLF.
+      const content = normalizeEol(fs.readFileSync(s, "utf8"));
       if (!guardWrite(d, content)) continue;
       if (preflight) continue;
       stageWrite(d, content);
-      manifest[manifestKey(d)] = hash(content);
+      manifest[manifestKey(d)] = contentHash(content);
     }
   }
   // Remove generated entries whose source no longer exists — same divergence guard applies.
@@ -202,9 +223,9 @@ function copyDirSync(src, dest) {
         blocked.push(`${dpath} (would be deleted — directory ownership is untracked)`);
         continue;
       }
-      const currentHash = hash(fs.readFileSync(dpath, "utf8"));
+      const current = fs.readFileSync(dpath, "utf8");
       const lastSynced = manifest[manifestKey(dpath)];
-      if (!lastSynced || currentHash !== lastSynced) {
+      if (!lastSynced || !matchesLastSynced(current, lastSynced)) {
         blocked.push(`${dpath} (would be deleted — diverged since last sync)`);
         continue;
       }
