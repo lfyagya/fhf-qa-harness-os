@@ -21,9 +21,17 @@ function write(file, content = "ok\n") {
   fs.writeFileSync(file, content, "utf8");
 }
 
+// execution-setup.mjs resolves its worktree from CLAUDE_PROJECT_DIR / CURSOR_PROJECT_DIR before
+// falling back to cwd. Those are always set inside a real Claude Code or Cursor session, so an
+// inherited value pointed the child at the developer's workspace instead of this fixture and the
+// lane read as "root" — the test only passed outside an agent session. Strip them, like the
+// GIT_* isolation in test-hooks.mjs.
+const isolatedEnv = { ...process.env };
+for (const key of ["CLAUDE_PROJECT_DIR", "CURSOR_PROJECT_DIR"]) delete isolatedEnv[key];
+
 function command(commandName, args, cwd = root) {
   return new Promise((resolve) => {
-    const child = spawn(commandName, args, { cwd });
+    const child = spawn(commandName, args, { cwd, env: isolatedEnv });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });

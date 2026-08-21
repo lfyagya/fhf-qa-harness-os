@@ -12,6 +12,7 @@ import {
   wilsonInterval,
 } from "./evals/reliability.mjs";
 import { readTraceFile, repairOutcomesFromTrace } from "./evals/runtime-evidence.mjs";
+import { recordJiraTicketAccessOutcome } from "../../.claude/hooks/lib/jira-ticket-access.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CONFIG_PATH = path.join(ROOT, "config", "qa-control-plane.json");
@@ -31,15 +32,16 @@ function routeFromOutput(stdout) {
 function runRouter(prompt, env = {}) {
   const ticket = String(prompt).match(/\b(SERV-\d+)\b/i)?.[1]?.toUpperCase();
   if (ticket) {
-    const directory = path.join(ROUTER_EVAL_ROOT, "cypress", "handoff", "jira-access");
-    fs.mkdirSync(directory, { recursive: true });
-    fs.writeFileSync(path.join(directory, `${ticket}.json`), JSON.stringify({
-      schema: "fhf-harness/jira-ticket-access-state/v1",
+    // A ticket key trips the jira-ticket-read capability gate, which would block before any
+    // route hint is emitted. Record an observed read through the harness's own writer rather
+    // than hand-building the state file: capabilityControl moved this state once already, and
+    // a hand-rolled copy silently stopped satisfying the gate.
+    recordJiraTicketAccessOutcome({
       ticket,
+      root: ROUTER_EVAL_ROOT,
+      config,
       outcome: "readable",
-      attempts: 1,
-      updatedAt: new Date().toISOString(),
-    }));
+    });
   }
   return spawnSync(process.execPath, [path.join(ROOT, ".claude", "hooks", "prompt-router.mjs")], {
     cwd: ROOT,
