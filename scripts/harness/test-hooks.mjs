@@ -14,13 +14,22 @@ import { recordCapabilityOutcome } from "../../.claude/hooks/lib/capability-cont
 const HOOKS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks");
 const HARNESS_ROOT = path.resolve(HOOKS, "..", "..");
 const failures = [];
+const isolatedGitEnv = { ...process.env };
+for (const key of [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_COMMON_DIR",
+]) delete isolatedGitEnv[key];
 
 function run(hook, payload, env = {}, args = []) {
   const r = spawnSync("node", [path.join(HOOKS, hook), ...args], {
     input: JSON.stringify(payload),
     encoding: "utf8",
     timeout: 15000,
-    env: { ...process.env, ...env },
+    env: { ...isolatedGitEnv, ...env },
   });
   return { code: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
@@ -29,7 +38,7 @@ function runProbe(hook) {
   const r = spawnSync("node", [path.join(HOOKS, hook)], {
     encoding: "utf8",
     timeout: 15000,
-    env: process.env,
+    env: isolatedGitEnv,
   });
   return { code: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
@@ -113,15 +122,22 @@ writeFileSync(backendBadTestPath, [
   "def test_users(api_client):",
   "    assert api_client.get_users().status_code == 200",
 ].join("\n"));
-execFileSync("git", ["init", "--quiet", backendRoot]);
-execFileSync("git", ["-C", backendRoot, "add", "."]);
+const fixtureGitEnv = { ...isolatedGitEnv };
+execFileSync("git", ["init", "--quiet", backendRoot], { env: fixtureGitEnv });
+const backendHooks = path.join(backendRoot, ".hook-fixture");
+mkdirSync(backendHooks, { recursive: true });
+execFileSync("git", ["-C", backendRoot, "add", "."], { env: fixtureGitEnv });
 execFileSync("git", [
   "-C", backendRoot,
+  "-c", `core.hooksPath=${backendHooks}`,
   "-c", "user.name=FHF Harness",
   "-c", "user.email=fhf-harness@example.invalid",
   "commit", "--quiet", "-m", "fixture",
-]);
-const backendSha = execFileSync("git", ["-C", backendRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+], { env: fixtureGitEnv });
+const backendSha = execFileSync("git", ["-C", backendRoot, "rev-parse", "HEAD"], {
+  encoding: "utf8",
+  env: fixtureGitEnv,
+}).trim();
 const activeTaskPath = path.join(tmp, "active-task.json");
 const activeTask = {
   schema: "fhf-harness/task/v1",
@@ -539,7 +555,7 @@ expect("prompt-router blocks malformed harness config with repair guidance",
   }),
   (r) => r.code === 2 && r.stderr.includes("Harness configuration is unavailable or invalid") && r.stderr.includes("Harness config is invalid"));
 expect("prompt-router blocks ticket grounding and requests Jira OAuth access",
-  run("prompt-router.mjs", { prompt: "work SERV-11887" }),
+  run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "false", CLAUDE_CWD: tmp }),
   (r) => r.code === 2 && r.stderr.includes("CAPABILITY BLOCKED") && r.stderr.includes("OAuth") && r.stderr.includes("sanitized ticket export"));
 expect("prompt-router blocks a declared connector until a live ticket read is recorded",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "true", CLAUDE_CWD: tmp }),

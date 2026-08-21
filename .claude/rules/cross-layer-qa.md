@@ -19,4 +19,3 @@ Use one active manifest and one specialist:
 
 No layer is presumed applicable or passing. Use NOT_APPLICABLE with evidence or UNKNOWN.
 Production Smoke stays GET-only; backend automation stays Dev/QA.
-

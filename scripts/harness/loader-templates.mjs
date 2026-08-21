@@ -439,8 +439,8 @@ the exact safe access or approved fallback when a selected capability cannot be 
 TestRail is task-selected for case lookup/reporting only; uploads always need separate explicit approval.
 Use \`node .harness/task-protocol.mjs contract\` to inspect the task schema, then \`validate\`,
 \`digest\`, and \`next\` against one runtime-only task manifest. These commands are read-only and
-never approve, commit, merge, deploy, or write externally.
-${backendRunner}
+never approve, commit, merge, deploy, or write externally.${backendRunner ? `
+${backendRunner.trimEnd()}` : ""}
 `;
 }
 
