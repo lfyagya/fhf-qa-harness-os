@@ -394,3 +394,47 @@ export function markdownToStorage(markdown, options = {}) {
   flushAll();
   return { storage: output.join(""), issues: context.issues, title };
 }
+
+// --- page-map maintenance -------------------------------------------------
+//
+// A page entry whose pageId is null is a declared documentation owner with no Confluence page
+// yet. The publisher creates those on a --publish run and writes the returned identifier back
+// into the control plane, so a new owner never needs a manual round-trip through the Confluence
+// UI. Both helpers are pure so the projection suite can cover them.
+
+/**
+ * Page entries that are declared but not yet created.
+ *
+ * @param {Array<{source: string, pageId: string|null}>} pages
+ * @returns {Array<object>} entries awaiting creation
+ */
+export function pagesNeedingCreation(pages) {
+  return (pages ?? []).filter((page) => page.pageId === null || page.pageId === undefined);
+}
+
+/**
+ * Assigns a Confluence page identifier to one entry in the raw control-plane text.
+ *
+ * Edits the text instead of reserialising the parsed object, because the control plane is
+ * hand-authored: JSON.stringify rewrites its indentation and line endings, which buries a
+ * one-line change in a whole-file diff.
+ *
+ * @param {string} configText raw qa-control-plane.json contents
+ * @param {string} source the page entry to assign, matched exactly
+ * @param {string} pageId the numeric identifier Confluence returned
+ * @returns {string} the updated text
+ */
+export function withAssignedPageId(configText, source, pageId) {
+  if (!/^[0-9]+$/.test(String(pageId))) {
+    throw new Error(`Refusing to assign a non-numeric Confluence pageId: ${pageId}`);
+  }
+  const sourceAt = configText.indexOf(`"source": "${source}",`);
+  if (sourceAt === -1) throw new Error(`No page entry for source: ${source}`);
+  const KEY = `"pageId":`;
+  const keyAt = configText.indexOf(KEY, sourceAt);
+  const nullAt = configText.indexOf("null", keyAt);
+  if (keyAt === -1 || nullAt === -1 || configText.slice(keyAt + KEY.length, nullAt).trim() !== "") {
+    throw new Error(`Page entry is not awaiting an id: ${source}`);
+  }
+  return `${configText.slice(0, nullAt)}"${pageId}"${configText.slice(nullAt + "null".length)}`;
+}

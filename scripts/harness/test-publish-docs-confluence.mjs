@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { markdownToStorage } from './docs-confluence-lib.mjs';
+import { markdownToStorage, pagesNeedingCreation, withAssignedPageId } from './docs-confluence-lib.mjs';
 
 const failures = [];
 
@@ -104,6 +104,49 @@ try {
   expect('rejects an unknown dialect', 'no error', () => false);
 } catch (error) {
   expect('rejects an unknown dialect', error.message, 'Unknown Confluence dialect');
+}
+
+// --- page-map maintenance -------------------------------------------------
+
+const CRLF = String.fromCharCode(13, 10);
+const LF = String.fromCharCode(10);
+const countOf = (text, needle) => text.split(needle).length - 1;
+
+const pageMap = [
+  { source: 'docs/a.md', pageId: '111', title: 'A' },
+  { source: 'docs/b.md', pageId: null, title: 'B' },
+  { source: 'docs/c.md', pageId: null, title: 'C' },
+];
+expect('finds every page awaiting creation', pagesNeedingCreation(pageMap).map((page) => page.source).join(), 'docs/b.md,docs/c.md');
+expect('treats an assigned page as created', pagesNeedingCreation(pageMap), (value) => !value.some((page) => page.pageId));
+expect('tolerates an absent page list', pagesNeedingCreation(undefined), (value) => value.length === 0);
+
+const configText = [
+  '            "source": "docs/a.md",',
+  '            "pageId": "111",',
+  '            "title": "A"',
+  '            "source": "docs/b.md",',
+  '            "pageId": null,',
+  '            "title": "B"',
+].join(CRLF);
+
+const assigned = withAssignedPageId(configText, 'docs/b.md', '4472600000');
+expect('assigns the returned id', assigned, '"pageId": "4472600000"');
+expect('leaves an already-assigned entry alone', assigned, '"pageId": "111"');
+expect('writes no bare line feed', assigned, (value) => countOf(value, LF) === countOf(value, CRLF));
+expect('rewrites only the null token', assigned, (value) => value.length === configText.length + 8);
+
+for (const [name, source, id] of [
+  ['refuses an unknown source', 'docs/zz.md', '1'],
+  ['refuses an entry that already has an id', 'docs/a.md', '1'],
+  ['refuses a non-numeric id', 'docs/b.md', '12a'],
+]) {
+  try {
+    withAssignedPageId(configText, source, id);
+    expect(name, 'no error', () => false);
+  } catch (error) {
+    expect(name, error.message, (value) => value.length > 0);
+  }
 }
 
 if (failures.length) {

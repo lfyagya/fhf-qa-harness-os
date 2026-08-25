@@ -2280,6 +2280,31 @@
             "source": "docs/adoption/qa-ai-adoption-strategy.md",
             "pageId": "4472569863",
             "title": "QA AI Adoption Program Workshop and Sync Cadence"
+          },
+          {
+            "source": "docs/framework/testing-standards/TESTS.md",
+            "pageId": null,
+            "title": "FHF Testing Standard"
+          },
+          {
+            "source": "docs/framework/execution-strategy.md",
+            "pageId": null,
+            "title": "FHF Test Execution Strategy"
+          },
+          {
+            "source": "docs/framework/triage-runbook.md",
+            "pageId": null,
+            "title": "Cypress Cloud Triage Runbook"
+          },
+          {
+            "source": "docs/planning/data-cy-hook-backlog.md",
+            "pageId": null,
+            "title": "data-cy Product Hook Ledger"
+          },
+          {
+            "source": "docs/evidence/regression-effort/README.md",
+            "pageId": null,
+            "title": "Regression-Effort Evidence Workflow"
           }
         ]
       }
