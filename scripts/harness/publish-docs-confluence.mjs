@@ -20,6 +20,7 @@ import {
   sha256,
   pagesNeedingCreation,
   withAssignedPageId,
+  publishRunRecord,
 } from "./docs-confluence-lib.mjs";
 import { resolveConsumerRoot } from "./workspace-paths.mjs";
 
@@ -169,6 +170,7 @@ async function resolveSpaceId() {
 // exist before its id can be substituted into the links its siblings make to it.
 async function createPending(pending) {
   const spaceId = await resolveSpaceId();
+  const createdPages = [];
   for (const page of pending) {
     const created = await request("POST", `${credentials.baseUrl}/wiki/api/v2/pages`, {
       spaceId,
@@ -186,12 +188,26 @@ async function createPending(pending) {
       "utf8",
     );
     console.log(`create  ${id}  ${page.title}`);
+    createdPages.push({ source: page.source, title: page.title, pageId: id });
   }
+  return createdPages;
+}
+
+// The run record. Written in both modes, and written before the write-back guard can fail, so a
+// created identifier is never only in a terminal scrollback.
+function writeRunRecord(run) {
+  const file = path.join(consumerRoot, "cypress", "handoff", "confluence-publish.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(publishRunRecord(run), null, 2)}\n`, "utf8");
+  return file;
 }
 
 async function main() {
   const publish = flag("--publish");
-  let created = 0;
+  let createdPages = [];
+  const updatedPages = [];
+  const unchangedPages = [];
+  const ranAt = new Date().toISOString();
   if (publish && !authorized) {
     fail(
       `--publish needs ${publishing.emailEnv} and ${publishing.apiTokenEnv} in the environment. ` +
@@ -205,8 +221,7 @@ async function main() {
     pending.forEach((page) => console.log(`  create  ${page.title}  (${page.source})`));
     console.log("Links to them render as placeholders until --publish creates them.");
   } else if (pending.length) {
-    await createPending(pending);
-    created = pending.length;
+    createdPages = await createPending(pending);
     built = buildAll();
   }
   writeRendered(built);
@@ -233,6 +248,7 @@ async function main() {
 
     if (!publish || upToDate) {
       skipped += 1;
+      unchangedPages.push({ source: page.source, pageId: page.pageId ?? null, state });
       continue;
     }
     await request("PUT", `${credentials.baseUrl}/wiki/api/v2/pages/${page.pageId}`, {
@@ -243,11 +259,22 @@ async function main() {
       version: { number: (live?.version?.number ?? 0) + 1, message: `Generated from ${page.source} (${marker})` },
     });
     changed += 1;
+    updatedPages.push({ source: page.source, pageId: page.pageId });
   }
+
+  const record = {
+    mode: publish ? "publish" : "dry-run",
+    ranAt,
+    spaceKey: publishing.spaceKey,
+    created: createdPages,
+    updated: updatedPages,
+    unchanged: unchangedPages,
+  };
 
   if (!publish) {
     console.log(
       `\nNOTHING WAS WRITTEN. Dry run: ${built.length} page(s) rendered.` +
+        `\nRun record: ${writeRunRecord(record)}` +
         (authorized ? "" : `\nSet ${publishing.emailEnv} and ${publishing.apiTokenEnv} to compare against live pages.`) +
         "\nRe-run with --publish to write. Confluence writes require owner approval.",
     );
@@ -261,16 +288,20 @@ async function main() {
   const unrecorded = pagesNeedingCreation(
     JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).documentation?.publishing?.confluence?.pages,
   );
+  // Written before the guard can fail, so a created identifier is recoverable from this file rather
+  // than from the space by hand.
+  const recordFile = writeRunRecord({ ...record, unrecorded });
   if (unrecorded.length) {
     fail(
       `published, but ${unrecorded.length} page id(s) were not recorded in ${path.basename(CONFIG_FILE)}: ` +
         `${unrecorded.map((page) => page.source).join(", ")}. ` +
         "Those pages now exist in the space and this file does not know their ids, so re-running would " +
-        "create duplicates. Record the ids by hand before publishing again.",
+        `create duplicates. The ids are in ${recordFile}; record them before publishing again.`,
     );
   }
   console.log(
-    `\nCreated ${created} page(s); updated ${changed}; ${skipped} already current or unchanged.`,
+    `\nCreated ${createdPages.length} page(s); updated ${changed}; ${skipped} already current or unchanged.` +
+      `\nRun record: ${recordFile}`,
   );
 }
 

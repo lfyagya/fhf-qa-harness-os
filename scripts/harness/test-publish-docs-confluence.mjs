@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { markdownToStorage, pagesNeedingCreation, withAssignedPageId } from './docs-confluence-lib.mjs';
+import { markdownToStorage, pagesNeedingCreation, withAssignedPageId, publishRunRecord } from './docs-confluence-lib.mjs';
 
 const failures = [];
 
@@ -148,6 +148,37 @@ for (const [name, source, id] of [
     expect(name, error.message, (value) => value.length > 0);
   }
 }
+
+// --- run record -----------------------------------------------------------
+
+const stamp = '2026-01-01T00:00:00.000Z';
+const publishRun = publishRunRecord({
+  mode: 'publish',
+  ranAt: stamp,
+  spaceKey: 'TE',
+  created: [{ source: 'a.md', title: 'A', pageId: '111' }],
+  updated: [{ source: 'b.md', pageId: '222' }],
+  unchanged: [{ source: 'c.md', pageId: '333' }],
+});
+expect('stamps the record schema', publishRun.schema, 'fhf-harness/confluence-publish/v1');
+expect('marks a publish run as having written', publishRun.wrote, (value) => value === true);
+expect('counts each outcome separately', JSON.stringify(publishRun.counts), '{"created":1,"updated":1,"unchanged":1,"unrecorded":0}');
+expect('keeps created ids for recovery', JSON.stringify(publishRun.created), '111');
+expect('a fully recorded run is healthy', publishRun.healthy, (value) => value === true);
+
+const dryRun = publishRunRecord({ mode: 'dry-run', ranAt: stamp, spaceKey: 'TE' });
+expect('marks a dry run as having written nothing', dryRun.wrote, (value) => value === false);
+expect('tolerates absent outcome lists', JSON.stringify(dryRun.counts), '{"created":0,"updated":0,"unchanged":0,"unrecorded":0}');
+
+const desynced = publishRunRecord({
+  mode: 'publish',
+  ranAt: stamp,
+  spaceKey: 'TE',
+  created: [{ source: 'a.md', title: 'A', pageId: '111' }],
+  unrecorded: [{ source: 'a.md' }],
+});
+expect('an unrecorded id makes the run unhealthy', desynced.healthy, (value) => value === false);
+expect('and is still recoverable from the record', JSON.stringify(desynced.created), '111');
 
 if (failures.length) {
   console.error('\nConfluence projection test failed:');
