@@ -191,6 +191,7 @@ async function createPending(pending) {
 
 async function main() {
   const publish = flag("--publish");
+  let created = 0;
   if (publish && !authorized) {
     fail(
       `--publish needs ${publishing.emailEnv} and ${publishing.apiTokenEnv} in the environment. ` +
@@ -205,6 +206,7 @@ async function main() {
     console.log("Links to them render as placeholders until --publish creates them.");
   } else if (pending.length) {
     await createPending(pending);
+    created = pending.length;
     built = buildAll();
   }
   writeRendered(built);
@@ -245,13 +247,31 @@ async function main() {
 
   if (!publish) {
     console.log(
-      `\nDry run: ${built.length} page(s) rendered, nothing written.` +
+      `\nNOTHING WAS WRITTEN. Dry run: ${built.length} page(s) rendered.` +
         (authorized ? "" : `\nSet ${publishing.emailEnv} and ${publishing.apiTokenEnv} to compare against live pages.`) +
         "\nRe-run with --publish to write. Confluence writes require owner approval.",
     );
     return;
   }
-  console.log(`\nPublished ${changed} page(s); ${skipped} already current.`);
+  // A publish run must leave every identifier recorded. Creation writes each one back immediately, so
+  // a null surviving here means a create was reported but not persisted — the state that silently
+  // desynchronises this file from the space, and makes the next run create duplicates instead of
+  // updating. Re-read from disk rather than trusting the in-memory copy: the point is to prove the
+  // write landed.
+  const unrecorded = pagesNeedingCreation(
+    JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).documentation?.publishing?.confluence?.pages,
+  );
+  if (unrecorded.length) {
+    fail(
+      `published, but ${unrecorded.length} page id(s) were not recorded in ${path.basename(CONFIG_FILE)}: ` +
+        `${unrecorded.map((page) => page.source).join(", ")}. ` +
+        "Those pages now exist in the space and this file does not know their ids, so re-running would " +
+        "create duplicates. Record the ids by hand before publishing again.",
+    );
+  }
+  console.log(
+    `\nCreated ${created} page(s); updated ${changed}; ${skipped} already current or unchanged.`,
+  );
 }
 
 main().catch((error) => fail(error.message));
