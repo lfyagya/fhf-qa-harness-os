@@ -12,3 +12,6 @@
 
 # Runtime loop state and trace artifacts are workspace-local and regenerable.
 cypress/handoff/
+
+# Rendered documentation projections written by publish-docs-confluence.mjs --out.
+build/

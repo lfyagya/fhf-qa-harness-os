@@ -59,12 +59,16 @@ The initial context contains task intent, selected ticket metadata, and reposito
 It does not contain repository trees, source files, full Jira history, attachment bodies, all product
 specifications, or the Obsidian vault. Source expands one graph hop at a time only for a matched
 call/import, API or Oracle contract, linked development item, declared topology edge, or QA impact.
-Every expansion reason is frozen in the task manifest.
+Every expansion reason is frozen in the task manifest. After source is frozen, the next required
+action is `classify-intent-vs-built`; planning and test authoring stay blocked while any row is
+missing or `ask-product`.
 
-Approval binds to the selected ticket projection, acceptance criteria, repository SHAs/paths, graph
-slice, change DAG, impact scope, runners, and proof modes. A change to any bound field invalidates the
-approval digest. Cypress, Smoke, API, Oracle, and third-party flows require native execution evidence;
-they cannot claim RED/GREEN from a synthetic Git replay.
+Approval binds to the selected ticket projection, acceptance criteria, repository SHAs/paths,
+intent-vs-built classification, graph slice, change DAG, impact scope, runners, and proof modes. A
+change to any bound field invalidates the approval digest. Cypress, Smoke, API, Oracle, and
+third-party flows require native execution evidence; they cannot claim RED/GREEN from a synthetic Git
+replay. Stubbed external proof cannot complete a `same` or `accepted` row. A classified `defect`
+blocks verified/complete.
 
 For backend authoring or execution, set FHF_ACTIVE_TASK to the absolute validated manifest path.
 File hooks allow only fhf-backend-automation paths selected by both grounding.repositories and
@@ -188,10 +192,17 @@ is contextual only; it never substitutes for repository evidence or approval.
 
 ## Source precedence
 
-Live application source, backend source, actual API responses, and DB evidence outrank Jira or
-Confluence prose. Jira and Confluence explain intent and history; they do not silently rewrite
-current-state specifications. Teamwork Graph relationships improve classification, but an
-ambiguous relationship remains in the review queue.
+Intent and built are separate authorities. Jira acceptance criteria and approved product decisions
+say what was asked. Live application source, backend source, API responses, and DB evidence at the
+frozen SHA say what shipped. Jira and Confluence do not silently rewrite current-state
+specifications. Source does not silently rewrite acceptance criteria.
+
+When they disagree, `grounding.intentVsBuilt` must record `same`, `accepted`, `defect`, `parked`, or
+`ask-product` before tests are planned. Do not encode a source-only behavior into a test until the
+row is `same` or `accepted`. Independent oracles (DocMan, Oracle, Outlook, report counts, Airflow
+logs, live unstubbed UI) outrank the implementing agent's self-report and outrank stubbed
+automation. Teamwork Graph relationships improve classification, but an ambiguous relationship
+remains in the review queue.
 
 ## Routing
 

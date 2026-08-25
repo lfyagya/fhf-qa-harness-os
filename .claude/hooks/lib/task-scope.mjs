@@ -77,6 +77,12 @@ function manifestShapeIssues(config, manifest) {
   if (!["functional", "regression", "smoke"].every((kind) => Array.isArray(manifest.plan?.impact?.[kind]))) {
     issues.push("functional, regression, and smoke impact are not all classified");
   }
+  const intentRows = manifest.grounding?.intentVsBuilt?.rows;
+  if (!Array.isArray(intentRows) || intentRows.length === 0) {
+    issues.push("intent-vs-built classification is missing");
+  } else if (intentRows.some((row) => row?.classification === "ask-product" || !row?.classification)) {
+    issues.push("unclassified or ask-product intent-vs-built rows block automation writes");
+  }
   return issues;
 }
 

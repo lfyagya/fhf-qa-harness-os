@@ -82,6 +82,14 @@ const manifest = {
       headSha: revision,
       selectedPaths: ["tests/contracts"],
     }],
+    intentVsBuilt: {
+      rows: [{
+        id: "ac-contract-reference",
+        intent: "Contract reference is visible",
+        built: "Contract reference is visible",
+        classification: "same",
+      }],
+    },
   },
   selection: {
     routeId: "backend-test",
@@ -115,6 +123,8 @@ const manifest = {
       path: "tests/contracts/test_contract.py",
       environment: "qa",
       proofMode: "external-execution-evidence",
+      honesty: "live",
+      acceptanceIds: ["ac-contract-reference"],
     }],
   },
   approval: { required: true, approvedDigest: null, reference: "human-review" },

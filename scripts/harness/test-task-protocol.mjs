@@ -10,6 +10,7 @@ import {
   approvalState,
   canonicalJson,
   dependencyCycles,
+  missingAcceptanceOracleCoverage,
   missingVerificationEvidence,
   nextStep,
   selectProofMode,
@@ -47,6 +48,14 @@ function fixture() {
         { id: "fhf-dashboards", baseSha: SHA, headSha: SHA, selectedPaths: ["src/contracts"] },
         { id: "front-end-automation-e2e", baseSha: SHA, headSha: SHA, selectedPaths: ["CypressFHF/fhf-dashboards/cypress/tests"] },
       ],
+      intentVsBuilt: {
+        rows: [{
+          id: "ac-contract-reference",
+          intent: "Contract reference is visible on the dashboard",
+          built: "Contract reference is visible on the dashboard",
+          classification: "same",
+        }],
+      },
     },
     selection: {
       routeId: "cross-repository-change",
@@ -87,6 +96,8 @@ function fixture() {
           path: "CypressFHF/fhf-dashboards/cypress/tests/contracts/contract-reference.cy.js",
           environment: "dev",
           proofMode: "external-execution-evidence",
+          honesty: "live",
+          acceptanceIds: ["ac-contract-reference"],
         },
       ],
     },
@@ -138,6 +149,8 @@ crossLayer.plan.tests.push({
   path: "tests/contracts/test_contract_reference.py",
   environment: "qa",
   proofMode: "external-execution-evidence",
+  honesty: "live",
+  acceptanceIds: ["ac-contract-reference"],
 });
 crossLayer.plan.capabilities.push({ id: "backend-api-oracle", subject: "qa backend", status: "ready", evidenceRef: "backend preflight" });
 assert.deepEqual(validateTaskManifest(crossLayer, options), []);
@@ -201,6 +214,53 @@ assert.deepEqual(missingVerificationEvidence(mismatchedEvidence), ["ui-unit"]);
 const zeroTestEvidence = structuredClone(verified);
 zeroTestEvidence.evidence.artifacts[1].counts.tests = 0;
 assert.deepEqual(missingVerificationEvidence(zeroTestEvidence), ["e2e"]);
+
+const unclassified = fixture();
+unclassified.stage = "grounded";
+delete unclassified.grounding.intentVsBuilt;
+unclassified.approval.approvedDigest = null;
+assert.equal(nextStep(unclassified, options).action, "classify-intent-vs-built");
+
+const askProduct = fixture();
+askProduct.stage = "grounded";
+askProduct.grounding.intentVsBuilt.rows[0].classification = "ask-product";
+assert.equal(nextStep(askProduct, options).action, "classify-intent-vs-built");
+assert.match(validateTaskManifest(askProduct, options).join("\n"), /ask-product/);
+
+const classifiedGrounded = fixture();
+classifiedGrounded.stage = "grounded";
+assert.equal(nextStep(classifiedGrounded, options).action, "plan-cross-repository-change");
+
+const acceptedMissingOwner = fixture();
+acceptedMissingOwner.grounding.intentVsBuilt.rows[0].classification = "accepted";
+assert.match(validateTaskManifest(acceptedMissingOwner, options).join("\n"), /acceptedBy/);
+
+const parkedMissingSibling = fixture();
+parkedMissingSibling.grounding.intentVsBuilt.rows[0].classification = "parked";
+assert.match(validateTaskManifest(parkedMissingSibling, options).join("\n"), /parkedOn/);
+
+const missingHonesty = fixture();
+delete missingHonesty.plan.tests[1].honesty;
+assert.match(validateTaskManifest(missingHonesty, options).join("\n"), /honesty/);
+
+const stubbedOnly = structuredClone(verified);
+stubbedOnly.plan.tests[1].honesty = "stubbed";
+stubbedOnly.approval.approvedDigest = approvalDigest(stubbedOnly);
+assert.deepEqual(missingAcceptanceOracleCoverage(stubbedOnly), ["ac-contract-reference"]);
+assert.equal(nextStep(stubbedOnly, options).action, "collect-native-verification-evidence");
+assert.deepEqual(nextStep(stubbedOnly, options).missingOracles, ["ac-contract-reference"]);
+
+const defectBlocksRelease = structuredClone(verified);
+defectBlocksRelease.grounding.intentVsBuilt.rows[0].classification = "defect";
+defectBlocksRelease.approval.approvedDigest = approvalDigest(defectBlocksRelease);
+assert.equal(nextStep(defectBlocksRelease, options).action, "resolve-intent-vs-built-defect");
+assert.equal(nextStep(defectBlocksRelease, options).blocked, true);
+
+const classificationInvalidatesApproval = fixture();
+classificationInvalidatesApproval.approval.approvedDigest = approvalDigest(classificationInvalidatesApproval);
+assert.equal(approvalState(classificationInvalidatesApproval).state, "current");
+classificationInvalidatesApproval.grounding.intentVsBuilt.rows[0].built = "source silently rewrote the AC";
+assert.equal(approvalState(classificationInvalidatesApproval).state, "stale");
 
 const cliRoot = mkdtempSync(path.join(tmpdir(), "fhf-task-protocol-"));
 const manifestPath = path.join(cliRoot, "task.json");

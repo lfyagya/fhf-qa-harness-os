@@ -61,6 +61,60 @@ if (documentation) {
     }
   }
 
+  // Published Confluence pages are projections of Markdown sources, so the page map must stay
+  // complete, unambiguous, and free of credentials.
+  const publishing = documentation.publishing?.confluence;
+  if (publishing) {
+    if (publishing.version !== 1) {
+      issues.push("documentation.publishing.confluence.version must be 1");
+    }
+    if (publishing.credentialsInConfig !== false) {
+      issues.push("documentation.publishing.confluence.credentialsInConfig must be false");
+    }
+    for (const field of ["emailEnv", "apiTokenEnv"]) {
+      if (typeof publishing[field] !== "string" || !/^[A-Z0-9_]+$/.test(publishing[field])) {
+        issues.push(`documentation.publishing.confluence.${field} must name an environment variable`);
+      }
+    }
+    if (!/^https:\/\/[^/]+$/.test(publishing.baseUrl ?? "")) {
+      issues.push("documentation.publishing.confluence.baseUrl must be an https origin without a path");
+    }
+    if (typeof publishing.spaceKey !== "string" || !publishing.spaceKey) {
+      issues.push("documentation.publishing.confluence.spaceKey must be configured");
+    }
+    if (!String(publishing.generatedBanner ?? "").includes("{source}")) {
+      issues.push("documentation.publishing.confluence.generatedBanner must name its {source}");
+    }
+    if (!fs.existsSync(path.join(HARNESS_ROOT, repoPath(publishing.publisher ?? "")))) {
+      issues.push(`Documentation publisher is missing: ${publishing.publisher}`);
+    }
+    const publishedPages = publishing.pages;
+    if (!Array.isArray(publishedPages) || publishedPages.length === 0) {
+      issues.push("documentation.publishing.confluence.pages must not be empty");
+    } else {
+      const seenSources = new Set();
+      const seenIds = new Set();
+      for (const page of publishedPages) {
+        const source = typeof page.source === "string" ? repoPath(page.source) : null;
+        if (!source || path.isAbsolute(page.source)) {
+          issues.push("Published page source must be a relative repository path");
+        } else if (!fs.existsSync(path.resolve(FHF_ROOT, source))) {
+          issues.push(`Published page source is missing: ${page.source}`);
+        }
+        if (source && seenSources.has(source)) issues.push(`Duplicate published page source: ${page.source}`);
+        seenSources.add(source);
+        if (!/^\d+$/.test(String(page.pageId ?? ""))) {
+          issues.push(`Published page needs a numeric Confluence pageId: ${page.source}`);
+        } else if (seenIds.has(page.pageId)) {
+          issues.push(`Duplicate published page id: ${page.pageId}`);
+        }
+        seenIds.add(page.pageId);
+        if (typeof page.title !== "string" || !page.title.trim()) {
+          issues.push(`Published page needs a title: ${page.source}`);
+        }
+      }
+    }
+  }
 }
 
 const policyGovernance = config?.policyGovernance;
@@ -383,6 +437,17 @@ if (engineering) {
     if (taskProtocol.approval?.humanOnly !== true || taskProtocol.approval?.agentMayApprove !== false ||
         taskProtocol.approval?.onMismatch !== "block-and-request-fresh-human-approval") {
       issues.push("task protocol approval must be human-only and fail closed when its digest changes");
+    }
+    if (!taskProtocol.approval?.boundFields?.includes("grounding.intentVsBuilt")) {
+      issues.push("task protocol approval must bind grounding.intentVsBuilt");
+    }
+    if (!taskProtocol.snapshot?.freeze?.includes("intent-vs-built-classification")) {
+      issues.push("task protocol snapshot must freeze intent-vs-built-classification");
+    }
+    for (const action of ["classify-intent-vs-built", "resolve-intent-vs-built-defect"]) {
+      if (!taskProtocol.nextStep?.actions?.includes(action)) {
+        issues.push(`task protocol nextStep.actions must include ${action}`);
+      }
     }
     for (const mode of [
       "red-green-replay",

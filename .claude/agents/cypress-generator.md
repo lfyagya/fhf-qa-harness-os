@@ -33,9 +33,14 @@ silently turn an unspecified workflow into Smoke or E2E coverage.
 
 ## Step 1 — Understand the ask
 
-**If given a Jira ticket / acceptance criteria:** derive scenario objects — positive, negative,
-edge — one scenario per distinct behavior, `then` describing an observable UI or API outcome
-(never "the system handles it correctly"). Format:
+**If given a Jira ticket / acceptance criteria:** do not author yet. Create or refresh the task
+manifest, freeze shipped source, and classify `grounding.intentVsBuilt`. If
+`node .harness/task-protocol.mjs next` returns `classify-intent-vs-built`, stop and get the product
+decision. Do not write a test that encodes source-only behavior until that row is `same` or
+`accepted`. A stubbed notification or API intercept cannot be the only proof for a row.
+
+Then derive scenario objects — positive, negative, edge — one scenario per distinct behavior,
+`then` describing an observable UI or API outcome (never "the system handles it correctly"). Format:
 
 ```javascript
 {

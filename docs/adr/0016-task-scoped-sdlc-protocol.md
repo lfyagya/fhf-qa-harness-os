@@ -43,6 +43,21 @@ The task protocol is pure decision logic. Runtime adapters and repository-native
 separate. Runner availability is preflighted and unavailable evidence is recorded as UNKNOWN, never
 as a pass.
 
+## Addendum — Intent vs built (2026-08-24)
+
+Grounding source tells the harness **what shipped**. Jira acceptance criteria tell it **what was
+asked**. If a task encodes only the shipped behavior, a wrong implementation gets a passing suite.
+
+`grounding.intentVsBuilt` is therefore part of the v1 snapshot and approval digest. After source
+grounding and before planning tests, every acceptance-criterion row must be `same`, `accepted`
+(with `acceptedBy`), `defect`, `parked` (with a sibling SERV key), or `ask-product`.
+`ask-product` and a missing classification emit `classify-intent-vs-built` and block planning.
+`defect` emits `resolve-intent-vs-built-defect` and blocks verified/complete.
+
+External-execution tests must record `honesty` (`live` | `stubbed` | `seeded`) and bind
+`acceptanceIds`. A stubbed Cypress or agent self-report cannot complete a `same` or `accepted` row.
+Independent live or seeded oracles are required.
+
 ## Consequences
 
 - One task can span UI, API, Oracle, automation, and product-contract repositories without loading

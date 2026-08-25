@@ -18,6 +18,7 @@ const lines = [
   "[fhf-harness] Tool-neutral runtime contract:",
   `- Authority: .claude/harness.config.json; context mode=${context.mode}; lane=${lane}.`,
   "- For each prompt, evaluate engineering.context.routes by highest priority; task intent breaks ties.",
+  "- Task protocol: do not plan or author tests until grounding.intentVsBuilt is classified; node .harness/task-protocol.mjs next is the next action.",
   `- Session scope=${memory.sessionScope}; preserve only configured exact facts in ${memory.handoffFile}.`,
   `- Application source boundary=${harness.boundaries.applicationSource.mode}; shell and file writes are guarded.`,
   `- Backend automation boundary=${harness.boundaries.automationSource.mode}; active manifest env=${harness.boundaries.automationSource.activeManifestEnv}.`,

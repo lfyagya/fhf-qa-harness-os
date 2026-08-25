@@ -64,6 +64,17 @@ function contract(config) {
     proofModes: Object.keys(config.engineering.taskProtocol.proofModes),
     runnerIds: Object.keys(config.engineering.executionRunners.runners),
     repositoryIds: Object.keys(config.productTopology.repositories),
+    intentVsBuilt: {
+      path: "grounding.intentVsBuilt",
+      classifications: ["same", "accepted", "defect", "parked", "ask-product"],
+      honesty: ["live", "stubbed", "seeded"],
+      rules: [
+        "classify-before-plan",
+        "ask-product-blocks-planning",
+        "defect-blocks-verified-and-complete",
+        "stubbed-external-proof-cannot-complete-same-or-accepted-rows",
+      ],
+    },
     testEvidence: {
       schema: "fhf-harness/test-evidence/v1",
       required: [

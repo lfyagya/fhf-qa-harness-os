@@ -154,6 +154,14 @@ const activeTask = {
       headSha: backendSha,
       selectedPaths: ["tests/api/users", "api/users"],
     }],
+    intentVsBuilt: {
+      rows: [{
+        id: "ac-agent-contact",
+        intent: "Agent contact API returns the selected contract",
+        built: "Agent contact API returns the selected contract",
+        classification: "same",
+      }],
+    },
   },
   selection: {
     routeId: "cross-layer-test-generation",
@@ -177,6 +185,8 @@ const activeTask = {
       path: "tests/api/users/test_users.py",
       environment: "qa",
       proofMode: "external-execution-evidence",
+      honesty: "live",
+      acceptanceIds: ["ac-agent-contact"],
     }],
   },
   approval: { required: true, approvedDigest: null, reference: "owner-approved-fixture" },

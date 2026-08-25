@@ -17,6 +17,14 @@ export const PROOF_MODES = Object.freeze([
   "external-execution-evidence",
   "tests-not-applicable",
 ]);
+export const INTENT_VS_BUILT_CLASSIFICATIONS = Object.freeze([
+  "same",
+  "accepted",
+  "defect",
+  "parked",
+  "ask-product",
+]);
+export const TEST_HONESTY = Object.freeze(["live", "stubbed", "seeded"]);
 
 const DEFAULT_APPROVAL_FIELDS = Object.freeze([
   "ticketFamily",
@@ -24,6 +32,7 @@ const DEFAULT_APPROVAL_FIELDS = Object.freeze([
   "grounding.acceptanceCriteriaDigest",
   "grounding.catalogVersion",
   "grounding.repositories",
+  "grounding.intentVsBuilt",
   "selection",
   "plan",
 ]);
@@ -135,6 +144,90 @@ function validateGrounding(manifest, repoIds = []) {
   return issues;
 }
 
+export function validateIntentVsBuilt(manifest, { allowAskProduct = false } = {}) {
+  const issues = [];
+  const classification = manifest?.grounding?.intentVsBuilt;
+  if (!classification || typeof classification !== "object" || Array.isArray(classification)) {
+    return ["grounding.intentVsBuilt must classify Jira intent against shipped source"];
+  }
+  const rows = classification.rows;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return ["grounding.intentVsBuilt.rows must contain at least one acceptance-criterion comparison"];
+  }
+  const ids = new Set();
+  for (const row of rows) {
+    if (!row?.id || ids.has(row.id)) issues.push("intentVsBuilt row IDs must be unique");
+    ids.add(row?.id);
+    const label = row?.id ?? "intentVsBuilt row";
+    if (typeof row.intent !== "string" || !row.intent.trim()) issues.push(`${label}.intent must be recorded`);
+    if (typeof row.built !== "string" || !row.built.trim()) issues.push(`${label}.built must be recorded`);
+    if (!INTENT_VS_BUILT_CLASSIFICATIONS.includes(row.classification)) {
+      issues.push(`${label}.classification must be same|accepted|defect|parked|ask-product`);
+    }
+    if (row.classification === "accepted" && (typeof row.acceptedBy !== "string" || !row.acceptedBy.trim())) {
+      issues.push(`${label} accepted rows must record acceptedBy`);
+    }
+    if (row.classification === "parked" && !/^SERV-\d+$/.test(row.parkedOn ?? "")) {
+      issues.push(`${label} parked rows must name parkedOn SERV ticket`);
+    }
+    if (!allowAskProduct && row.classification === "ask-product") {
+      issues.push(`${label} ask-product rows block planning until product classifies the delta`);
+    }
+  }
+  return issues;
+}
+
+function intentVsBuiltRowIds(manifest) {
+  return new Set((manifest?.grounding?.intentVsBuilt?.rows ?? []).map((row) => row?.id).filter(Boolean));
+}
+
+function validateTestHonesty(manifest) {
+  const issues = [];
+  const knownRows = intentVsBuiltRowIds(manifest);
+  for (const test of manifest.plan?.tests ?? []) {
+    const acceptanceIds = test.acceptanceIds;
+    if (acceptanceIds !== undefined) {
+      if (!Array.isArray(acceptanceIds) || acceptanceIds.length === 0
+          || acceptanceIds.some((id) => typeof id !== "string" || !id.trim())) {
+        issues.push(`${test.id ?? "test"}.acceptanceIds must be a non-empty string array`);
+      } else {
+        for (const id of acceptanceIds) {
+          if (!knownRows.has(id)) {
+            issues.push(`${test.id ?? "test"} acceptanceIds references unknown intentVsBuilt row ${id}`);
+          }
+        }
+      }
+    }
+    if (test.proofMode === "external-execution-evidence") {
+      if (!TEST_HONESTY.includes(test.honesty)) {
+        issues.push(`${test.id ?? "test"}.honesty must be live|stubbed|seeded`);
+      }
+      if (!Array.isArray(acceptanceIds) || acceptanceIds.length === 0) {
+        issues.push(`${test.id ?? "test"} must bind acceptanceIds when proof is external`);
+      }
+    }
+  }
+  return issues;
+}
+
+export function missingAcceptanceOracleCoverage(manifest) {
+  const tests = manifest?.plan?.tests ?? [];
+  return (manifest?.grounding?.intentVsBuilt?.rows ?? []).flatMap((row) => {
+    if (!["same", "accepted"].includes(row?.classification)) return [];
+    const hasIndependentOracle = tests.some((test) =>
+      (test.acceptanceIds ?? []).includes(row.id)
+      && test.proofMode === "external-execution-evidence"
+      && (test.honesty === "live" || test.honesty === "seeded"));
+    return hasIndependentOracle ? [] : [row.id];
+  });
+}
+
+export function intentVsBuiltDefects(manifest) {
+  return (manifest?.grounding?.intentVsBuilt?.rows ?? [])
+    .filter((row) => row?.classification === "defect")
+    .map((row) => row.id);
+}
+
 export function missingVerificationEvidence(manifest) {
   const artifacts = Array.isArray(manifest.evidence?.artifacts) ? manifest.evidence.artifacts : [];
   const repositories = new Map(
@@ -243,6 +336,7 @@ export function validateTaskManifest(manifest, { repoIds = [], runnerIds = [], r
     issues.push("ticketFamily.primary must be a SERV ticket");
   }
   issues.push(...validateGrounding(manifest, repoIds));
+  issues.push(...validateIntentVsBuilt(manifest));
 
   const graphNodes = manifest.selection?.graphNodes;
   if (!Array.isArray(graphNodes) || graphNodes.length === 0) {
@@ -309,6 +403,7 @@ export function validateTaskManifest(manifest, { repoIds = [], runnerIds = [], r
   }
   if (typeof manifest.approval?.required !== "boolean") issues.push("approval.required must be boolean");
   if (!Array.isArray(manifest.evidence?.artifacts)) issues.push("evidence.artifacts must be an array");
+  issues.push(...validateTestHonesty(manifest));
   issues.push(...validateCapabilities(manifest, capabilityControl, runners));
   return [...new Set(issues)];
 }
@@ -331,8 +426,12 @@ export function nextStep(manifest, options = {}) {
   if (manifest.stage === "grounded") {
     const groundingIssues = validateGrounding(manifest, options.repoIds);
     if (!Array.isArray(manifest.selection?.graphNodes) || manifest.selection.graphNodes.length === 0) groundingIssues.push("selected graph nodes are missing");
-    return groundingIssues.length
-      ? { action: "repair-task-manifest", stage: "grounded", blocked: true, issues: groundingIssues }
+    if (groundingIssues.length) {
+      return { action: "repair-task-manifest", stage: "grounded", blocked: true, issues: groundingIssues };
+    }
+    const classifyIssues = validateIntentVsBuilt(manifest);
+    return classifyIssues.length
+      ? { action: "classify-intent-vs-built", stage: "grounded", blocked: true, issues: classifyIssues }
       : { action: "plan-cross-repository-change", stage: "grounded", blocked: false };
   }
 
@@ -351,6 +450,26 @@ export function nextStep(manifest, options = {}) {
   }
 
   if (["verified", "complete"].includes(manifest.stage)) {
+    const defects = intentVsBuiltDefects(manifest);
+    if (defects.length > 0) {
+      return {
+        action: "resolve-intent-vs-built-defect",
+        stage: manifest.stage,
+        blocked: true,
+        defects,
+        approval,
+      };
+    }
+    const missingOracles = missingAcceptanceOracleCoverage(manifest);
+    if (missingOracles.length > 0) {
+      return {
+        action: "collect-native-verification-evidence",
+        stage: manifest.stage,
+        blocked: false,
+        missingOracles,
+        approval,
+      };
+    }
     const missingEvidence = missingVerificationEvidence(manifest);
     if (missingEvidence.length > 0) {
       return {

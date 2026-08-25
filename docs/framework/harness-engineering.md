@@ -135,14 +135,17 @@ reviewers, changed-file authors, and CODEOWNERS remain distinct concepts.
 
 `engineering.taskProtocol` ports LANE's strongest mechanical ideas without adding LANE as a second
 control plane. One `fhf-harness/task/v1` manifest freezes only the selected ticket projection,
-acceptance-criteria digest, repository SHAs and paths, graph nodes, dependency DAG, QA impact, runner
-selection, and proof modes. It does not copy the catalog, repositories, full Jira history, chat, or
-Obsidian vault into task context.
+acceptance-criteria digest, repository SHAs and paths, intent-vs-built classification, graph nodes,
+dependency DAG, QA impact, runner selection, and proof modes. It does not copy the catalog,
+repositories, full Jira history, chat, or Obsidian vault into task context.
 
-The approval digest covers the grounded selection and plan. Changed ticket data, source SHAs/paths,
-graph slice, dependencies, impact, runners, or proof modes invalidate approval and block the next
-step. Dependency cycles and unknown dependencies also block. The decision core emits one
-machine-readable next action; it never approves, commits, merges, deploys, or writes externally.
+The approval digest covers the grounded selection, intent-vs-built rows, and plan. Changed ticket
+data, source SHAs/paths, classification, graph slice, dependencies, impact, runners, or proof modes
+invalidate approval and block the next step. Unclassified or `ask-product` rows emit
+`classify-intent-vs-built` and block planning. `defect` rows emit `resolve-intent-vs-built-defect`
+and block verified/complete. Dependency cycles and unknown dependencies also block. The decision
+core emits one machine-readable next action; it never approves, commits, merges, deploys, or writes
+externally.
 
 Proof modes are evidence-specific: hermetic tests can use RED/GREEN replay or same-test base/pass;
 Cypress, production Smoke, API, Oracle, and third-party tests require native execution artifacts.
