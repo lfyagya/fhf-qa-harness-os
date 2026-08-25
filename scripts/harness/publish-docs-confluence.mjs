@@ -14,7 +14,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { markdownToStorage, dialectFor, sha256 } from "./docs-confluence-lib.mjs";
+import {
+  markdownToStorage,
+  dialectFor,
+  sha256,
+  pagesNeedingCreation,
+  withAssignedPageId,
+} from "./docs-confluence-lib.mjs";
 import { resolveConsumerRoot } from "./workspace-paths.mjs";
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -55,7 +61,11 @@ function resolveLinkFor(sourcePath) {
   return (targetPath) => {
     const absolute = path.resolve(path.dirname(path.join(consumerRoot, sourcePath)), targetPath);
     const page = pageBySource.get(posix(path.relative(consumerRoot, absolute)));
-    return page ? `${publishing.baseUrl}/wiki/spaces/${publishing.spaceKey}/pages/${page.pageId}` : null;
+    if (!page) return null;
+    // A sibling awaiting creation has no identifier yet, so a dry run renders a placeholder
+    // instead of failing closed. The --publish pass creates first, then rebuilds with real ids.
+    const id = page.pageId ?? "pending-creation";
+    return `${publishing.baseUrl}/wiki/spaces/${publishing.spaceKey}/pages/${id}`;
   };
 }
 
@@ -94,24 +104,30 @@ const only = value("--only");
 const selected = pages.filter((page) => !only || page.source.includes(only) || page.pageId === only);
 if (!selected.length) fail(`--only ${only} matched no configured page`);
 
-const built = selected.map(build);
-const problems = built.flatMap((page) => page.issues);
-if (problems.length) {
-  console.error("Documentation publish failed: unresolved links");
-  problems.forEach((issue) => console.error(`- ${issue}`));
-  process.exit(1);
+function buildAll() {
+  const rendered = selected.map(build);
+  const problems = rendered.flatMap((page) => page.issues);
+  if (problems.length) {
+    console.error("Documentation publish failed: unresolved links");
+    problems.forEach((issue) => console.error(`- ${issue}`));
+    process.exit(1);
+  }
+  return rendered;
 }
 
-const outDir = value("--out");
-if (outDir) {
+function writeRendered(rendered) {
+  const outDir = value("--out");
+  if (!outDir) return;
   const root = path.resolve(outDir);
   fs.mkdirSync(root, { recursive: true });
-  for (const page of built) {
+  for (const page of rendered) {
     const name = `${path.basename(page.source, ".md")}.${format === "html" ? "html" : "xhtml"}`;
     fs.writeFileSync(path.join(root, name), page.storage, "utf8");
   }
-  console.log(`Wrote ${built.length} rendered page(s) to ${root}`);
+  console.log(`Wrote ${rendered.length} rendered page(s) to ${root}`);
 }
+
+let built = buildAll();
 
 const credentials = {
   baseUrl: publishing.baseUrl,
@@ -137,6 +153,42 @@ async function request(method, url, body) {
 
 const readPage = (id) => request("GET", `${credentials.baseUrl}/wiki/api/v2/pages/${id}`);
 
+// Creation needs the numeric space id; the control plane configures the human-readable key.
+async function resolveSpaceId() {
+  const found = await request(
+    "GET",
+    `${credentials.baseUrl}/wiki/api/v2/spaces?keys=${encodeURIComponent(publishing.spaceKey)}`,
+  );
+  const space = (found.results ?? [])[0];
+  if (!space || !space.id) throw new Error(`Space ${publishing.spaceKey} is not readable`);
+  return space.id;
+}
+
+// Creates each pending page empty and records its identifier, then the caller rebuilds so the
+// normal update pass writes the real body. The empty first version is deliberate: a page must
+// exist before its id can be substituted into the links its siblings make to it.
+async function createPending(pending) {
+  const spaceId = await resolveSpaceId();
+  for (const page of pending) {
+    const created = await request("POST", `${credentials.baseUrl}/wiki/api/v2/pages`, {
+      spaceId,
+      status: "current",
+      title: page.title,
+      body: { representation: "storage", value: "<p>Awaiting first publish.</p>" },
+    });
+    const id = String(created.id ?? "");
+    const entry = pages.find((candidate) => candidate.source === page.source);
+    entry.pageId = id;
+    pageBySource.set(posix(page.source), entry);
+    fs.writeFileSync(
+      CONFIG_FILE,
+      withAssignedPageId(fs.readFileSync(CONFIG_FILE, "utf8"), page.source, id),
+      "utf8",
+    );
+    console.log(`create  ${id}  ${page.title}`);
+  }
+}
+
 async function main() {
   const publish = flag("--publish");
   if (publish && !authorized) {
@@ -145,6 +197,17 @@ async function main() {
         "Credentials must never be stored in the control plane.",
     );
   }
+
+  const pending = pagesNeedingCreation(built);
+  if (pending.length && !publish) {
+    console.log(`${pending.length} page(s) awaiting creation in space ${publishing.spaceKey}:`);
+    pending.forEach((page) => console.log(`  create  ${page.title}  (${page.source})`));
+    console.log("Links to them render as placeholders until --publish creates them.");
+  } else if (pending.length) {
+    await createPending(pending);
+    built = buildAll();
+  }
+  writeRendered(built);
 
   let changed = 0;
   let skipped = 0;
@@ -163,7 +226,7 @@ async function main() {
     const upToDate = current.includes(marker);
     const state = !authorized ? "unknown" : upToDate ? "up to date" : "differs";
     console.log(
-      `${publish && !upToDate ? "publish" : "check "} ${page.pageId}  ${marker}  ${state}  ${page.title}`,
+      `${publish && !upToDate ? "publish" : "check "} ${page.pageId ?? "pending"}  ${marker}  ${state}  ${page.title}`,
     );
 
     if (!publish || upToDate) {

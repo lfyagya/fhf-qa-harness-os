@@ -94,6 +94,7 @@ if (documentation) {
     } else {
       const seenSources = new Set();
       const seenIds = new Set();
+      let pendingCreation = 0;
       for (const page of publishedPages) {
         const source = typeof page.source === "string" ? repoPath(page.source) : null;
         if (!source || path.isAbsolute(page.source)) {
@@ -103,12 +104,18 @@ if (documentation) {
         }
         if (source && seenSources.has(source)) issues.push(`Duplicate published page source: ${page.source}`);
         seenSources.add(source);
-        if (!/^\d+$/.test(String(page.pageId ?? ""))) {
-          issues.push(`Published page needs a numeric Confluence pageId: ${page.source}`);
+        // An explicit null marks a declared owner whose Confluence page does not exist yet; the
+        // publisher creates it and writes the id back. A missing or malformed id is still a fault.
+        const awaitingCreation = page.pageId === null;
+        if (awaitingCreation) {
+          pendingCreation += 1;
+        } else if (!/^[0-9]+$/.test(String(page.pageId ?? ""))) {
+          issues.push(`Published page needs a numeric Confluence pageId or an explicit null: ${page.source}`);
         } else if (seenIds.has(page.pageId)) {
           issues.push(`Duplicate published page id: ${page.pageId}`);
+        } else {
+          seenIds.add(page.pageId);
         }
-        seenIds.add(page.pageId);
         if (typeof page.title !== "string" || !page.title.trim()) {
           issues.push(`Published page needs a title: ${page.source}`);
         }
