@@ -123,8 +123,9 @@ do, and all three are dependencies on product code and product knowledge rather 
 
 ## 5. What this needs from leadership
 
-Four open asks. Each one is blocked on a decision or a grant that QA cannot make alone, and each
-names the evidence rather than the impression. They stay on this list until they are granted.
+Five open asks. Each one is blocked on a decision, a grant, or a write this harness is not permitted
+to make, and each names the evidence rather than the impression. They stay on this list until they
+are granted.
 
 | # | Ask | Owner | Why it cannot come from QA |
 |---:|---|---|---|
@@ -132,6 +133,7 @@ names the evidence rather than the impression. They stay on this list until they
 | 2 | One release designated to capture a manual baseline | Chintan and Prachi | The effort calculator is fail-closed. Without one release of observed person-minutes against a frozen checklist, objectives 1 and 3 report `UNKNOWN` indefinitely and adoption gets judged on impressions |
 | 3 | Confluence credentials and page-create permission in space `TE` | Chintan | The publisher creates and fills pages on an authorized run, and five are registered and verified. Credentials are environment-only by policy, so the grant is the whole remaining step |
 | 4 | An organization-owned private repository for the documentation payload | Chintan | ADR-0018 records this as its one open item. Private is a requirement, not a preference: the tree names internal hostnames, Cypress Cloud project identifiers, and commit SHAs |
+| 5 | A short section in the backend automation repository naming the central boundary | Prachi, with that repository's owner | ADR-0021 federated backend authoring rules there, correctly. But the pointers run one way: this plane points into that repository twice and nothing points back, so a contributor who opens it directly sees no sign that manifest-scoped writes, an evidence contract, or a gate exist. Its `CLAUDE.md` is outside `allowedWriteRoots`, so the harness is refused the write by design and cannot fix this itself |
 
 ### Questions that are settled
 
