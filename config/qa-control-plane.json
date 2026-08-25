@@ -2290,7 +2290,8 @@
     "triage": "docs/framework/triage-runbook.md",
     "regression-sprint-records": "front-end-automation-e2e/docs/evidence/regression-effort/records",
     "qa-onboarding": "docs/adoption/qa-harness.md",
-    "qa-adoption": "docs/adoption/qa-ai-adoption-strategy.md"
+    "qa-adoption": "docs/adoption/qa-ai-adoption-strategy.md",
+    "backend-standards": "fhf-backend-automation/CLAUDE.md"
     },
     "publishing": {
       "confluence": {
