@@ -293,13 +293,20 @@ about which helper to call belongs there.
 This document is authored in Markdown and projected onto its Confluence page, which is a generated
 surface: edits made in Confluence are overwritten on the next run.
 
-```bash
-node scripts/harness/publish-docs-confluence.mjs
-node scripts/harness/publish-docs-confluence.mjs --publish
+On this Windows machine, publish from the harness repository with the PowerShell wrapper so `node`
+is invoked explicitly and a dry run cannot be mistaken for a write:
+
+```powershell
+.\scripts\harness\publish-docs.ps1
+.\scripts\harness\publish-docs.ps1 -Publish
 ```
 
-Dry-run is the default. Publishing needs `CONFLUENCE_EMAIL` and `CONFLUENCE_API_TOKEN` in the
-environment; credentials never live in policy. The page map is `documentation.publishing.confluence`.
+Dry-run is the default (`NOTHING WAS WRITTEN`). `-Publish` is required to write. The wrapper
+resolves `CONFLUENCE_EMAIL` and the API token from `CONFLUENCE_API_TOKEN`, falling back to
+`JIRA_API_TOKEN` when the first is empty — an Atlassian API token is account-scoped, not
+product-scoped, so the Jira token authenticates Confluence on the same site. If `-Publish` is given
+and either value is missing, the wrapper names the empty variable and exits without invoking node.
+Credentials never live in policy. The page map is `documentation.publishing.confluence`.
 
 One page per authored document, no child-page trees. A relative link is rewritten to a Confluence URL
 only when its target is also registered, so the set is registered together or the most cross-referenced

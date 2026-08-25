@@ -135,6 +135,26 @@ are granted.
 | 4 | An organization-owned private repository for the documentation payload | Chintan | ADR-0018 records this as its one open item. Private is a requirement, not a preference: the tree names internal hostnames, Cypress Cloud project identifiers, and commit SHAs |
 | 5 | A short section in the backend automation repository naming the central boundary | Prachi, with that repository's owner | ADR-0021 federated backend authoring rules there, correctly. But the pointers run one way: this plane points into that repository twice and nothing points back, so a contributor who opens it directly sees no sign that manifest-scoped writes, an evidence contract, or a gate exist. Its `CLAUDE.md` is outside `allowedWriteRoots`, so the harness is refused the write by design and cannot fix this itself |
 
+### Ask 1 in detail — what each owner would receive first
+
+"Owners for the top three blockers" is easy to agree to and never staff. Each one below names the
+kind of owner, the first slice, and what QA does the day it lands. Sized to be startable, not to be
+a programme.
+
+| Blocker | Owner needed | First slice | Unblocks |
+|---|---|---|---|
+| Spec maturity | A product SME per module, to approve intent, actor, precondition, and expected outcome | **Funding and Post Funding**, in that order | These two are the first two modules in loan-lifecycle order *and* two of the three modules with no E2E coverage at all. An approved spec is what lets coverage be authored rather than inferred |
+| `data-cy` hooks | Frontend capacity — a developer, not a decision | **SH-16, SH-08, SH-02**, in that order | Shared components, so one fix serves every module that mounts them. SH-16 has zero `data-cy` and its state is observable only through a framer-motion transform; SH-08 leaves every unconfigured table exposing visual row indexes; SH-02 makes dropdown identity unscopeable when fields coexist |
+| Test-data lifecycle | A reviewed design decision, plus whoever owns Dev/QA data | **One pilot workflow in Loss Mitigation** | Its Recon, Skip Trace, Assignment and Repo specs are already blueprint-ready and the module is E2E PARTIAL, so it is the one place a lifecycle can be designed against approved intent and reused rather than invented per scenario |
+
+Three findings in the hook backlog are **not** frontend work and should not be handed to a developer:
+the unreachable Missing Titles dealer route, the Re-Registration duplicate checkbox identities, and
+the Post-Funding infraction status plus Titles move-to-main-queue access gating. Each needs a product
+or RBAC decision before any hook requirement exists. Routing them as code is how they stall.
+
+The remaining 11 shared and 19 module-specific hook items are not urgent in the same way. The three
+above are chosen because they are shared: leverage first, then breadth.
+
 ### Questions that are settled
 
 Re-opening these costs a sync and changes nothing.
