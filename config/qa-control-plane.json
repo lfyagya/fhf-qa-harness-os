@@ -166,7 +166,7 @@
   },
   "productTopology": {
     "version": 1,
-    "catalogVersion": "2026-08-21.1",
+    "catalogVersion": "2026-08-26.1",
     "authority": "routing-metadata-only-live-source-must-be-reverified",
     "mutationAuthority": "none-use-engineering-harness-boundaries-and-repository-local-instructions",
     "workspaceRoot": "paths.consumerRoot",
@@ -428,6 +428,44 @@
         "to": "fhf-dashboards",
         "kind": "product-intent",
         "evidence": ["Test-Case-Automation-Using-Claude-Agents/specs"]
+      },
+      {
+        "id": "internal-to-oracle",
+        "from": "fhf-rest-internal",
+        "to": "fhf_documents",
+        "kind": "data-contract",
+        "evidence": [
+          "fhf-rest-internal/src/main/java/com/firsthelpfinancial/restinternal/services/ords/OrdsService.java"
+        ]
+      },
+      {
+        "id": "serv-agents-to-oracle",
+        "from": "fhf-serv-agents",
+        "to": "fhf_documents",
+        "kind": "data-contract",
+        "evidence": [
+          "fhf-serv-agents/ords/ords_client.py",
+          "fhf-serv-agents/commons/config_constants.py"
+        ]
+      },
+      {
+        "id": "letters-to-oracle",
+        "from": "fhf-letters",
+        "to": "fhf_documents",
+        "kind": "data-contract",
+        "evidence": [
+          "fhf-letters/dao/oracle_dao.py"
+        ]
+      },
+      {
+        "id": "reposession-to-oracle",
+        "from": "fhf-reposession",
+        "to": "fhf_documents",
+        "kind": "data-contract",
+        "evidence": [
+          "fhf-reposession/db/oracle.py",
+          "fhf-reposession/autoims/subscriber/sql/sql_reads.py"
+        ]
       }
     ],
     "sourceBundles": {
