@@ -5,7 +5,9 @@ Every change has one owner, and structural harness changes leave a short decisio
 ## An ADR is required for
 
 Each trigger cites the records that established it, so the list can be checked against practice
-rather than trusted.
+rather than trusted. The citations are provenance, not an index: a new ADR that uses an existing
+trigger does not get appended, and only a decision that establishes a *new* category of trigger
+changes this list. If you are writing an ADR and no trigger covers it, that is the signal to add one.
 
 - Any change to **hook topology** — adding, removing, or reordering a hook in `.claude/hooks/` or `.claude/settings.json`. Includes adding a guard: ADR-0007, ADR-0009
 - Any change to the **agent roster** — adding, removing, or changing the tool grant / model pin of an agent in `.claude/agents/`: ADR-0002, ADR-0003
