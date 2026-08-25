@@ -1,4 +1,4 @@
-﻿# FHF Testing Standard
+# FHF Testing Standard
 
 > Studio AI / `cy.prompt`: discovery-only in E2E scratch — see harness `.claude/rules/studio-ai-policy.md` and `docs/framework/triage-runbook.md`. Never against production smoke.
 

@@ -1,4 +1,4 @@
-﻿# Cypress Version Upgrade Checklist
+# Cypress Version Upgrade Checklist
 
 Both lanes currently track Cypress `^15.11.0`. When bumping, use Cypress's per-version migration
 prompt from https://docs.cypress.io (Migration Guide → your current version section → copy the

@@ -1,4 +1,4 @@
-﻿# Cypress Cloud Triage Runbook
+# Cypress Cloud Triage Runbook
 
 Owner: `documentation.owners.triage` in `fhf-harness-os/config/qa-control-plane.json`.
 

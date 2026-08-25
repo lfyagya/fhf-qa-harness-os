@@ -1,4 +1,4 @@
-﻿# FHF Test Execution Strategy
+# FHF Test Execution Strategy
 
 **Owner:** QA engineering
 **Status:** Proposed for QA and CI owner adoption

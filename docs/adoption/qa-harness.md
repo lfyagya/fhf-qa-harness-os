@@ -275,6 +275,24 @@ node scripts/harness/publish-docs-confluence.mjs --publish
 Dry-run is the default. Publishing needs `CONFLUENCE_EMAIL` and `CONFLUENCE_API_TOKEN` in the
 environment; credentials never live in policy. The page map is `documentation.publishing.confluence`.
 
+One page per authored document, no child-page trees. A relative link is rewritten to a Confluence URL
+only when its target is also registered, so the set is registered together or the most cross-referenced
+pages render with dead links. Two pages are registered today; the five below convert with no issues and
+are pending page creation, which is an approval-gated write.
+
+| Source | Page title |
+| --- | --- |
+| `docs/framework/testing-standards/TESTS.md` | FHF Testing Standard |
+| `docs/framework/execution-strategy.md` | FHF Test Execution Strategy |
+| `docs/framework/triage-runbook.md` | Cypress Cloud Triage Runbook |
+| `docs/planning/data-cy-hook-backlog.md` | data-cy Product Hook Ledger |
+| `docs/evidence/regression-effort/README.md` | Regression-Effort Evidence Workflow |
+
+Two links stay unmapped on purpose: `coverage-computed.json` is generated evidence rather than a
+document, and `specs/INDEX.md` belongs to a separate repository with its own authority. Sources resolve
+against the consumer root, so the engine’s own documents — the control-plane reference, governance, and
+the ADRs — are not publishable here and stay versioned in `fhf-harness-os` only.
+
 Pre-merge expects contract, change, and gate checks. The execution gate is an AWS CodeBuild batch
 whose required status is SUCCEEDED, with Cypress Cloud plus JUnit as primary evidence; only a PASS
 gate artifact and a passed execution artifact are accepted. Reporting thresholds are operational and
