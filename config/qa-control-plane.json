@@ -2275,6 +2275,11 @@
             "source": "docs/adoption/qa-harness.md",
             "pageId": "4472799241",
             "title": "QA Harness"
+          },
+          {
+            "source": "docs/adoption/qa-ai-adoption-strategy.md",
+            "pageId": "4472569863",
+            "title": "QA AI Adoption Program Workshop and Sync Cadence"
           }
         ]
       }
