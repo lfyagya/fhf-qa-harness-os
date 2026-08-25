@@ -180,6 +180,17 @@ const desynced = publishRunRecord({
 expect('an unrecorded id makes the run unhealthy', desynced.healthy, (value) => value === false);
 expect('and is still recoverable from the record', JSON.stringify(desynced.created), '111');
 
+const blocked = publishRunRecord({
+  mode: 'blocked',
+  ranAt: stamp,
+  spaceKey: 'TE',
+  blockedBy: 'missing CONFLUENCE_EMAIL or CONFLUENCE_API_TOKEN',
+});
+expect('records a refused run rather than leaving no file', blocked.mode, 'blocked');
+expect('a blocked run wrote nothing', blocked.wrote, (value) => value === false);
+expect('a blocked run says why', blocked.blockedBy, 'missing CONFLUENCE_EMAIL');
+expect('omits blockedBy when a run was not refused', dryRun, (value) => !('blockedBy' in value));
+
 if (failures.length) {
   console.error('\nConfluence projection test failed:');
   failures.forEach((failure) => console.error(`- ${failure}`));
