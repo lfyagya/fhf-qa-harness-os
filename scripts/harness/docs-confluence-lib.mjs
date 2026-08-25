@@ -438,3 +438,48 @@ export function withAssignedPageId(configText, source, pageId) {
   }
   return `${configText.slice(0, nullAt)}"${pageId}"${configText.slice(nullAt + "null".length)}`;
 }
+
+/**
+ * The record a publish or dry run leaves behind.
+ *
+ * Exists because the outcome of a run was only ever observable in a terminal, and a terminal is not
+ * evidence: whether a page was created had to be recalled rather than read. Created identifiers are
+ * included so that a run whose write-back failed can still be recovered from this file instead of
+ * from Confluence by hand.
+ *
+ * Carries metadata only. No credentials, no page bodies.
+ *
+ * @param {object} run
+ * @param {"dry-run"|"publish"} run.mode
+ * @param {string} run.ranAt ISO timestamp
+ * @param {string} run.spaceKey
+ * @param {Array<{source: string, title: string, pageId: string}>} [run.created]
+ * @param {Array<{source: string, pageId: string}>} [run.updated]
+ * @param {Array<{source: string, pageId: string|null}>} [run.unchanged]
+ * @param {Array<{source: string}>} [run.unrecorded] created pages whose id never reached the config
+ * @returns {object} the record to serialise
+ */
+export function publishRunRecord(run) {
+  const list = (value) => (Array.isArray(value) ? value : []);
+  const unrecorded = list(run.unrecorded);
+  return {
+    schema: "fhf-harness/confluence-publish/v1",
+    mode: run.mode,
+    ranAt: run.ranAt,
+    spaceKey: run.spaceKey,
+    wrote: run.mode === "publish",
+    counts: {
+      created: list(run.created).length,
+      updated: list(run.updated).length,
+      unchanged: list(run.unchanged).length,
+      unrecorded: unrecorded.length,
+    },
+    created: list(run.created),
+    updated: list(run.updated),
+    unchanged: list(run.unchanged),
+    unrecorded,
+    // A run that created pages but failed to record their ids is the one state that silently
+    // desynchronises the page map from the space, so it is called out rather than inferred.
+    healthy: unrecorded.length === 0,
+  };
+}
