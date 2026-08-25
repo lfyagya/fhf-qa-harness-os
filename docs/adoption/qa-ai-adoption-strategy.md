@@ -121,7 +121,44 @@ do, and all three are dependencies on product code and product knowledge rather 
 
 ---
 
-## 5. Why the harness rather than raw Cursor
+## 5. What this needs from leadership
+
+Four open asks. Each one is blocked on a decision or a grant that QA cannot make alone, and each
+names the evidence rather than the impression. They stay on this list until they are granted.
+
+| # | Ask | Owner | Why it cannot come from QA |
+|---:|---|---|---|
+| 1 | Named product-side owners for blockers 1 to 3 | Chintan | Spec maturity, the `data-cy` hook backlog, and the absent test-data lifecycle are dependencies on product knowledge and frontend capacity. QA can document all three and has; it cannot land a selector for an element that has none, nor approve a business rule |
+| 2 | One release designated to capture a manual baseline | Chintan and Prachi | The effort calculator is fail-closed. Without one release of observed person-minutes against a frozen checklist, objectives 1 and 3 report `UNKNOWN` indefinitely and adoption gets judged on impressions |
+| 3 | Confluence credentials and page-create permission in space `TE` | Chintan | The publisher creates and fills pages on an authorized run, and five are registered and verified. Credentials are environment-only by policy, so the grant is the whole remaining step |
+| 4 | An organization-owned private repository for the documentation payload | Chintan | ADR-0018 records this as its one open item. Private is a requirement, not a preference: the tree names internal hostnames, Cypress Cloud project identifiers, and commit SHAs |
+
+### Questions that are settled
+
+Re-opening these costs a sync and changes nothing.
+
+- **A dedicated QA environment.** Agreed as valid and agreed not to block adoption. Its real cost is
+  regression confidence at the sprint baseline, which is a triage cost: check the environment before
+  reading an unexplained failure as a product signal.
+- **Performance and non-functional validation.** Phased in after the workflow above is routine.
+- **Where documentation lives and how it is published.** Markdown is the source, Confluence is a
+  generated projection, and the publisher overwrites manual edits. Section 3 records this. What is
+  still needed is telling the team before someone edits a published page and loses the work.
+- **Tooling and model choice.** Nothing in the evidence identifies these as the constraint.
+
+### Reporting discipline
+
+Two claims to avoid, because both invite a correction later.
+
+Do not report an effort-reduction figure. The calculator returns `UNKNOWN` without a manual baseline,
+and Sprint 26.3.5 is `UNKNOWN` for that reason. "We cannot report this yet, and ask 2 is what fixes
+it" is a stronger position than an estimate that has to be withdrawn.
+
+Do not describe the documentation payload as safe. It is versioned and pushed, which it was not
+before, but it sits on a branch of a personal account until ask 4 is granted.
+
+---
+## 6. Why the harness rather than raw Cursor
 
 Raw AI assistance on a financial-services QA codebase fails in specific, predictable ways: it
 invents selectors, asserts on production data, edits application source, and retries a broken test
@@ -131,7 +168,7 @@ than discouraged — the guardrails are runtime hooks, not documentation.
 That is also the adoption argument to a skeptical manual QA: you cannot break production with it,
 so experiment freely.
 
-## 6. Rollout sequence
+## 7. Rollout sequence
 
 Ordered so each stage produces the evidence the next one needs.
 
@@ -171,7 +208,7 @@ flowchart LR
   V --> PR[Pull request]
 ```
 
-## 7. Workshop run sheet — Monday, 10:00, 60 minutes
+## 8. Workshop run sheet — Monday, 10:00, 60 minutes
 
 Attendees: full QA team + Puran. Led by Yagya.
 
@@ -196,7 +233,7 @@ Attendees: full QA team + Puran. Led by Yagya.
 **Demo safety:** demo in the E2E lane on Dev/QA. Do not demo in the Smoke lane — a live production
 checkout in front of an audience is how someone learns the wrong habit.
 
-## 8. Bi-weekly adoption sync
+## 9. Bi-weekly adoption sync
 
 Attendees: Chintan, Yagya, Prachi, Puran. Every two weeks, initially through October.
 
@@ -205,7 +242,7 @@ Standing agenda, 30 minutes:
 2. Coverage: specs authored, gate verdicts, what shipped alongside development
 3. Friction: the top blocker each person hit — this is the input that changes the harness
 4. Objectives 1–4 against their baselines (section 2), including any target still unset
-5. One decision per session, if any
+5. One decision per session, taken from the open asks in section 5 while any remain
 
 Supporting indicators to track — deliberately not targets, to avoid gaming:
 - Number of QAs with a green `verify.mjs` in the last two weeks
@@ -215,7 +252,7 @@ Supporting indicators to track — deliberately not targets, to avoid gaming:
 Friction items become harness work: configuration, routing, worktree setup, reusable skills. The
 onboarding target is that a new QA needs the workshop and nothing else.
 
-## 9. Coordination
+## 10. Coordination
 
 - **Puran** — align this page's structure and depth with the existing Frontend and Backend AI
   adoption documentation before publishing to Confluence, so the three read as one set.
@@ -223,7 +260,7 @@ onboarding target is that a new QA needs the workshop and nothing else.
   targets per module.
 - **Chintan** — reports into the bi-weekly sync against the section 2 objectives.
 
-## 10. Risks
+## 11. Risks
 
 | Risk | Handling |
 |---|---|
