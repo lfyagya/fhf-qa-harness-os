@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "fhf-regression-effort-jira-intake-config/v1",
+  "configId": "fhf-serv-jira-release-intake",
+  "version": "1.0.0",
+  "project": {
+    "key": "SERV",
+    "boardId": 8,
+    "boardUrl": "https://firsthelpfinancial.atlassian.net/jira/software/c/projects/SERV/boards/8"
+  },
+  "scopeQueryTemplate": "project = SERV AND Sprint = {sprintId}",
+  "qaScopePolicy": {
+    "candidatePopulation": "Every ticket returned by scopeQueryTemplate for the sprint, including subtasks.",
+    "requiredDispositions": [
+      "regression_required",
+      "not_applicable",
+      "deferred",
+      "blocked"
+    ],
+    "rule": "QA classifies every sprint ticket before the checklist is frozen. Regression-required tickets map to business activities; every other disposition has a reason. Jira status and release-owner selection do not substitute for this assessment."
+  },
+  "fieldMappings": {
+    "parent": "parent",
+    "storyPoints": "customfield_10035",
+    "originalEstimate": "timeoriginalestimate",
+    "timeTracking": "timetracking",
+    "priority": "priority",
+    "sprint": "customfield_10021",
+    "module": "customfield_10142",
+    "labels": "labels",
+    "estimateHours": "customfield_10854",
+    "qaAssignee": "customfield_10054",
+    "serviceApp": "customfield_10043",
+    "fixVersions": "fixVersions"
+  },
+  "testRail": {
+    "cases": {
+      "fieldId": "UNKNOWN",
+      "capture": "Record the exact TestRail case ID or URL manually in the activity mapping until the connector exposes a verified Jira field ID."
+    },
+    "runs": {
+      "fieldId": "UNKNOWN",
+      "capture": "Record the exact TestRail run ID or URL manually in artifactRef until the connector exposes a verified Jira field ID."
+    }
+  },
+  "fieldUse": {
+    "scopeAndTraceability": [
+      "parent",
+      "sprint",
+      "module",
+      "priority",
+      "labels",
+      "fixVersions",
+      "qaAssignee",
+      "serviceApp"
+    ],
+    "planningOnlyNeverSavings": [
+      "storyPoints",
+      "originalEstimate",
+      "timeTracking",
+      "estimateHours"
+    ],
+    "requiredLocalEvidence": [
+      "observed person-minutes",
+      "final Dev build identity",
+      "exact passed automation test and native run/artifact",
+      "residual manual work",
+      "automation operating work"
+    ]
+  },
+  "sprintStatePolicy": {
+    "workflowStatesObserved": [
+      "Open",
+      "Groomed",
+      "Ready for Dev",
+      "In Development",
+      "PR Review",
+      "Code Completed",
+      "Ready for Test",
+      "Ready For Testing",
+      "In Testing",
+      "Done",
+      "Ready for Release",
+      "Released",
+      "Canceled"
+    ],
+    "rule": "A Jira status is scope/progress context only. It never proves an activity was tested, manually replaced, or saved labour."
+  },
+  "validatedAgainst": {
+    "sprintId": 6044,
+    "sprintName": "Sprint 26.3.4 SERV",
+    "sprintState": "active",
+    "startDate": "2026-08-04T22:40:22.511Z",
+    "endDate": "2026-08-18T04:00:00.000Z",
+    "capturedAt": "2026-08-09T22:12:41.9674225+05:45",
+    "readOnlyScopeSnapshot": {
+      "issueCount": 110,
+      "statusCounts": {
+        "Open": 56,
+        "In Testing": 9,
+        "Ready for Test": 3,
+        "In Development": 11,
+        "Ready for Dev": 9,
+        "Released": 5,
+        "PR Review": 3,
+        "Done": 13,
+        "Ready For Testing": 1
+      },
+      "planningFieldPresence": {
+        "estimateHours": 47,
+        "originalEstimate": 44,
+        "loggedTime": 0,
+        "module": 7
+      }
+    }
+  }
+}

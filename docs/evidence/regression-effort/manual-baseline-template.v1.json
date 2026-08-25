@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "fhf-regression-effort-release-capture/v1",
+  "captureKind": "manual_baseline",
+  "releaseId": "replace-with-baseline-release-id",
+  "releaseCategory": "must-match-frozen-checklist",
+  "environment": "must-match-frozen-checklist",
+  "executedAt": "2026-01-01T00:00:00Z",
+  "checklist": {
+    "id": "must-match-frozen-checklist-id",
+    "version": "must-match-frozen-checklist-version"
+  },
+  "releaseProvenance": {
+    "releasePlanUrl": "https://firsthelpfinancial.atlassian.net/wiki/spaces/SE/pages/replace-with-release-plan-page-id",
+    "sprint": "replace-with-sprint-name-or-number",
+    "sprintId": 0,
+    "releaseTaskKey": "replace-with-release-task-key",
+    "releaseVersionRefs": [
+      "replace-with-Jira-release-version-id-or-URL"
+    ],
+    "inScopeIssueKeys": [
+      "SERV-XXXX"
+    ],
+    "dependencies": {
+      "database": [],
+      "api": [],
+      "cronJobs": []
+    },
+    "finalBuild": {
+      "buildId": "immutable-final-Dev-build-id",
+      "automationSha": "full-automation-commit-SHA",
+      "deployedSystemVersion": "immutable-application-or-service-version"
+    },
+    "scopeFreeze": {
+      "frozenAt": "2026-01-01T00:00:00Z",
+      "frozenBy": "QA-lead-or-release-owner",
+      "status": "frozen_after_refinement",
+      "evidenceRef": "release-plan-section-or-approved-scope-note"
+    },
+    "intakeConfig": {
+      "configId": "fhf-serv-jira-release-intake",
+      "version": "1.0.0",
+      "projectKey": "SERV",
+      "boardId": 8
+    },
+    "scopeSnapshot": {
+      "capturedAt": "2026-01-01T00:00:00Z",
+      "jql": "project = SERV AND Sprint = replace-with-sprint-id",
+      "issueCount": 0,
+      "evidenceRef": "read-only-Jira-sprint-snapshot-or-approved-export"
+    },
+    "scopeAssessment": [
+      {
+        "issueKey": "SERV-XXXX",
+        "qaDisposition": "regression_required",
+        "mappedActivityIds": [
+          "must-match-frozen-activity-id"
+        ]
+      }
+    ]
+  },
+  "manualActivities": [
+    {
+      "activityId": "must-match-frozen-activity-id",
+      "performed": true,
+      "personMinutes": 0,
+      "observedBy": "name-or-role-of-observer",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "finishedAt": "2026-01-01T00:00:00Z",
+      "evidenceRef": "local-observation-note-or-approved-artifact-reference"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "fhf-regression-effort-checklist/v1",
+  "checklistId": "replace-with-stable-checklist-id",
+  "version": "1.0.0",
+  "status": "draft",
+  "releaseCategory": "replace-with-release-category",
+  "environment": "replace-with-environment",
+  "activities": [
+    {
+      "activityId": "replace-with-stable-activity-id",
+      "title": "Describe one wholly manual or wholly automated regression activity",
+      "scope": "State the actor, system boundary, and expected check without customer data"
+    }
+  ]
+}

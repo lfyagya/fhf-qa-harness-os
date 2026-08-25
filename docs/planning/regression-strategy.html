@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FHF Regression Strategy</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    font-size: 10.5pt;
+    color: #1a1a2e;
+    background: #fff;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100vh;
+    padding: 64px 72px;
+    background: #0f3460;
+    color: #fff;
+    page-break-after: always;
+    position: relative;
+  }
+  .cover-accent {
+    position: absolute;
+    top: 0; right: 0;
+    width: 280px; height: 100%;
+    background: #e94560;
+    opacity: 0.07;
+    clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
+  }
+  .cover .label {
+    font-size: 8pt;
+    letter-spacing: 3.5px;
+    text-transform: uppercase;
+    color: #e94560;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+  .cover h1 {
+    font-size: 40pt;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 18px;
+    max-width: 580px;
+  }
+  .cover .tagline {
+    font-size: 12pt;
+    color: #a8b2d8;
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 56px;
+  }
+  .cover-rule { width: 60px; height: 3px; background: #e94560; margin-bottom: 32px; }
+  .cover-meta {
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+  .cover-meta-item label {
+    font-size: 7.5pt;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #e94560;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .cover-meta-item span {
+    font-size: 10pt;
+    color: #ccd6f6;
+  }
+
+  /* ── PAGE ── */
+  .page {
+    padding: 52px 64px 40px;
+    max-width: 840px;
+    margin: 0 auto;
+  }
+  .page-break { page-break-before: always; }
+
+  /* ── HEADINGS ── */
+  h2 {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #0f3460;
+    margin-bottom: 6px;
+    margin-top: 44px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2:first-child { margin-top: 0; }
+  .h2-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #e94560;
+    color: #fff;
+    font-size: 11pt;
+    font-weight: 800;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .h2-bar {
+    display: block;
+    height: 3px;
+    background: linear-gradient(90deg, #e94560 0%, transparent 100%);
+    margin-bottom: 20px;
+    border-radius: 2px;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #16213e;
+    margin-top: 28px;
+    margin-bottom: 10px;
+    padding-left: 10px;
+    border-left: 3px solid #e94560;
+  }
+
+  /* ── BODY ── */
+  p { line-height: 1.7; margin-bottom: 10px; color: #2d2d44; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { line-height: 1.65; margin-bottom: 4px; color: #2d2d44; }
+  strong { color: #0f3460; }
+  code {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 8.5pt;
+    background: #f1f5f9;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #0f3460;
+  }
+
+  /* ── CALLOUT ── */
+  .callout {
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 20px;
+  }
+  .callout p { margin: 0; font-size: 10.5pt; line-height: 1.65; }
+  .c-blue   { background: #eff6ff; border-left: 4px solid #1d4ed8; }
+  .c-blue p { color: #1e3a8a; }
+  .c-red    { background: #fff1f2; border-left: 4px solid #e94560; }
+  .c-red p  { color: #7f1d1d; }
+  .c-green  { background: #f0fdf4; border-left: 4px solid #15803d; }
+  .c-green p { color: #14532d; }
+  .c-gray   { background: #f8fafc; border-left: 4px solid #64748b; }
+  .c-gray p { color: #374151; }
+
+  /* ── TABLES ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 22px;
+    font-size: 9pt;
+  }
+  thead th {
+    background: #0f3460;
+    color: #fff;
+    text-align: left;
+    padding: 8px 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    font-size: 8.5pt;
+  }
+  tbody tr:nth-child(even) { background: #f8f9fe; }
+  tbody td {
+    padding: 7px 11px;
+    border-bottom: 1px solid #e8edf5;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 7.5pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .b-red    { background: #fee2e2; color: #b91c1c; }
+  .b-orange { background: #fff7ed; color: #c2410c; }
+  .b-yellow { background: #fef9c3; color: #854d0e; }
+  .b-green  { background: #dcfce7; color: #15803d; }
+  .b-blue   { background: #dbeafe; color: #1e40af; }
+  .b-indigo { background: #e0e7ff; color: #3730a3; }
+  .b-gray   { background: #f1f5f9; color: #475569; }
+  .b-dark   { background: #0f3460; color: #fff; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8pt;
+    font-family: "Consolas", monospace;
+    font-weight: 600;
+    margin: 1px 2px;
+  }
+  .tag-reg   { background: #e0e7ff; color: #3730a3; }
+  .tag-chain { background: #dcfce7; color: #166534; }
+  .tag-sprint{ background: #fef9c3; color: #713f12; }
+  .tag-wf    { background: #ffe4e6; color: #9f1239; }
+  .tag-pri   { background: #fee2e2; color: #b91c1c; }
+
+  /* ── LOAN LIFECYCLE BAR ── */
+  .lifecycle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 16px 0 8px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+  }
+  .lc-step {
+    padding: 10px 14px;
+    flex: 1;
+    min-width: 90px;
+    border-right: 1px solid #e2e8f0;
+    text-align: center;
+  }
+  .lc-step:last-child { border-right: none; }
+  .lc-step .num {
+    font-size: 7.5pt;
+    font-weight: 700;
+    color: #e94560;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .lc-step .name {
+    font-size: 8pt;
+    font-weight: 600;
+    color: #0f3460;
+    line-height: 1.3;
+  }
+  .lc-step:nth-child(even) { background: #f8f9fe; }
+
+  /* ── DECISION TREE ── */
+  .decision-tree {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    font-size: 9.5pt;
+  }
+  .dt-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .dt-row:last-child { margin-bottom: 0; }
+  .dt-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 18px;
+    flex-shrink: 0;
+  }
+  .dt-node {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .dt-node.diamond {
+    border-radius: 3px;
+    transform: rotate(45deg);
+    width: 16px; height: 16px;
+  }
+  .dt-node.diamond span { transform: rotate(-45deg); display: block; }
+  .dt-node-q  { background: #0f3460; }
+  .dt-node-y  { background: #15803d; }
+  .dt-node-n  { background: #e94560; }
+  .dt-node-a  { background: #1d4ed8; }
+  .dt-text { line-height: 1.55; color: #1a1a2e; padding-top: 1px; }
+  .dt-text .q  { font-weight: 700; color: #0f3460; }
+  .dt-text .y  { font-weight: 700; color: #15803d; }
+  .dt-text .n  { font-weight: 700; color: #e94560; }
+  .dt-indent { margin-left: 30px; }
+
+  /* ── LANES ── */
+  .lanes {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .lane-card {
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid;
+  }
+  .lane-card .lname {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .lane-card .lstat {
+    font-size: 8.5pt;
+    line-height: 1.6;
+    color: #374151;
+  }
+  .le2e  { background: #eff6ff; border-color: #bfdbfe; }
+  .le2e .lname { color: #1d4ed8; }
+  .lsmk  { background: #fff7ed; border-color: #fed7aa; }
+  .lsmk .lname { color: #c2410c; }
+  .lapi  { background: #f0fdf4; border-color: #bbf7d0; }
+  .lapi .lname { color: #15803d; }
+
+  /* ── TAG PALETTE ── */
+  .tag-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0;
+  }
+  .tp-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 160px;
+    flex: 1;
+  }
+  .tp-item .tp-tag { font-family: "Consolas", monospace; font-size: 9pt; font-weight: 700; display: block; margin-bottom: 4px; }
+  .tp-item .tp-desc { font-size: 8.5pt; color: #475569; line-height: 1.5; }
+
+  /* ── METRICS GRID ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .metric-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .metric-card .mc-label {
+    font-size: 8pt;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .metric-card .mc-val {
+    font-size: 15pt;
+    font-weight: 800;
+    color: #0f3460;
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .metric-card .mc-sub { font-size: 8pt; color: #94a3b8; }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 44px;
+    padding-top: 12px;
+    border-top: 1px solid #e8edf5;
+    font-size: 7.5pt;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    body { font-size: 10pt; }
+    .cover { min-height: 100vh; page-break-after: always; }
+    .page { padding: 38px 50px 30px; }
+    .page-break { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════ COVER ════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-accent"></div>
+  <div class="label">QA Automation &nbsp;·&nbsp; First Help Financial</div>
+  <h1>Regression<br>Strategy</h1>
+  <p class="tagline">
+    A practical, sprint-driven approach to building a regression baseline from business-flow
+    chains — and maintaining confident release evidence sprint by sprint.
+  </p>
+  <div class="cover-rule"></div>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <label>Author</label>
+      <span>Yagya Bhatta · QA Automation</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Date</label>
+      <span>August 19, 2026</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Status</label>
+      <span>Proposed — Pending Adoption</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Scope</label>
+      <span>fhf-dashboards · E2E · Smoke · Backend</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ PAGE 1 ════════════════════════════════ -->
+<div class="page">
+
+  <h2><span class="h2-num">1</span> The Strategy in One Sentence</h2>
+  <span class="h2-bar"></span>
+
+  <div class="callout c-blue">
+    <p>Run the smallest set of tests that can observe a regression from <em>this change</em> on every PR; build regression coverage sprint by sprint against real business flows; run the full suite before every release. Never let a narrowed run serve as a release verdict.</p>
+  </div>
+
+  <p>
+    Regression testing is not "run all tests before a release." It is a continuous practice with
+    three distinct responsibilities: <strong>fast PR feedback</strong> (did this diff break
+    something?), <strong>sprint coverage growth</strong> (is this sprint's work automation-covered
+    and regression-protected?), and <strong>release confidence</strong> (can we state that
+    the product behaves as accepted across every covered workflow?).
+  </p>
+
+  <p>
+    Each responsibility has a different answer cadence and a different audience. Collapsing them into
+    a single "run everything" gate is what produces 29-minute PR queues that engineers learn to ignore,
+    or green builds from suites where 13 of 40 specs never started.
+  </p>
+
+  <h3>What "regression" means precisely</h3>
+  <p>
+    A regression is a behavior that was accepted in a prior run and is now failing. That definition
+    has a structural consequence: <strong>you can only claim a regression if the behavior was
+    previously accepted.</strong> Today, 0 of 14 E2E workflows satisfy the full acceptance contract
+    (approved intent → verified implementation → automation → exact assertion → execution evidence).
+    That is the honest starting point. This strategy converts that 0 into a growing baseline — one
+    accepted workflow per sprint.
+  </p>
+
+  <h3>Three lanes, three jobs — none substitutes for another</h3>
+
+  <div class="lanes">
+    <div class="lane-card le2e">
+      <div class="lname">E2E Lane</div>
+      <div class="lstat">
+        Real user journeys · Dev / QA env<br>
+        47 specs · 465 declared tests<br>
+        Full run ≈ 29 min · 2 machines<br>
+        <strong>Mutates with synthetic data + cleanup</strong>
+      </div>
+    </div>
+    <div class="lane-card lsmk">
+      <div class="lname">Smoke Lane</div>
+      <div class="lstat">
+        GET-only reads · Production<br>
+        40 specs · 665 declared tests<br>
+        Confirms deploy is healthy<br>
+        <strong>Never submits, mutates, exports</strong>
+      </div>
+    </div>
+    <div class="lane-card lapi">
+      <div class="lname">Backend Lane</div>
+      <div class="lstat">
+        API contracts · Oracle DB · Dev<br>
+        33 files · 432 declared tests<br>
+        Nightly + pre-release full run<br>
+        <strong>Data integrity and persistence</strong>
+      </div>
+    </div>
+  </div>
+
+  <h3>The problem this strategy is solving</h3>
+  <p>The current automation estate has structural volume but cannot yet produce a product-protection claim. Five gaps connect into one root cause:</p>
+
+  <table>
+    <thead><tr><th>Gap</th><th>Evidence</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Draft product contracts</strong></td>
+        <td>41/41 module contracts are <code>status: draft</code></td>
+        <td>No approved intent → nothing can be declared accepted</td>
+      </tr>
+      <tr>
+        <td><strong>Uncontrolled test state</strong></td>
+        <td>198 E2E fallback markers · 75 pytest skips</td>
+        <td>Tests log "Skipping" and pass — false green</td>
+      </tr>
+      <tr>
+        <td><strong>No cross-lane identity</strong></td>
+        <td>0 of 14 workflows have UI→API→DB chain evidence</td>
+        <td>Cannot prove the UI request produced the correct persisted outcome</td>
+      </tr>
+      <tr>
+        <td><strong>Missing deployed version</strong></td>
+        <td>Neither lane records the application SHA</td>
+        <td>Run results cannot be attributed to a specific build</td>
+      </tr>
+      <tr>
+        <td><strong>Incomplete smoke execution</strong></td>
+        <td>Run 161: 13 of 40 specs never started</td>
+        <td>A post-deploy gate today would produce a false-green deploy verdict</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-gray">
+    <p><strong>Root cause:</strong> test volume is being mistaken for product confidence. The path forward is not more tests — it is tracing each test to an accepted business risk, and building the cross-lane evidence that makes that trace auditable.</p>
+  </div>
+
+  <div class="footer">
+    <span>FHF Regression Strategy · August 2026</span><span>1</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ PAGE 2 ════════════════════════════════ -->
+<div class="page page-break">
+
+  <h2><span class="h2-num">2</span> Business-Flow Chain Coverage</h2>
+  <span class="h2-bar"></span>
+
+  <p>
+    Module-by-module coverage answers "does this screen work?" Business-flow chain coverage answers
+    "does a loan actually move correctly through its lifecycle?" These are different questions, and
+    only the second one can protect against the class of defects that live at the seams between modules.
+  </p>
+
+  <h3>The loan lifecycle — our regression spine</h3>
+  <p>Cross-module regression is ordered by the loan's actual movement through the system:</p>
+
+  <div class="lifecycle">
+    <div class="lc-step"><span class="num">01</span><span class="name">Funding</span></div>
+    <div class="lc-step"><span class="num">02</span><span class="name">Post Funding</span></div>
+    <div class="lc-step"><span class="num">03</span><span class="name">Document Repository</span></div>
+    <div class="lc-step"><span class="num">04</span><span class="name">Custodian</span></div>
+    <div class="lc-step"><span class="num">05</span><span class="name">Titles</span></div>
+    <div class="lc-step"><span class="num">06</span><span class="name">UniFi Servicing</span></div>
+    <div class="lc-step"><span class="num">07</span><span class="name">UniFi Collections</span></div>
+    <div class="lc-step"><span class="num">08</span><span class="name">Loss Mitigation</span></div>
+    <div class="lc-step"><span class="num">09</span><span class="name">Insurance</span></div>
+    <div class="lc-step"><span class="num">10</span><span class="name">Ancillary</span></div>
+    <div class="lc-step"><span class="num">11</span><span class="name">Checks</span></div>
+    <div class="lc-step"><span class="num">12</span><span class="name">Complaints</span></div>
+    <div class="lc-step"><span class="num">13</span><span class="name">Call Reports</span></div>
+  </div>
+
+  <p>
+    Regression must be planned in this order because downstream modules depend on upstream state.
+    A defect in Titles may surface as a failure in Loss Mitigation; a broken invoice path in Loss
+    Mitigation propagates to Checks. Testing modules in isolation and in alphabetical order
+    misses those seams entirely.
+  </p>
+
+  <h3>What "full chain" means — UI → API → DB, per business workflow</h3>
+  <p>
+    A full chain is not "the Titles UI test passes." It is a traceable path where the same
+    controlled loan identity moves through every layer:
+  </p>
+
+  <table>
+    <thead><tr><th>Layer</th><th>What is verified</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>UI (Cypress E2E)</strong></td>
+        <td>The correct actor, on the correct screen, performs the business action — and the page reflects the expected state change</td>
+        <td>Cypress Cloud run · screenshot · <code>cy.apiWait()</code> intercept assertion</td>
+      </tr>
+      <tr>
+        <td><strong>API (intercepted request)</strong></td>
+        <td>The exact request the UI sent — method, path, payload shape, status code — matches the API contract for this workflow step</td>
+        <td>Network intercept body · configured response-contract validation</td>
+      </tr>
+      <tr>
+        <td><strong>DB (Oracle via pytest)</strong></td>
+        <td>The same synthetic loan ID that drove the UI action now has the correct persisted state in the Oracle database — or has explicitly not been written where no write is expected</td>
+        <td>pytest Oracle query · JUnit row · correlated by <code>scenarioId</code> / loan ID</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-green">
+    <p><strong>Correlation is the key:</strong> the E2E spec and the pytest suite must share the same synthetic loan identity (a controlled ID created in setup, verified in the Oracle assertion, and cleaned up after the run). Without that shared ID, two suites passing in parallel is coincidence — it is not cross-layer evidence.</p>
+  </div>
+
+  <h3>Priority business flows for chain coverage (sequenced by risk)</h3>
+
+  <table>
+    <thead><tr><th>Flow</th><th>Modules spanned</th><th>Risk category</th><th>Chain status</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Loan funded → servicing created</strong></td>
+        <td>Funding → UniFi Servicing</td>
+        <td><span class="badge b-red">Financial</span></td>
+        <td><span class="badge b-gray">Not started</span></td>
+      </tr>
+      <tr>
+        <td><strong>Delinquency → loss mitigation workflow</strong></td>
+        <td>UniFi Collections → Loss Mitigation</td>
+        <td><span class="badge b-red">Financial · Compliance</span></td>
+        <td><span class="badge b-gray">Not started</span></td>
+      </tr>
+      <tr>
+        <td><strong>Invoice posted → check generated</strong></td>
+        <td>Loss Mitigation → Checks</td>
+        <td><span class="badge b-red">Financial</span></td>
+        <td><span class="badge b-gray">Not started</span></td>
+      </tr>
+      <tr>
+        <td><strong>Total loss event → insurance claim → LM update</strong></td>
+        <td>Insurance → Loss Mitigation</td>
+        <td><span class="badge b-orange">Financial · Operational</span></td>
+        <td><span class="badge b-gray">Not started</span></td>
+      </tr>
+      <tr>
+        <td><strong>Repo title flip → title released</strong></td>
+        <td>Loss Mitigation → Titles</td>
+        <td><span class="badge b-orange">Compliance · Operational</span></td>
+        <td><span class="badge b-gray">Not started</span></td>
+      </tr>
+      <tr>
+        <td><strong>LM backend: 48/48 creation, approval, accounting, denial</strong></td>
+        <td>Loss Mitigation (backend only)</td>
+        <td><span class="badge b-blue">Backend only</span></td>
+        <td><span class="badge b-green">Backend accepted</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Each flow above is a candidate for one sprint's chain-acceptance work. The sequence follows
+    business risk and integration dependency — not module size or test count.
+  </p>
+
+  <div class="footer">
+    <span>FHF Regression Strategy · August 2026</span><span>2</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ PAGE 3 ════════════════════════════════ -->
+<div class="page page-break">
+
+  <h2><span class="h2-num">3</span> Sprint Regression Framework</h2>
+  <span class="h2-bar"></span>
+
+  <p>
+    Every sprint starts with a scope assessment — not at the end, not at release time. The assessment
+    classifies every ticket and drives two parallel workstreams: covering what needs to be covered
+    <em>this sprint</em>, and growing the permanent regression baseline when sprint work is already
+    handled.
+  </p>
+
+  <h3>Sprint planning: freeze the regression checklist</h3>
+  <p>
+    At sprint planning, every ticket in scope is classified into one of four buckets. This is a QA
+    scope decision — not a developer decision and not a release-owner decision:
+  </p>
+
+  <table>
+    <thead><tr><th>Classification</th><th>Meaning</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge b-red">regression_required</span></td>
+        <td>This ticket changes behavior that needs to be verified before release</td>
+        <td>Map to one or more business regression activities → check automation coverage</td>
+      </tr>
+      <tr>
+        <td><span class="badge b-gray">not_applicable</span></td>
+        <td>Infrastructure, refactor, or purely cosmetic — no product behavior change</td>
+        <td>Record reason. No test activity required.</td>
+      </tr>
+      <tr>
+        <td><span class="badge b-yellow">deferred</span></td>
+        <td>Behavior will be tested — but not in this sprint (dependency, environment)</td>
+        <td>Record reason and target sprint. Do not count as covered.</td>
+      </tr>
+      <tr>
+        <td><span class="badge b-orange">blocked</span></td>
+        <td>Cannot be classified — missing spec, missing environment, missing data</td>
+        <td>Record blocker. Escalate. Cannot go to release as blocked.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Once classified, <strong>freeze the checklist</strong>. If mid-sprint a new task adds a new
+    activity, create a new checklist version — do not modify the frozen one. Comparing a changed
+    checklist to a prior baseline is a meaningless measurement.
+  </p>
+
+  <h3>The sprint decision tree — what to build vs what to run</h3>
+
+  <div class="decision-tree">
+    <div class="dt-row">
+      <div class="dt-connector"><div class="dt-node dt-node-q">↓</div></div>
+      <div class="dt-text"><span class="q">Sprint planning complete. All tickets classified.</span></div>
+    </div>
+    <div class="dt-row dt-indent">
+      <div class="dt-connector"><div class="dt-node dt-node-q">?</div></div>
+      <div class="dt-text"><span class="q">Are there any <span class="badge b-red" style="font-size:7pt">regression_required</span> tickets?</span></div>
+    </div>
+    <div class="dt-row dt-indent" style="margin-left:60px">
+      <div class="dt-connector"><div class="dt-node dt-node-n">N</div></div>
+      <div class="dt-text"><span class="n">No regression required this sprint</span> → invest QA capacity in full-chain acceptance work (Section 2). Pick the highest-risk unaccepted business flow and build the correlated UI + API + DB scenario.</div>
+    </div>
+    <div class="dt-row dt-indent" style="margin-left:60px">
+      <div class="dt-connector"><div class="dt-node dt-node-y">Y</div></div>
+      <div class="dt-text"><span class="y">For each regression_required ticket:</span></div>
+    </div>
+    <div class="dt-row" style="margin-left:90px">
+      <div class="dt-connector"><div class="dt-node dt-node-q">?</div></div>
+      <div class="dt-text"><span class="q">Does automation already cover this scenario?</span><br><span style="font-size:8.5pt;color:#64748b;">Check <code>evidence/coverage-computed.json</code> + <code>impact-map.json</code> + tag <span class="tag tag-reg">@regression</span></span></div>
+    </div>
+    <div class="dt-row" style="margin-left:120px">
+      <div class="dt-connector"><div class="dt-node dt-node-y">Y</div></div>
+      <div class="dt-text"><span class="y">Automation exists →</span> run the impact-selected suite. Verify it passes in the current build. Record the run ID as sprint regression evidence. Tag test with <span class="tag tag-sprint">@sprint-N</span> if not already tagged.</div>
+    </div>
+    <div class="dt-row" style="margin-left:120px">
+      <div class="dt-connector"><div class="dt-node dt-node-n">N</div></div>
+      <div class="dt-text"><span class="n">Automation missing →</span> build it this sprint. Sequence: approve scenario (intent) → write spec (E2E and/or backend) → pass CI run → tag <span class="tag tag-reg">@regression</span> <span class="tag tag-sprint">@sprint-N</span> → record in frozen checklist as covered.</div>
+    </div>
+    <div class="dt-row dt-indent">
+      <div class="dt-connector"><div class="dt-node dt-node-a">→</div></div>
+      <div class="dt-text"><span class="q">All regression_required tickets resolved?</span> Any remaining QA capacity → full-chain acceptance work. Never leave capacity idle when 0 chains are accepted.</div>
+    </div>
+  </div>
+
+  <div class="callout c-blue">
+    <p><strong>If the sprint has zero coverage gaps:</strong> that is a signal to invest in chain-acceptance, not to coast. The regression baseline only grows when QA capacity is deliberately allocated to it when sprint coverage is already handled.</p>
+  </div>
+
+  <h3>Pre-release regression — what "confident enough to release" means</h3>
+  <p>Release confidence requires all four of the following. Missing any one of them means the release is not confirmed — it is assumed:</p>
+
+  <table>
+    <thead><tr><th>#</th><th>Check</th><th>Owner</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>All <span class="badge b-red">regression_required</span> sprint tickets have a passing run ID</td>
+        <td>QA</td>
+        <td>Frozen checklist entries · run IDs · <code>qa-run-evidence.json</code></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Full E2E + backend suite passes in QA environment with the release build SHA</td>
+        <td>QA + CI</td>
+        <td>Trigger 7 full run · release gate passes · build SHA recorded</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Coverage ratchet passes — no accepted chain removed, no false-green debt added, UI floors not dropped</td>
+        <td>CI gate</td>
+        <td><code>coverage-ratchet.mjs check</code> exits 0</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>All <span class="badge b-orange">blocked</span> tickets resolved or explicitly deferred with owner sign-off</td>
+        <td>QA + Release owner</td>
+        <td>Jira status · written deferral decision</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <span>FHF Regression Strategy · August 2026</span><span>3</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ PAGE 4 ════════════════════════════════ -->
+<div class="page page-break">
+
+  <h2><span class="h2-num">4</span> Tagging and Grouping — Building the Regression Baseline</h2>
+  <span class="h2-bar"></span>
+
+  <p>
+    Tags are how the regression baseline is built incrementally and maintained accurately. A test
+    without a tag is invisible to the regression runner. A test with the wrong tag is noise.
+    The tag system below is designed so the baseline grows sprint by sprint and is always
+    queryable — by lane, by sprint, by workflow, by chain level.
+  </p>
+
+  <h3>Tag vocabulary — applied at the <code>describe</code> or <code>it</code> level</h3>
+
+  <div class="tag-palette">
+    <div class="tp-item">
+      <span class="tp-tag tag tag-reg">@regression</span>
+      <span class="tp-desc">Test is part of the permanent regression baseline. Applied only once the scenario has a passing run in CI. <strong>Never applied to a draft or fallback test.</strong></span>
+    </div>
+    <div class="tp-item">
+      <span class="tp-tag tag tag-chain">@chain:partial</span>
+      <span class="tp-desc">UI + API intercept is verified but DB state is not yet correlated. Progress marker — not full acceptance.</span>
+    </div>
+    <div class="tp-item">
+      <span class="tp-tag tag tag-chain">@chain:full</span>
+      <span class="tp-desc">UI → API → DB verified with the same synthetic identity. Counts toward R1 ratchet. Reserved for accepted workflows only.</span>
+    </div>
+    <div class="tp-item">
+      <span class="tp-tag tag tag-sprint">@sprint-26</span>
+      <span class="tp-desc">Sprint number when this test was added or accepted. Enables "what did this sprint add to the baseline?" reporting. Never changed after the fact.</span>
+    </div>
+    <div class="tp-item">
+      <span class="tp-tag tag tag-wf">@wf:funded-to-servicing</span>
+      <span class="tp-desc">Business workflow slug. Groups tests that together cover one business flow regardless of which module file they live in.</span>
+    </div>
+    <div class="tp-item">
+      <span class="tp-tag tag tag-pri">@p0</span>
+      <span class="tp-desc">Risk priority from the scenario object (<code>priority</code> field). <code>@p0</code> = financial / compliance / auth. <code>@p1</code> = operational. <code>@p2</code> = cosmetic / informational.</span>
+    </div>
+  </div>
+
+  <h3>How tags drive execution</h3>
+
+  <table>
+    <thead><tr><th>When</th><th>Cypress <code>--grep</code> / pytest mark</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>PR impact run</td>
+        <td>No tag filter — spec pattern from <code>select-impacted.mjs</code></td>
+        <td>Fast, change-scoped feedback. Tags irrelevant here.</td>
+      </tr>
+      <tr>
+        <td>Sprint regression check</td>
+        <td><code>@regression @sprint-26</code></td>
+        <td>All tests added or accepted this sprint — confirms new coverage works.</td>
+      </tr>
+      <tr>
+        <td>Regression baseline run</td>
+        <td><code>@regression</code></td>
+        <td>The full accepted baseline — every test that has ever been accepted. This is the pre-release regression set.</td>
+      </tr>
+      <tr>
+        <td>Business flow validation</td>
+        <td><code>@wf:funded-to-servicing</code></td>
+        <td>Runs every test tagged to a specific business flow — UI + backend in one grouped report.</td>
+      </tr>
+      <tr>
+        <td>Release P0 gate</td>
+        <td><code>@regression @p0</code></td>
+        <td>Critical-only fast pass — financial, compliance, and auth. Fails release if any P0 fails.</td>
+      </tr>
+      <tr>
+        <td>Full-chain audit</td>
+        <td><code>@chain:full</code></td>
+        <td>Shows exactly which workflows have complete UI→API→DB evidence today. This is the R1 ratchet input.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Grouping in Cypress Cloud — the reporting layer</h3>
+  <p>
+    Tags drive execution filtering; Cypress Cloud groups organize the reporting view. Configure
+    one group per meaningful execution scope so results are readable without manual triage:
+  </p>
+
+  <table>
+    <thead><tr><th>Group name</th><th>Contains</th><th>Reviewed by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>regression-baseline</code></td>
+        <td>All <code>@regression</code> tagged tests — the permanent baseline</td>
+        <td>QA before every release</td>
+      </tr>
+      <tr>
+        <td><code>sprint-{N}-coverage</code></td>
+        <td>Tests tagged <code>@sprint-N</code> added this sprint</td>
+        <td>QA at sprint end retrospective</td>
+      </tr>
+      <tr>
+        <td><code>chain-full</code></td>
+        <td>All <code>@chain:full</code> tests — the accepted workflows</td>
+        <td>QA + release owner — this is the R1 ratchet source</td>
+      </tr>
+      <tr>
+        <td><code>p0-critical</code></td>
+        <td>All <code>@p0</code> tests — financial, compliance, auth</td>
+        <td>Release gate — any failure here blocks deploy</td>
+      </tr>
+      <tr>
+        <td><code>wf-{flow-name}</code></td>
+        <td>Tests tagged <code>@wf:{flow}</code> for a specific business flow</td>
+        <td>Per-flow chain review during sprint</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Tag promotion lifecycle — how a test moves from "new" to "baseline"</h3>
+  <p>A test earns the <code>@regression</code> tag through a verified gate — not by being written:</p>
+
+  <ol>
+    <li><strong>Written:</strong> spec exists, scenario object complete, all required fields present. Tagged <code>@sprint-N</code> and <code>@wf:...</code> only.</li>
+    <li><strong>Passing in CI:</strong> the test passes in the target environment (Dev or QA) with a recorded run ID and the deployed application SHA. No fallback markers. No forced retries.</li>
+    <li><strong>Scenario reviewed:</strong> QA confirms the assertion matches the approved intent — not just that it passes.</li>
+    <li><strong>Tagged <code>@regression</code>:</strong> now part of the baseline. R2 ratchet watches it — any regression from this point blocks PR merge.</li>
+    <li><strong>If UI + API + DB correlated:</strong> add <code>@chain:partial</code> → <code>@chain:full</code> when Oracle assertion passes. R1 ratchet floor rises.</li>
+  </ol>
+
+  <div class="callout c-red">
+    <p><strong>A fallback marker disqualifies a test from @regression.</strong> A test that logs "Skipping — prerequisite data unavailable" and returns is not a regression test. It is a placeholder. Fix the precondition before promoting the tag.</p>
+  </div>
+
+  <div class="footer">
+    <span>FHF Regression Strategy · August 2026</span><span>4</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ PAGE 5 ════════════════════════════════ -->
+<div class="page page-break">
+
+  <h2><span class="h2-num">5</span> Execution and Gates</h2>
+  <span class="h2-bar"></span>
+
+  <h3>10-trigger execution matrix</h3>
+
+  <table>
+    <thead><tr><th>#</th><th>Trigger</th><th>Lane</th><th>Scope</th><th>Env</th><th>Blocking</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td><td>PR opened/sync — automation repo</td>
+        <td><span class="badge b-gray">Harness</span></td>
+        <td>Changed files — contract compliance</td>
+        <td>n/a</td>
+        <td><span class="badge b-red">Yes — today</span></td>
+      </tr>
+      <tr>
+        <td>2</td><td>PR opened/sync — automation repo</td>
+        <td><span class="badge b-blue">E2E</span></td>
+        <td>Impact-selected from changed specs</td>
+        <td>Dev</td>
+        <td><span class="badge b-red">Yes — new</span></td>
+      </tr>
+      <tr>
+        <td>3</td><td>PR opened/sync — application repo</td>
+        <td><span class="badge b-blue">E2E</span></td>
+        <td>Impact-selected from changed source paths</td>
+        <td>Dev</td>
+        <td><span class="badge b-red">Yes for covered modules</span></td>
+      </tr>
+      <tr>
+        <td>4</td><td>PR opened/sync — either repo</td>
+        <td><span class="badge b-indigo">Ratchet</span></td>
+        <td>Portfolio-wide: accepted chains, debt, UI floors</td>
+        <td>n/a</td>
+        <td><span class="badge b-red">Yes — baseline cannot regress</span></td>
+      </tr>
+      <tr>
+        <td>5</td><td>Merge to <code>dev</code></td>
+        <td><span class="badge b-blue">E2E</span></td>
+        <td>Impact-selected from merge diff</td>
+        <td>Dev</td>
+        <td><span class="badge b-gray">No — informational</span></td>
+      </tr>
+      <tr>
+        <td>6</td><td>Sprint boundary (scheduled)</td>
+        <td><span class="badge b-blue">E2E — full</span></td>
+        <td>Full suite · regression baseline</td>
+        <td>Dev → QA</td>
+        <td><span class="badge b-gray">No — regression baseline snapshot</span></td>
+      </tr>
+      <tr>
+        <td>7</td><td>Pre-release — before staging promotion</td>
+        <td><span class="badge b-blue">E2E + Backend</span></td>
+        <td>Full suite — both lanes</td>
+        <td>QA</td>
+        <td><span class="badge b-red">Yes — release gate</span></td>
+      </tr>
+      <tr>
+        <td>8</td><td>Production deploy completed</td>
+        <td><span class="badge b-orange">Smoke</span></td>
+        <td>Full suite — GET-only production reads</td>
+        <td>Prod</td>
+        <td><span class="badge b-yellow">Blocked — fix orchestration first</span></td>
+      </tr>
+      <tr>
+        <td>9</td><td>Nightly</td>
+        <td><span class="badge b-green">Backend</span></td>
+        <td>Full pytest suite</td>
+        <td>Dev</td>
+        <td><span class="badge b-gray">No — informational</span></td>
+      </tr>
+      <tr>
+        <td>10</td><td>On demand</td>
+        <td>Any</td>
+        <td>Operator-chosen · tag filter optional</td>
+        <td>Operator-chosen</td>
+        <td><span class="badge b-gray">Configurable per run</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Impact-based selection — how PR runs stay fast without hiding gaps</h3>
+  <p>
+    <code>select-impacted.mjs</code> maps every changed source path to the specs that can observe a
+    regression in those paths. Deterministic — no LLM, no clock, no network. The escalation rules:
+  </p>
+
+  <table>
+    <thead><tr><th>Changed path type</th><th>Selection</th></tr></thead>
+    <tbody>
+      <tr><td>Module-owned path (e.g. <code>src/modules/titles/</code>)</td><td>That module's specs only; plus one-hop downstream seams if applicable</td></tr>
+      <tr><td>Shared component (e.g. <code>src/components/common/Table/</code>)</td><td><strong>Full run.</strong> A shared component has no single owning module.</td></tr>
+      <tr><td>Auth / session path (e.g. <code>src/services/authAxiosInstance.js</code>)</td><td><strong>Full run.</strong> A broken session invalidates every other result.</td></tr>
+      <tr><td>Non-source path (docs, README, tooling)</td><td>Nothing selected.</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    If a changed module has no automation, the selector emits a coverage gap report rather than
+    silently passing. A module without automation gets "no E2E coverage" in the PR output — not
+    an implied green.
+  </p>
+
+  <h3>Three independent gates — they judge different things</h3>
+
+  <table>
+    <thead><tr><th>Gate</th><th>What it judges</th><th>Timing</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Harness contract</strong></td>
+        <td>Code-level compliance — selector patterns, alias hygiene, command references, scenario required fields</td>
+        <td>PR</td>
+        <td><span class="badge b-green">Active today</span></td>
+      </tr>
+      <tr>
+        <td><strong>Static architecture</strong></td>
+        <td>Duplicate selectors, alias collisions, undefined command references</td>
+        <td>Pre-run</td>
+        <td><span class="badge b-yellow">Smoke only — E2E parity is P0</span></td>
+      </tr>
+      <tr>
+        <td><strong>Coverage ratchet</strong></td>
+        <td>R1: accepted chains may not fall · R2: false-green debt may not rise · R3: UI coverage floors may not drop</td>
+        <td>PR</td>
+        <td><span class="badge b-yellow">New — this strategy</span></td>
+      </tr>
+      <tr>
+        <td><strong>Release gate</strong></td>
+        <td>Criticals pass · P1 coverage met · regression pins hold · build SHA recorded</td>
+        <td>Post full-run</td>
+        <td><span class="badge b-yellow">Exists — not yet in CodeBuild</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Two blockers to resolve before the strategy is fully live</h3>
+
+  <div class="callout c-red">
+    <p><strong>Blocker 1 — Smoke orchestration:</strong> Run 161 left 13 of 40 specs with <code>startedAt: null</code>. Wiring Trigger 8 (post-deploy smoke gate) today produces a false-green deploy verdict from an incomplete run. Gate stays manually disabled until every configured spec starts and any unstarted spec fails the orchestration gate with an explicit reason.</p>
+  </div>
+  <div class="callout c-red">
+    <p><strong>Blocker 2 — Deployed version capture:</strong> No run currently records the application SHA it tested. A result without a version cannot be attributed to a specific build. Every trigger must carry the deployed SHA before results feed the release gate or the ratchet.</p>
+  </div>
+
+  <div class="footer">
+    <span>FHF Regression Strategy · August 2026</span><span>5</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ PAGE 6 ════════════════════════════════ -->
+<div class="page page-break">
+
+  <h2><span class="h2-num">6</span> Metrics, Release Confidence, and Forward Improvement</h2>
+  <span class="h2-bar"></span>
+
+  <h3>The five metrics that matter — and how to compute them honestly</h3>
+  <p>
+    Every metric below requires a numerator, denominator, query window, rubric version, and
+    completeness rate published alongside the number. A percentage without those is a story — not
+    a measurement.
+  </p>
+
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="mc-label">Accepted risk coverage</div>
+      <div class="mc-val">0 / 14</div>
+      <div class="mc-sub">Workflows with full UI→API→DB chain evidence today. Target: +1 per sprint.</div>
+    </div>
+    <div class="metric-card">
+      <div class="mc-label">False-green debt</div>
+      <div class="mc-val">198 + 75</div>
+      <div class="mc-sub">E2E fallback markers + backend pytest skips. Must not rise (R2 ratchet). Target: -10% per sprint.</div>
+    </div>
+    <div class="metric-card">
+      <div class="mc-label">Regression baseline size</div>
+      <div class="mc-val">0 tests</div>
+      <div class="mc-sub">Tests tagged <code>@regression</code> today. Target: grow by sprint.</div>
+    </div>
+    <div class="metric-card">
+      <div class="mc-label">Sprint regression coverage</div>
+      <div class="mc-val">N/A</div>
+      <div class="mc-sub">regression_required tickets with a passing run ID / total regression_required. Target: 100% before release.</div>
+    </div>
+    <div class="metric-card">
+      <div class="mc-label">Pre-production defect catch rate</div>
+      <div class="mc-val">Untracked</div>
+      <div class="mc-sub">Valid defects caught by automation before production / all automatable defects. Start tracking now.</div>
+    </div>
+    <div class="metric-card">
+      <div class="mc-label">UI coverage floor (E2E critical)</div>
+      <div class="mc-val">50</div>
+      <div class="mc-sub">Minimum threshold per critical view. May not drop more than 5 points in a single PR (R3 ratchet).</div>
+    </div>
+  </div>
+
+  <h3>What "confident enough to release" looks like sprint by sprint</h3>
+
+  <table>
+    <thead><tr><th>Sprint</th><th>Release confidence signal</th><th>Regression baseline state</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Current state</strong></td>
+        <td>Diagnostic only. 3 of 5 high-confidence areas verified. No full-chain evidence.</td>
+        <td>0 tests tagged <code>@regression</code>. 198 fallback markers. 0 accepted workflows.</td>
+      </tr>
+      <tr>
+        <td><strong>Sprint +1</strong></td>
+        <td>Sprint checklist frozen. All <code>regression_required</code> tickets mapped and run. Coverage ratchet wired to PR.</td>
+        <td>First <code>@regression</code> tags applied. R2 debt frozen. R3 floors committed.</td>
+      </tr>
+      <tr>
+        <td><strong>Sprint +2</strong></td>
+        <td>First full-chain workflow accepted (e.g. Loan funded → UniFi Servicing). Release gate in CodeBuild. Build SHA captured on every run.</td>
+        <td>R1 ratchet floor rises from 0 to 1. First <code>@chain:full</code> tag applied.</td>
+      </tr>
+      <tr>
+        <td><strong>Sprint +3</strong></td>
+        <td>Smoke orchestration fixed. Post-deploy gate enabled. Second full-chain workflow accepted.</td>
+        <td>R1 = 2. Smoke gate live. Production deploy now has a blocking confirmation step.</td>
+      </tr>
+      <tr>
+        <td><strong>Sprint +4 and beyond</strong></td>
+        <td>Each sprint: one full-chain workflow accepted, false-green debt reduced by 10%. By sprint 8: majority of financial and compliance flows have accepted evidence.</td>
+        <td>Baseline growing. Ratchet protects it. Release confidence is evidence-based, not assumed.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Eight principles — the decisions that shape every test we write</h3>
+
+  <ol>
+    <li style="margin-bottom:8px"><strong>Risk before volume.</strong> Prioritize financial, compliance, authorization, and data-integrity harm. Start from the risk register, not from file counts or story points.</li>
+    <li style="margin-bottom:8px"><strong>Approved intent first.</strong> No approved product contract means no accepted coverage. A passing test against a <code>draft</code> contract is implementation evidence — not product protection.</li>
+    <li style="margin-bottom:8px"><strong>Cheapest reliable layer.</strong> Deterministic logic → unit test. API contract → pytest. Real user journey with state transitions → Cypress E2E. Safe production reads → Smoke. Never use a heavier layer when a lighter one can observe the same failure.</li>
+    <li style="margin-bottom:8px"><strong>One identity through the chain.</strong> The same controlled loan ID must drive the UI action, appear in the intercepted API request, and be found in the Oracle query. Without that, cross-layer evidence is coincidence.</li>
+    <li style="margin-bottom:8px"><strong>No silent pass.</strong> Missing data, disabled suites, fallback markers, stubbed mutations, and missing prerequisite IDs cannot count as coverage. They count as debt.</li>
+    <li style="margin-bottom:8px"><strong>State ownership is mandatory.</strong> Every mutation needs a synthetic identity, a known baseline state, an explicit cleanup, and verification that the cleanup completed. Cleanup failure is a test failure.</li>
+    <li style="margin-bottom:8px"><strong>Native evidence is authoritative.</strong> Cypress Cloud, JUnit, Mochawesome, Allure, TestRail — these are the record. A normalized <code>qa-run-evidence.json</code> joins them; it never replaces them.</li>
+    <li style="margin-bottom:8px"><strong>Unknown stays unknown.</strong> A missing version, environment, result state, or denominator is recorded as <code>UNKNOWN</code> — never converted to zero or assumed to be passing.</li>
+  </ol>
+
+  <div style="margin-top:32px; padding:18px 22px; background:#0f3460; border-radius:10px; color:#fff;">
+    <p style="margin:0 0 8px; font-size:10pt; font-weight:700; color:#e94560; letter-spacing:1px; text-transform:uppercase;">Bottom Line</p>
+    <p style="margin:0; font-size:10.5pt; line-height:1.7; color:#ccd6f6;">
+      We have solid architecture, real diagnostic signal, and a clear baseline to build from.
+      The gap is not test count — it is the chain from a passing test to a product-protection claim.
+      We close that gap one accepted workflow per sprint: freeze the checklist, cover this sprint's
+      regressions, invest remaining capacity in chain acceptance, and let the ratchet protect what
+      we've built. After four sprints the release gate is evidence-based. After eight it covers
+      every financial and compliance flow in the loan lifecycle.
+    </p>
+  </div>
+
+  <div class="footer">
+    <span>FHF Regression Strategy · August 2026</span><span>6</span>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Execution & Risk History — Append-Only Ledger
+
+> **Written by `node scripts/harness/record-execution-evidence.mjs` — never hand-edit.**
+> Coverage evidence (`coverage-computed.json`) answers "does a test exist?". This answers "when it ran, what happened?" — failure patterns, flakiness, timing, per module. Populated after `cypress-debugger` investigates a Cypress Cloud run (see that agent's "Cloud Investigation" step).
+
+| Date | Module | Lane | Run | Passed | Failed | Flaky | Failure Categories | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 2026-08-03 | all | e2e | [666](https://cloud.cypress.io/projects/nptdoe/runs/666/overview) | 60 | 175 | 11 | selector/source drift, API 503, uncontrolled test data, automation implementation, auth, cascade skips | Cloud metadata: 3 pending, 142 skipped; 34 of 36 specs failed. SHA c3aeb705dadf4244a8adbbc86bd95284da7c76f4. 71 failures share missing dashboard-item-count; app origin/dev removed that hook in merge c863a362524df0294111742ee5a98946774f74d7. Deployed application SHA is not reported. |
+| 2026-07-31 | all | smoke | [161](https://cloud.cypress.io/projects/r5k1ro/runs/161/overview) | 499 | 10 | 0 | automation assertion, UI/read contract, orchestration timeout, disabled suite | Cloud metadata: 10 pending; 18 passed, 8 failed, 1 noTests and 13 timedOut specs. All 13 timedOut specs have startedAt=null. 54 tests are explicitly timedOut in 3 specs; 10 additional timedOut specs have no test records, so the total unexecuted-test count is unknown. SHA 6619ac44075a83cdd1ec7ef6a12e84f479ce72a1. |
+| 2026-08-03 | all | backend | email-2026-08-03 | 220 | 50 | 0 | API latency/timeouts, API-DB mismatch, contract/data drift, dependent-state cascade, skipped preconditions | User-provided email report: 308 total, 12 broken, 26 skipped, 730.91 s. Flake is not measured; pytest config has no retry metric. Report Total Suites=0 conflicts with 24 visible suite summaries. Run SHA, branch, build ID and explicit environment are absent; errors name apisdev.firsthelpfinancial.com. |
