@@ -4,11 +4,21 @@ Every change has one owner, and structural harness changes leave a short decisio
 
 ## An ADR is required for
 
-- Any change to **hook topology** — adding, removing, or reordering a hook in `.claude/hooks/` or `.claude/settings.json`
-- Any change to the **agent roster** — adding, removing, or changing the tool grant / model pin of an agent in `.claude/agents/`
-- Any change to the **skill-routing map** (`.claude/rules/agent-spawning-gate.md`) — adding a skill/agent trigger, changing routing priority, or removing a route
+Each trigger cites the records that established it, so the list can be checked against practice
+rather than trusted.
 
-Not required for: adding a new skill file that doesn't change routing, fixing a bug in an existing hook's logic (the hook's *purpose* didn't change), or any change scoped entirely to a consumer repo's payload (Cypress specs, docs content).
+- Any change to **hook topology** — adding, removing, or reordering a hook in `.claude/hooks/` or `.claude/settings.json`. Includes adding a guard: ADR-0007, ADR-0009
+- Any change to the **agent roster** — adding, removing, or changing the tool grant / model pin of an agent in `.claude/agents/`: ADR-0002, ADR-0003
+- Any change to the **skill-routing map** (`.claude/rules/agent-spawning-gate.md`) — adding a skill/agent trigger, changing routing priority, or removing a route, including neutralising a skill as an authoring path: ADR-0004
+- Any change to **repository topology or placement** — relocating, externalising, or retiring a repository, control plane, or documentation payload, and deciding where a class of artefact lives: ADR-0001, ADR-0010, ADR-0012, ADR-0018, ADR-0020
+- Any change to **control-plane structure or authority** — adding or removing a top-level section of `config/qa-control-plane.json`, or changing which source outranks another: ADR-0005, ADR-0011, ADR-0013, ADR-0015
+- Any change to **boundaries, gates, or lane contracts** — what may be written, run, or approved, including execution topology, approval binding, task-protocol stages, and the architecture a lane’s tests must follow: ADR-0006, ADR-0008, ADR-0014, ADR-0016, ADR-0017
+- Any change to an **external publication surface** — adding a Confluence, TestRail, or evidence-export target, or changing what may be written outward: ADR-0019
+
+Not required for: adding a new skill file that does not change routing; fixing a bug in an existing
+hook (its *purpose* did not change); declaring a repository record or a topology edge inside an
+existing schema, with evidence — the schema was the decision and the record is data; or any change
+scoped entirely to a consumer repository’s payload, such as Cypress specs or documentation content.
 
 ## Process
 
