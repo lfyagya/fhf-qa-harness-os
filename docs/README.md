@@ -10,6 +10,7 @@ Do not browse or preload this tree. Read the single owner matching the task.
 | Product behavior and business rules | [`Test-Case-Automation-Using-Claude-Agents/specs/`](../Test-Case-Automation-Using-Claude-Agents/specs/INDEX.md) |
 | Frontend implementation evidence | `../fhf-dashboards/src/` |
 | Automation implementation evidence | `../front-end-automation-e2e/CypressFHF/fhf-dashboards/`, `../front-end-automation-smoke/CypressFHF/fhf-dashboards/`, and `../fhf-backend-automation/` |
+| Backend API and Oracle authoring rules — how to write the tests | `../fhf-backend-automation/CLAUDE.md` and its `.claude/rules/`. **Federated owner**: authority is repository-local per ADR-0010, ADR-0017, ADR-0021. The lane *contract* — what counts as evidence — stays in `framework/testing-standards/TESTS.md` §Backend API/database |
 | Current repository test presence | `evidence/coverage-computed.json` |
 | Latest execution and failure evidence | `evidence/execution-history.md` |
 | Per-sprint regression pack — plan, checklist, release confidence | `../front-end-automation-e2e/docs/evidence/regression-effort/records/<sprint-id>/` (e.g. `sprint-26.3.5/`). Records moved out of this tree 2026-08-17; `evidence/regression-effort/` keeps only the workflow and templates. Content search skips that nested repository — resolve the path directly |
