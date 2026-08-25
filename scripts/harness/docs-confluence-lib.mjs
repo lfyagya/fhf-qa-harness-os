@@ -449,10 +449,15 @@ export function withAssignedPageId(configText, source, pageId) {
  *
  * Carries metadata only. No credentials, no page bodies.
  *
+ * A blocked run records itself too. Without that, a run refused for missing credentials leaves no
+ * file at all, which is indistinguishable from never having been attempted — the exact ambiguity
+ * this record exists to remove.
+ *
  * @param {object} run
- * @param {"dry-run"|"publish"} run.mode
+ * @param {"dry-run"|"publish"|"blocked"} run.mode
  * @param {string} run.ranAt ISO timestamp
  * @param {string} run.spaceKey
+ * @param {string} [run.blockedBy] why the run was refused, when mode is blocked
  * @param {Array<{source: string, title: string, pageId: string}>} [run.created]
  * @param {Array<{source: string, pageId: string}>} [run.updated]
  * @param {Array<{source: string, pageId: string|null}>} [run.unchanged]
@@ -468,6 +473,7 @@ export function publishRunRecord(run) {
     ranAt: run.ranAt,
     spaceKey: run.spaceKey,
     wrote: run.mode === "publish",
+    ...(run.blockedBy ? { blockedBy: run.blockedBy } : {}),
     counts: {
       created: list(run.created).length,
       updated: list(run.updated).length,

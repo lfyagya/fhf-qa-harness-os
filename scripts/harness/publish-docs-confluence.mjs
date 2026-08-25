@@ -209,9 +209,20 @@ async function main() {
   const unchangedPages = [];
   const ranAt = new Date().toISOString();
   if (publish && !authorized) {
+    // Record the refusal before failing. A blocked run that left no file would be
+    // indistinguishable from a run that never happened, which is the ambiguity this record exists
+    // to remove — and it is the likeliest failure, because the credentials live in the shell.
+    const recordFile = writeRunRecord({
+      mode: "blocked",
+      ranAt,
+      spaceKey: publishing.spaceKey,
+      blockedBy: `missing ${publishing.emailEnv} or ${publishing.apiTokenEnv}`,
+    });
     fail(
       `--publish needs ${publishing.emailEnv} and ${publishing.apiTokenEnv} in the environment. ` +
-        "Credentials must never be stored in the control plane.",
+        "Credentials must never be stored in the control plane. " +
+        `Check them with: node -e "console.log(Boolean(process.env.${publishing.emailEnv}), Boolean(process.env.${publishing.apiTokenEnv}))" ` +
+        `Run record: ${recordFile}`,
     );
   }
 
