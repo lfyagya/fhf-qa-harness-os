@@ -220,6 +220,178 @@ evidence.
 You are done when the gate is PASS, native evidence matches the selected tests, you have read the
 diff, and you have not called a setup or access failure a product result.
 
+## How the QA documents fit together
+
+Use this section as the map for the six related workstreams. It preserves their order rather than
+turning them into one large, duplicate report. Each linked owner remains the source for its detailed
+claims; a diagram or plan here is an orientation aid, not runtime proof.
+
+```mermaid
+flowchart TD
+  P["Product contract and business rules"] --> F["Application data-flow model"]
+  F --> C["Approved scenario and risk"]
+  C --> L{"Choose the smallest valid lane"}
+  L -->|"Real UI mutation"| E["Dev/QA E2E with owned synthetic state"]
+  L -->|"Production availability"| S["GET-only Production Smoke"]
+  L -->|"API or Oracle state"| B["Backend API/Oracle automation"]
+  E --> X["Correlated UI → API → DB chain when needed"]
+  B --> X
+  E --> N["Native run evidence"]
+  S --> N
+  B --> N
+  X --> N
+  N --> R["Regression checklist and release-confidence decision"]
+  R --> A["Portfolio profile and next adoption wave"]
+```
+
+| Workstream | What it answers | Authoritative location | What it must not be mistaken for |
+| --- | --- | --- | --- |
+| QA boilerplate adoption | Which teams/projects can use the Cypress or Playwright boilerplate, their maturity, adapter, owner, gates, and next action | Cypress boilerplate project: project-profile tracker and generated HTML | A claim that every profile has live CI or complete product evidence |
+| Product testing strategy | What FHF behaviours and financial risks need protection, and at which prevention layer | [Product-spec index](../../Test-Case-Automation-Using-Claude-Agents/specs/INDEX.md), [testing standard](../framework/testing-standards/TESTS.md), and the full-stack chain matrix | A coverage percentage, production-result claim, or approved business rule when the contract is draft |
+| Harness workflow catalogue | How to go from an approved spec to gap analysis, a reviewed change, evidence, and regression maintenance | [QA AI adoption strategy](./qa-ai-adoption-strategy.md), this guide, and the selected lane guide | Permission to generate tests from an incomplete specification |
+| Regression evidence | Whether a frozen, comparable release has the evidence needed for a release-confidence or saved-time result | [Regression-Effort Evidence Workflow](../evidence/regression-effort/README.md) and sprint records in the E2E repository | Test count, Jira status, story points, or TestRail link as product coverage |
+| Application data flow | How authenticated users, identifiers, reads, mutations, refreshes, and real-time updates move through the application | Application source plus product/API contracts; [full-stack chain matrix](../planning/coverage/fullstack-chain-risk-matrix.md) records accepted proof | Backend rule or database-state proof inferred only from frontend code |
+| Fully loaded harness | Which repositories and lanes participate, and the safety gate for combined UI/backend authoring and runs | [QA control-plane reference](C:/Users/Leapfrog/fhf-harness-os/docs/framework/qa-control-plane.md) and [harness engineering](C:/Users/Leapfrog/fhf-harness-os/docs/framework/harness-engineering.md) | Authority to edit application source, run broad pytest, or bypass a task manifest |
+
+### 1. Start with a real product contract
+
+The product strategy is evidence-constrained: a requirement only becomes an automation candidate
+when its business rule, state transition, data condition, and oracle are known. Treat draft, observed,
+or unresolved content as a discovery result and close the contract gap first.
+
+```mermaid
+flowchart LR
+  S["Module specification"] --> Q{"Approved and testable?"}
+  Q -->|"No"| G["Record missing rule, selector, data, API, or ownership gap"]
+  Q -->|"Yes"| M["Map rule → risk → scenario → oracle"]
+  M --> I["Inventory existing E2E, Smoke, API, and Oracle tests"]
+  I --> T["Classify: proven, partial, uncovered, blocked, or not suitable for UI"]
+  T --> P["Prioritized, reviewed implementation plan"]
+```
+
+The preferred first analysis pattern is a Blueprint Ready module such as Recon: read its contract,
+map every flow and negative condition to exact existing tests, then plan only the verified gaps. A test
+file is not coverage unless its assertion can fail for the stated product rule.
+
+### 2. Trace the application before connecting automation
+
+`application_id`, loan numbers, and row identifiers have different jobs. The exact field names and
+backend transition rules remain contract-owned; the flow below records the observed application pattern
+that a test must preserve.
+
+```mermaid
+sequenceDiagram
+  participant U as Authorized user
+  participant UI as Dashboard or detail UI
+  participant API as Authenticated API
+  participant ST as Application state
+  U->>UI: Select a row with application_id and row identity
+  UI->>API: Read detail and reference/dropdown data
+  API-->>ST: Authoritative record, status, options
+  ST-->>UI: Render current state
+  U->>UI: Change a permitted value
+  UI->>UI: Stop if unchanged or required identity is missing
+  UI->>API: Send mutation with stable identity and changed value
+  alt Accepted
+    API-->>UI: Success
+    UI->>API: Re-fetch authoritative state
+    API-->>ST: Current record
+    ST-->>UI: Render refreshed state
+  else Rejected or failed
+    API-->>UI: Error
+    UI-->>U: Retain or restore prior state and show error
+  end
+```
+
+For test doubles, create one coherent test-only identity envelope across every list, detail, option,
+and mutation response. Faker or fixtures must never feed the live application, and independently
+generated IDs produce invalid test behaviour.
+
+### 3. Prove a workflow at its earliest reliable layer
+
+Use E2E for a real UI-to-request behaviour, backend automation for API/Oracle state, and join them only
+when financial or cross-system state needs reconciliation. Do not grant Cypress direct database access.
+
+```mermaid
+flowchart LR
+  A["Approved scenario"] --> B["Backend creates owned synthetic state"]
+  B --> C["Publish non-secret run and entity IDs"]
+  C --> D["Cypress performs real UI action and asserts request/result"]
+  D --> E["Backend verifies same API and database state or no-write"]
+  E --> F["Cleanup is verified"]
+  F --> G["Combined native evidence"]
+```
+
+This is deliberately stricter than running frontend and backend suites beside each other. An accepted
+chain needs the same controlled identity, start state, request/result, downstream check where relevant,
+and cleanup. The full-stack chain matrix is the current record of acceptance, not a pass-count total.
+
+### 4. Turn release scope into evidence, not metadata
+
+QA begins with every sprint ticket as a candidate population. It classifies each ticket, groups related
+subtasks by changed behaviour, and creates a frozen checklist only for regression-required activities.
+
+```mermaid
+flowchart LR
+  J["Sprint tickets and dependencies"] --> Q["QA scope assessment for every ticket"]
+  Q --> C["Frozen, versioned regression checklist"]
+  C --> D["Final Dev build identity"]
+  D --> E["Exact automated results + residual manual person-minutes"]
+  E --> V{"Comparable observed manual baseline complete?"}
+  V -->|"Yes"| R["COMPLETE calculation and release-confidence input"]
+  V -->|"No"| U["UNKNOWN; retain evidence and collect baseline"]
+  R --> P["Separate post-deploy GET-only Smoke"]
+  U --> P
+```
+
+`UNKNOWN` is a valid, honest result. It means the release may still have a regression plan, but the
+evidence cannot support a saved-time claim. Status, estimate, TestRail link, and test count can point
+to work; they cannot prove the behaviour, result, environment, or person-minutes by themselves.
+
+### 5. Scale through project profiles, not one forced framework
+
+The adoption portfolio uses a reusable profile: accountable owner, repository, native adapter, lanes,
+environments, safe state/data, CI/evidence path, requirement map, and time-bound exceptions. Each
+project selects Cypress or Playwright from its approved adapter rather than from a survey tool mention.
+
+```mermaid
+flowchart TD
+  I["Project/pod record"] --> P["Owner-approved profile"]
+  P --> A["Approved native adapter"]
+  A --> G{"Required pilot gates met?"}
+  G -->|"No"| B["Close profile, CI, selector, data, or evidence gap"]
+  G -->|"Yes"| W["Bounded pilot workflow"]
+  W --> E["Retained native evidence"]
+  E --> D["Scale, improve, pause, or stop"]
+```
+
+FHF is the reusable reference structure, not a copy-paste assertion that every project is equally
+ready. The recorded portfolio had 49 survey responses normalized to 25 project/pod records; these are
+historical planning data and must be refreshed from their source before a current adoption decision.
+
+### 6. Harness ownership and hard boundaries
+
+The harness is the reusable decision layer. Product specifications own business truth, application
+repositories own implementation, native reports own execution proof, and the canonical harness owns
+cross-lane policy. Generated `.claude/` and `.harness/` copies are projections, never the place to
+hand-edit a rule.
+
+```mermaid
+flowchart TD
+  T["Ticket family"] --> M["Validated FHF_ACTIVE_TASK manifest\nselected paths, tests, revision, approval"]
+  M --> R["Route one specialist"]
+  R --> U["UI E2E / Smoke when selected"]
+  R --> B["Backend API/Oracle when selected"]
+  U --> G["One gate verdict"]
+  B --> G
+  G --> N["Native artifacts and evidence record"]
+  G --> X["BLOCK if environment, path, approval, or revision drifts"]
+```
+
+Backend authoring and pytest execution are Dev/QA-only, manifest-selected, and revision-bound.
+Credentials, dependency changes, arbitrary shell writes, production backend execution, commits, pushes,
+and external uploads stay blocked. Application source stays read-only throughout.
+
 ## When the assistant stops you
 
 A refusal is usually the harness protecting the lane, not a broken tool.
