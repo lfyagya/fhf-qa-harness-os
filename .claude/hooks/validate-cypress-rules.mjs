@@ -1,14 +1,21 @@
 #!/usr/bin/env node
-// PostToolUse:Edit|Write — core Cypress rule enforcer.
-// exit 2 = violation, stderr fed back to Claude to fix; exit 0 = clean.
+// Core Cypress rule enforcer. Two drivers over one shared analyze():
+//
+//   hook mode  (default)          — PostToolUse:Edit|Write, one file from a stdin tool payload.
+//                                   exit 2 = violation, stderr fed back to Claude to fix.
+//   CI mode    (--base-ref <ref>) — every changed file in a PR. exit 2 = a violation this branch
+//                                   INTRODUCED. Pre-existing violations print but do not fail.
 //
 // cy.wait(number) and smoke-mutation checks live ONLY in pre-validate-cypress-rules.mjs
 // (PreToolUse) — that hook already blocks the write before it lands, so those two checks
 // can never fire here and were removed as dead code. This hook keeps the checks that have
 // no pre-write equivalent: config freezing, spec auth/isolation, and credential leakage.
 import { readFileSync, existsSync, readdirSync } from 'fs';
-import { extname, join } from 'path';
+import { extname, join, dirname, relative } from 'path';
+import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
 import { HARDCODED_CREDENTIAL_RE, isSpecFile, isConfigPath, isSmokePath } from './lib/cypress-rule-patterns.mjs';
+import { loadSelectorInventory, findDeadSelectors } from './lib/selector-liveness.mjs';
 
 // Find the `cypress/configs/ui` root that contains this file, if any.
 function findUiConfigRoot(filePath) {
@@ -40,17 +47,26 @@ function walkJsFiles(dir, excludePath) {
   return out;
 }
 
-let payload = {};
-try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
+/** Is this a file these rules have anything to say about? */
+function isRelevant(filePath) {
+  if (!filePath.includes('cypress') && !filePath.includes('CypressFHF')) return false;
+  return ['.js', '.ts', '.mjs'].includes(extname(filePath));
+}
 
-const filePath = (payload.tool_input?.file_path ?? '').replace(/\\/g, '/');
-if (!filePath.includes('cypress') && !filePath.includes('CypressFHF')) process.exit(0);
-if (!['.js', '.ts', '.mjs'].includes(extname(filePath))) process.exit(0);
-if (!existsSync(payload.tool_input?.file_path ?? '')) process.exit(0);
-
-let content;
-try { content = readFileSync(payload.tool_input.file_path, 'utf8'); } catch { process.exit(0); }
-
+/**
+ * Run every rule against one file's content.
+ *
+ * Pure with respect to the file under test: `content` is passed in rather than read, so CI mode
+ * can analyse the base-ref version of a file that no longer exists on disk in that form. Sibling
+ * lookups (the duplicate-selector check) deliberately still read the working tree — the question
+ * "does this selector collide with another config" is only meaningful against current siblings.
+ *
+ * @param {string} filePath - forward-slashed path, used for classification
+ * @param {string} absPath  - on-disk path, used for sibling exclusion and baseline keys
+ * @param {string} content
+ * @returns {{violations: string[], warnings: string[]}}
+ */
+function analyze(filePath, absPath, content) {
 const isSpec   = isSpecFile(filePath);
 const isConfig = isConfigPath(filePath);
 const violations = [];
@@ -90,7 +106,7 @@ if (isConfig && uiConfigRoot && !isCommonUi) {
     // tolerates — a literal like '[data-cy="x"]' inside a single-quoted JS
     // string is stored on disk as `data-cy=\"x\"` (escaped), not plain quotes.
     const needleRe = new RegExp(`data-cy=\\\\?"${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\\\?"`);
-    for (const other of walkJsFiles(uiConfigRoot, payload.tool_input.file_path.replace(/\\/g, '/'))) {
+    for (const other of walkJsFiles(uiConfigRoot, absPath.replace(/\\/g, '/'))) {
       if (/common\.ui\.(js|ts)$/.test(other)) continue;
       let otherContent;
       try { otherContent = stripComments(readFileSync(other, 'utf8')); } catch { continue; }
@@ -101,6 +117,72 @@ if (isConfig && uiConfigRoot && !isCommonUi) {
         );
         break;
       }
+    }
+  }
+}
+
+// NEVER declare a data-cy the application does not emit. configs/ui/** is a contract with
+// fhf-dashboards, and until now it was one-way: nothing failed when the app side disappeared.
+// TABLE_UI.ITEM_COUNT ('[data-cy="dashboard-item-count"]') outlived the 2026-08-17 cleanup that
+// removed its callers, got re-aliased as TOTAL_RECORDS_COUNT by Loss Mitigation and Contact Log,
+// and produced 75 unpassable assertions in Cloud run 754 — each one reporting the same
+// "Expected to find element ... but never found it" as a genuinely empty grid.
+//
+// Tiering: 90 already-dead selectors exist across 9 config files (measured 2026-08-28 against
+// app dev). Blocking all of them would make those files uneditable, and an unusable gate gets
+// switched off — so the existing debt is grandfathered in dead-selector-baseline.json and only
+// WARNS, while anything not on that list BLOCKS.
+//
+// A checked-in baseline rather than a git comparison, for two reasons that are NOT "git doesn't
+// work here" — it does; these files are tracked by the outer front-end-automation repo, and the
+// nested CypressFHF/fhf-dashboards/.git is an unrelated orphan with no commits that shadows them
+// only for `git -C <dir>` invocations. The real reasons: this hook runs with an arbitrary cwd and
+// must not depend on git being resolvable at all, and an explicit list makes the debt reviewable
+// in a diff and one-directional — entries can be removed, but adding one takes the same review as
+// a guardrail exception.
+if (isConfig && uiConfigRoot) {
+  const hooksDir = dirname(fileURLToPath(import.meta.url));
+  // Checked against the committed inventory, NOT the local app checkout — see
+  // loadSelectorInventory() for why. Missing inventory (fresh clone before the first
+  // nightly) skips the check rather than failing: it can prove a selector dead, never alive.
+  const inventory = loadSelectorInventory(
+    join(hooksDir, '..', '..', 'scripts', 'harness', 'selector-inventory.json')
+  );
+  if (inventory) {
+    const deadNow = findDeadSelectors(stripComments(content), inventory);
+
+    if (deadNow.length > 0) {
+      let baseline = {};
+      try {
+        baseline = JSON.parse(
+          readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'dead-selector-baseline.json'), 'utf8')
+        ).selectors ?? {};
+      } catch {
+        // Missing or unreadable baseline: grandfather nothing, report everything as new.
+      }
+      const key = relative(uiConfigRoot, absPath).replace(/\\/g, '/');
+      const carried = new Set(baseline[key] ?? []);
+      const introduced = deadNow.filter((value) => !carried.has(value));
+      const preExisting = deadNow.filter((value) => carried.has(value));
+
+      for (const value of introduced)
+        violations.push(
+          `Selector data-cy="${value}" is not emitted anywhere in the application ` +
+          `(${inventory.appRef}@${String(inventory.appSha).slice(0, 9)}, per ` +
+          `scripts/harness/selector-inventory.json). Confirm the hook exists in app source before ` +
+          `declaring it — if the element has no data-cy yet, that is an upstream testability gap ` +
+          `(source-map.md), not a selector to guess at. Assert against the intercepted response ` +
+          `instead. If the app added it after that revision, refresh the inventory: ` +
+          `node scripts/harness/check-selector-drift.mjs --update`
+        );
+
+      if (preExisting.length > 0)
+        warnings.push(
+          `${preExisting.length} grandfathered dead selector(s) in this file — not emitted by the ` +
+          `application: ${preExisting.join(', ')}. Not blocking (listed in ` +
+          `dead-selector-baseline.json), but any test binding to these cannot pass. Retiring one ` +
+          `means deleting it here AND from the baseline.`
+        );
     }
   }
 }
@@ -117,15 +199,22 @@ if (isSpec && !content.includes('testIsolation: true'))
 if (isSpec && HARDCODED_CREDENTIAL_RE.test(content))
   violations.push('Possible hardcoded credential — use Cypress.env() + { log: false }');
 
+// The two checks below match CODE, so they read comment-stripped source. A spec's own
+// @fileoverview routinely documents its intercept lifecycle by naming the very commands these
+// rules forbid — titles/general.cy.js describes "registers ALL aliases via cy.apiInterceptAll",
+// which flagged a file whose executable code had none. Same class as the 2026-07-23 JSDoc false
+// positive on the duplicate-selector check, which is why stripComments() already exists here.
+const code = stripComments(content);
+
 // Commands, rather than specs, own network interception. This keeps endpoint aliases,
 // deterministic stubs, and wait sequencing reusable and prevents a spec from bypassing the
 // Config -> Commands -> Tests boundary.
-if (isSpec && /\bcy\.(?:apiIntercept(?:All)?|intercept)\s*\(/.test(content))
+if (isSpec && /\bcy\.(?:apiIntercept(?:All)?|intercept)\s*\(/.test(code))
   violations.push('Spec registers a raw intercept - move interception/stubbing into a domain setup or intercept command; specs call that command only');
 
 // A literal path in cy.visit() creates a second route registry. Named route constants are the
 // Cypress representation of the application-published route contract.
-if (isSpec && /\bcy\.visit\(\s*['"]\//.test(content))
+if (isSpec && /\bcy\.visit\(\s*['"]\//.test(code))
   violations.push('Spec contains a literal route in cy.visit() - use a named route contract/config constant through a navigation command');
 
 // ── Gate-tier rules (smoke-checklist.md § Gate tier) ────────────────────────
@@ -179,14 +268,150 @@ if (isSpec && isSmokePath(filePath)) {
     );
 }
 
-if (warnings.length > 0) {
-  console.error('SMOKE CHECKLIST WARNINGS — ' + filePath);
-  warnings.forEach(w => console.error('  ! ' + w));
+  return { violations, warnings };
 }
 
-if (violations.length > 0) {
-  console.error('CYPRESS RULE VIOLATIONS — ' + filePath);
-  violations.forEach(v => console.error('  ✗ ' + v));
-  process.exit(2);
+// ─────────────────────────────────────────────────────────────────────────────
+// Driver 1 — PostToolUse hook (stdin carries one Edit/Write payload)
+// ─────────────────────────────────────────────────────────────────────────────
+function runHookMode() {
+  let payload = {};
+  try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
+
+  const absPath = payload.tool_input?.file_path ?? '';
+  const filePath = absPath.replace(/\\/g, '/');
+  if (!isRelevant(filePath)) process.exit(0);
+  if (!existsSync(absPath)) process.exit(0);
+
+  let content;
+  try { content = readFileSync(absPath, 'utf8'); } catch { process.exit(0); }
+
+  const { violations, warnings } = analyze(filePath, absPath, content);
+
+  if (warnings.length > 0) {
+    console.error('SMOKE CHECKLIST WARNINGS — ' + filePath);
+    warnings.forEach(w => console.error('  ! ' + w));
+  }
+  if (violations.length > 0) {
+    console.error('CYPRESS RULE VIOLATIONS — ' + filePath);
+    violations.forEach(v => console.error('  ✗ ' + v));
+    process.exit(2);
+  }
+  process.exit(0);
 }
-process.exit(0);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Driver 2 — CI mode: `--base-ref <ref>` over a pull request's changed files
+//
+// This existed in .github/workflows/cypress-nonnegotiable-rules.yml since 2026-08-06 and did
+// nothing: the workflow passed --base-ref to a script that only ever read a tool payload from
+// stdin, hit `catch { process.exit(0) }`, and reported success without opening a single file.
+// The job has therefore never enforced anything, while CLAUDE.md advertised it as the guard
+// against local-only drift.
+//
+// Introduced-vs-carried, not whole-file: the tree has real pre-existing violations (20 duplicate
+// selectors in loss-mitigation.ui.js, raw intercepts across five LM specs). Failing whole files
+// would block every PR that touches them and the job would be disabled within a week. So each
+// changed file is analysed twice — at the base ref and at HEAD — and only violations absent from
+// the base version fail the build. Carried violations are printed as warnings so the debt stays
+// visible instead of silently accepted.
+// ─────────────────────────────────────────────────────────────────────────────
+function runCiMode(baseRef) {
+  let repoRoot;
+  try {
+    repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+  } catch {
+    console.error(`CI mode requires a git checkout (cwd: ${process.cwd()}).`);
+    process.exit(2);
+  }
+
+  // ACMR: added/copied/modified/renamed. Deleted files have nothing left to check.
+  let changed;
+  try {
+    changed = execFileSync(
+      'git',
+      ['diff', '--name-only', '--diff-filter=ACMR', `${baseRef}...HEAD`],
+      { cwd: repoRoot, encoding: 'utf8' }
+    ).split('\n').map(line => line.trim()).filter(Boolean);
+  } catch (error) {
+    console.error(
+      `Could not diff against "${baseRef}": ${String(error.message).split('\n')[0]}\n` +
+      'Ensure the workflow checks out enough history (fetch-depth: 0) and that the ref exists.'
+    );
+    process.exit(2);
+  }
+
+  const targets = changed.filter(isRelevant);
+  console.log(
+    `Cypress rules: ${targets.length} relevant file(s) of ${changed.length} changed vs ${baseRef}`
+  );
+
+  let introducedTotal = 0;
+  let carriedTotal = 0;
+
+  for (const relPath of targets) {
+    const absPath = join(repoRoot, relPath);
+    if (!existsSync(absPath)) continue;
+
+    // analyze() must receive an ABSOLUTE forward-slashed path, matching hook mode. The
+    // duplicate-selector check derives its sibling-scan root from this path and excludes the file
+    // under test by comparing against absPath — pass a repo-relative path here and the root comes
+    // out relative too, the exclusion never matches, and every config reports itself as its own
+    // duplicate. That inflated the carried count and produced one bogus "introduced" violation.
+    const scanPath = absPath.replace(/\\/g, '/');
+
+    let content;
+    try { content = readFileSync(absPath, 'utf8'); } catch { continue; }
+
+    const now = analyze(scanPath, absPath, content);
+
+    // Absent at base (new file) => every violation is introduced.
+    let before = { violations: [], warnings: [] };
+    try {
+      const baseContent = execFileSync('git', ['show', `${baseRef}:${relPath}`], {
+        cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      before = analyze(scanPath, absPath, baseContent);
+    } catch { /* new file */ }
+
+    const carriedSet = new Set(before.violations);
+    const introduced = now.violations.filter(v => !carriedSet.has(v));
+    const carried = now.violations.filter(v => carriedSet.has(v));
+
+    if (introduced.length > 0) {
+      introducedTotal += introduced.length;
+      console.error(`\nCYPRESS RULE VIOLATIONS (introduced) — ${relPath}`);
+      introduced.forEach(v => console.error('  ✗ ' + v));
+    }
+    if (carried.length > 0) {
+      carriedTotal += carried.length;
+      console.error(`\nPRE-EXISTING (not blocking) — ${relPath}`);
+      carried.forEach(v => console.error('  · ' + v));
+    }
+    if (now.warnings.length > 0) {
+      console.error(`\nWARNINGS — ${relPath}`);
+      now.warnings.forEach(w => console.error('  ! ' + w));
+    }
+  }
+
+  console.log(
+    `\nCypress rules: ${introducedTotal} introduced violation(s), ` +
+    `${carriedTotal} pre-existing carried through.`
+  );
+  process.exit(introducedTotal > 0 ? 2 : 0);
+}
+
+const baseRefIndex = process.argv.indexOf('--base-ref');
+if (baseRefIndex !== -1) {
+  const baseRef = process.argv[baseRefIndex + 1];
+  // An empty value means the workflow interpolated a blank (e.g. github.base_ref on a non-PR
+  // event). Falling back to hook mode there would read no stdin and exit 0 — reintroducing
+  // exactly the silent pass this driver was written to eliminate. Fail loudly instead.
+  if (!baseRef || baseRef.startsWith('--')) {
+    console.error('--base-ref requires a git ref (got none). Refusing to pass silently.');
+    process.exit(2);
+  }
+  runCiMode(baseRef);
+} else {
+  runHookMode();
+}

@@ -88,6 +88,12 @@ function fixture() {
           path: "src/contracts/contract-reference.test.tsx",
           environment: "local",
           proofMode: "red-green-replay",
+          scenarioRef: {
+            registry: "regression-checklist",
+            source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+            group: "B14.3",
+          },
+          testData: { none: "Hermetic unit test builds its own props." },
         },
         {
           id: "e2e",
@@ -98,6 +104,15 @@ function fixture() {
           proofMode: "external-execution-evidence",
           honesty: "live",
           acceptanceIds: ["ac-contract-reference"],
+          scenarioRef: {
+            registry: "regression-checklist",
+            source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+            group: "B14.3",
+          },
+          testData: {
+            fixture: "CypressFHF/fhf-dashboards/cypress/fixtures/unifi/collections/pinnedAccounts.json",
+            key: "dpdUnder17",
+          },
         },
       ],
     },
@@ -151,6 +166,12 @@ crossLayer.plan.tests.push({
   proofMode: "external-execution-evidence",
   honesty: "live",
   acceptanceIds: ["ac-contract-reference"],
+  scenarioRef: {
+    registry: "regression-checklist",
+    source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+    group: "B13.5",
+  },
+  testData: { none: "Contract test builds its own request body." },
 });
 crossLayer.plan.capabilities.push({ id: "backend-api-oracle", subject: "qa backend", status: "ready", evidenceRef: "backend preflight" });
 assert.deepEqual(validateTaskManifest(crossLayer, options), []);

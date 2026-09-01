@@ -125,6 +125,12 @@ const manifest = {
       proofMode: "external-execution-evidence",
       honesty: "live",
       acceptanceIds: ["ac-contract-reference"],
+      scenarioRef: {
+        registry: "regression-checklist",
+        source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+        group: "A13.3",
+      },
+      testData: { none: "Contract test builds its own request body." },
     }],
   },
   approval: { required: true, approvedDigest: null, reference: "human-review" },

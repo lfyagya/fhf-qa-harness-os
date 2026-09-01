@@ -1052,9 +1052,11 @@
       "lienholder claim",
       "lien holder claim"
     ],
+    "letter-tracking": [
+      "letter tracking"
+    ],
     "letters": [
       "letters",
-      "letter tracking",
       "risc letter"
     ],
     "loss-mitigation": [
@@ -1155,7 +1157,12 @@
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard/follow-up-dashboard.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard/follow-up-dashboard-export-activity.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/all-product-dashboard.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/verification-dashboard.yaml"
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/verification-dashboard.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ACD-Letters/monthly-dealer-invoice.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/ancillary/ancillary-cancellation/details-ancillary-cancellation.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/ancillary/ancillary-cancellation/general-dashboard/general-dashboard-tabs-common.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/ancillary/ancillary-products/verification-dashboard-view-shared.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/ancillary/dealer-contact-card-edit.yaml"
     ],
     "call-reports": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-reports/agent-call-volume.yaml",
@@ -1192,9 +1199,10 @@
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/lienholder-claim.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/total-loss.yaml"
     ],
-    "letters": [
+    "letter-tracking": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/letter-tracking/letter-tracking.yaml"
     ],
+    "letters": [],
     "loss-mitigation": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml",
@@ -1203,7 +1211,9 @@
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/transport.yaml"
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/transport.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/queue-ineligible-users.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/state-to-region-map.yaml"
     ],
     "post-funding": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/post-funding/post-funding.yaml"
@@ -1214,11 +1224,21 @@
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/re-registration.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/release.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/remarketing-titles.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/remarketing.yaml"
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/remarketing.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/titles/account-details-page.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/titles/fhf-title-status-taxonomy.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/titles/state-processing-timeline-map.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/titles/state-to-assignee-map.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/titles/state-to-flip-type-map.yaml"
     ],
     "unifi": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-center/collections.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-center/servicing.yaml"
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-center/servicing.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/call-center/account-details-page.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/call-center/common-call-center.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/call-center/contact-management.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/call-center/dashboard-contract.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/call-center/payment-page.yaml"
     ]
   },
   "engineering": {
@@ -1362,6 +1382,68 @@
         "autoDeploy": false,
         "autoExternalWrite": false,
         "autoApproval": false
+      },
+      "testCaseBinding": {
+        "version": 2,
+        "chain": "requirement -> scenario -> test case -> pre-condition, test data, assertion",
+        "authority": "The application spec repository owns scenarios and data strategy. The manifest cites them; it never restates them.",
+        "specRoot": "paths.applicationIntelligence",
+        "requirement": {
+          "harnessView": "grounding.intentVsBuilt.rows",
+          "specView": ["business_rules", "negative_scenarios", "edge_scenarios", "flows"],
+          "boundTo": "plan.tests[].acceptanceIds"
+        },
+        "scenario": {
+          "boundTo": "plan.tests[].scenarioRef",
+          "shape": "{ registry, source: <repo-relative path>, group, covers?: [<BR-*|NG-*|EG-*|FL-*>] }",
+          "registries": {
+            "spec-test-scenario-groups": {
+              "owns": "product behaviour derived from module business rules",
+              "section": "test_scenario_groups",
+              "group": "test_scenario_groups[].prefix",
+              "coversRequired": true,
+              "coverage": "14 of 58 module specs declare this section today"
+            },
+            "regression-checklist": {
+              "owns": "sprint execution rows: canaries, baselines, latency measurements that are deliberately not module business rules",
+              "section": "flat list of `- id:` rows",
+              "group": "the row id",
+              "coversRequired": false,
+              "example": "docs/evidence/regression-effort/records/<sprint>/regression-checklist.yaml"
+            }
+          },
+          "enforcement": "cited-group-must-exist-in-the-cited-registry-file",
+          "retired": ["plan.scenarios", "plan.tests[].scenarioIds"],
+          "retiredReason": "A manifest-local registry duplicates whichever real one owns the scenario, and the two can disagree. A citation cannot."
+        },
+        "testData": {
+          "specSection": "data_population_rules",
+          "boundTo": "plan.tests[].testData",
+          "shape": "{ fixture: <repo-relative path>, key: <fixture key>, resolver?: <command> } or { none: <reason> }",
+          "enforcement": "fixture-file-and-key-must-resolve-at-selected-repository-root",
+          "note": "data_population_rules states where data comes from (source views, eligibility, population delay); the fixture key states which record a test pins. Both are needed.",
+          "requireSourceSystemsForPinnedFixtures": false,
+          "requireScope": "spec-cited tests that pin a fixture key; a regression-checklist row is not a module spec and carries no data_population_rules",
+          "requireDefaultReason": "Measured 2026-09-01: 20 of the 26 specs declaring test_scenario_groups document no data_population_rules.source_systems. Enabling this today blocks most spec-cited pinned-fixture tests, and a gate that blocks the common case gets switched off. The check is implemented and tested; turn it on when the specs catch up.",
+          "requireEnableWhen": "source_systems coverage is broad enough that a block is the exception"
+        },
+        "componentContracts": {
+          "source": "specs/components/*.component.yaml",
+          "moduleMap": "specs/mappings/module-component-map.yaml",
+          "inheritanceKey": "depends_on_components",
+          "policyNote": "Expectations are mirrored here, not added to the spec repo: that repo is the application contract and is approval-gated for writes.",
+          "table": {
+            "expectedModuleSections": [
+              "depends_on_components",
+              "table_column_contract.required_headers",
+              "business_rules"
+            ],
+            "requiredHeaderProperties": ["editable", "copyable", "sortable", "filterable"],
+            "rationale": "table.component.yaml: a header missing any of these generates RL-002, RL-003 or RL-006 without the correct assertion."
+          }
+        },
+        "onUnresolvedReference": "block-validation",
+        "onAbsentSpecRepository": "skip-not-block"
       }
     },
     "capabilityControl": {
@@ -1920,6 +2002,8 @@
         "cypress-docs",
         "backend-test-author"
       ],
+      "laneLocalPaths": [],
+      "laneLocalPathsNote": "Repo-relative paths (file or directory) a lane owns and canonical does not. sync-loader-shims never deletes these, including under --force. Prefer promoting shared infrastructure to canonical; use this only for genuinely lane-specific files inside a synced directory.",
       "boundaries": {
         "applicationSource": {
           "mode": "read-only",

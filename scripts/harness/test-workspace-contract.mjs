@@ -202,4 +202,25 @@ try {
   fs.rmSync(temp, { recursive: true, force: true });
 }
 
+// Letters (fhf-letters: generation and delivery, RISC) and Letter Tracking are different
+// modules. They were conflated in config once - one alias list and one spec path - which routed
+// Letters work at a Letter Tracking spec. Assert the split so it cannot quietly come back.
+const controlPlane = JSON.parse(fs.readFileSync(
+  path.resolve(import.meta.dirname, "..", "..", "config", "qa-control-plane.json"), "utf8"));
+const aliases = controlPlane.moduleAliases;
+const specPaths = controlPlane.moduleSpecPaths;
+
+assert.ok(!aliases.letters.includes("letter tracking"),
+  "Letters must not alias Letter Tracking: they are separate modules");
+assert.deepEqual(aliases["letter-tracking"], ["letter tracking"],
+  "Letter Tracking needs its own alias entry");
+assert.ok(aliases.letters.includes("risc letter"),
+  "RISC letters belong to Letters - the generator lives in fhf-letters");
+
+for (const [module, targets] of Object.entries(specPaths)) {
+  const foreign = (targets ?? []).filter((target) => target.includes("/letter-tracking/") && module !== "letter-tracking");
+  assert.equal(foreign.length, 0,
+    `${module} must not claim a Letter Tracking spec: ${foreign.join(", ")}`);
+}
+
 console.log("workspace contract tests passed");

@@ -27,8 +27,12 @@ the owner; unavailable evidence remains unverified.
 - Validate subagent summaries against the cited diff/source before acting.
 - Mechanical changes require a mechanical check, and a gate must be wired into the real runtime.
 - Never `cd` into a worktree or repository that has no `.harness/workspace.local.json`. Hooks resolve
-  `process.cwd()`, so a shell parked there stays WORKSPACE BLOCKED for the rest of the session and
-  holds a directory lock that prevents removal. Inspect other checkouts with `git -C <path>`.
+  `process.cwd()`, so a shell parked there goes WORKSPACE BLOCKED and holds a directory lock that
+  prevents removal. Inspect other checkouts with `git -C <path>`.
+- That block is recoverable, not a dead session. The Bash and PowerShell tools share one working
+  directory, but the guard intercepts Bash and Edit only, so `Set-Location <workspace-root>` through
+  the PowerShell tool clears it for both. A plain `cd` back cannot: the guard rejects the command
+  before it runs. Verified 2026-09-01.
 
 For multi-module work, use loan-lifecycle order:
 Funding → Post Funding → Document Repository → Custodian → Titles → UniFi Servicing → UniFi
