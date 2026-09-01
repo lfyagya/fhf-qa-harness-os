@@ -177,6 +177,35 @@ function scenarioRefIssues(manifest, config) {
   }
   return issues;
 }
+// data_population_rules: -> source_systems: -> `- name: <view>`
+function specSourceSystems(text) {
+  const rules = `\n${text}`.match(/\ndata_population_rules:\n([\s\S]*?)(?=\n[a-z_]+:|$)/);
+  if (!rules) return [];
+  const systems = rules[1].match(/^\s*source_systems:\n([\s\S]*?)(?=\n\s{0,2}[a-z_]+:|$)/m);
+  if (!systems) return [];
+  return [...systems[1].matchAll(/^\s*-\s*name:\s*(.+?)\s*$/gm)].map((match) => match[1]);
+}
+
+// Pinning a record means depending on that record existing. The spec has to say where such
+// records come from: data_population_rules names the source systems and the eligibility rules
+// that decide whether a row appears at all. A fixture key alone does not capture that.
+function dataPopulationIssues(manifest, config) {
+  const policy = config.engineering?.taskProtocol?.testCaseBinding?.testData;
+  const root = specRoot(config);
+  if (!policy?.requireSourceSystemsForPinnedFixtures || !root) return [];
+  const issues = [];
+  for (const test of manifest.plan?.tests ?? []) {
+    if (!test.testData?.fixture) continue;
+    const ref = test.scenarioRef;
+    if (ref?.registry !== "spec-test-scenario-groups" || !ref.source) continue;
+    const file = path.join(root, ref.source);
+    if (!fs.existsSync(file)) continue;
+    if (specSourceSystems(readSpecText(file)).length === 0) {
+      issues.push(`${test.id ?? "test"} pins fixture key "${test.testData.key}" but ${ref.source} documents no data_population_rules.source_systems`);
+    }
+  }
+  return issues;
+}
 // A module inheriting a component must document what that component requires, or the inherited
 // test cases generate with the wrong assertion - the component contracts say so themselves.
 // The property list lives in harness config, not the spec repo, because that repo is
@@ -342,6 +371,7 @@ try {
       ...fixtureIssues(manifest, config),
       ...scenarioRefIssues(manifest, config),
       ...componentContractIssues(manifest, config),
+      ...dataPopulationIssues(manifest, config),
     ];
     print({ valid: issues.length === 0, issues });
     if (issues.length > 0) process.exitCode = 1;

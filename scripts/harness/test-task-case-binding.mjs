@@ -108,6 +108,45 @@ try {
   goodCovers.plan.tests[0].scenarioRef.covers = ["BR-MDI-012", "EG-MDI-001"];
   assert.ok(!/scenarioRef/.test(issuesOf(goodCovers)), `real group must resolve: ${issuesOf(goodCovers)}`);
 
+  // The data-population gate ships off (20 of 26 specs would fail it today), so exercise it
+  // through an opt-in config rather than leaving the implementation untested.
+  const dprConfigPath = path.resolve(HERE, "..", "..", "config", "qa-control-plane.json");
+  const dprCfg = JSON.parse(fs.readFileSync(dprConfigPath, "utf8"));
+  assert.equal(dprCfg.engineering.taskProtocol.testCaseBinding.testData.requireSourceSystemsForPinnedFixtures, false,
+    "the data-population gate must ship off until spec coverage supports it");
+  dprCfg.engineering.taskProtocol.testCaseBinding.testData.requireSourceSystemsForPinnedFixtures = true;
+  const dprOn = path.join(tmp, "dpr-on.json");
+  fs.writeFileSync(dprOn, JSON.stringify(dprCfg));
+  const dprEnv = { FHF_HARNESS_CONFIG: dprOn };
+
+  // Pinning a record against a spec that never says where such records come from must be caught.
+  // monthly-dealer-invoice declares test_scenario_groups but no data_population_rules.
+  const pinnedNoSource = structuredClone(base);
+  pinnedNoSource.plan.tests[0].scenarioRef = {
+    registry: "spec-test-scenario-groups",
+    source: INVOICE_SPEC,
+    group: "Invoice Idempotency",
+    covers: ["BR-MDI-012"],
+  };
+  assert.match(issuesOf(pinnedNoSource, dprEnv), /documents no data_population_rules\.source_systems/);
+  // ...and must stay silent with the gate off, which is how it ships.
+  assert.ok(!/data_population_rules/.test(issuesOf(pinnedNoSource)),
+    `gate is off by default: ${issuesOf(pinnedNoSource)}`);
+
+  // all-product-dashboard declares both, so the same pinned fixture must raise nothing.
+  const pinnedWithSource = structuredClone(pinnedNoSource);
+  pinnedWithSource.plan.tests[0].scenarioRef.source = "specs/modules/ancillary/ancillary-products/all-product-dashboard.yaml";
+  pinnedWithSource.plan.tests[0].scenarioRef.group = "Dashboard Population Delay";
+  pinnedWithSource.plan.tests[0].scenarioRef.covers = ["BR-APD-013", "ED-APD-011"];
+  assert.ok(!/data_population_rules|scenarioRef/.test(issuesOf(pinnedWithSource, dprEnv)),
+    `real group on a spec documenting source_systems must resolve cleanly: ${issuesOf(pinnedWithSource, dprEnv)}`);
+
+  // A test that pins nothing is self-sufficient and must not be asked for source systems.
+  const noPin = structuredClone(pinnedNoSource);
+  noPin.plan.tests[0].testData = { none: "Seeds its own record." };
+  assert.ok(!/data_population_rules/.test(issuesOf(noPin, dprEnv)),
+    `unpinned test must not require source systems: ${issuesOf(noPin, dprEnv)}`);
+
   // An unchecked-out repository must skip, not block.
   const canonicalConfig = path.resolve(HERE, "..", "..", "config", "qa-control-plane.json");
   const cfg = JSON.parse(fs.readFileSync(canonicalConfig, "utf8"));
