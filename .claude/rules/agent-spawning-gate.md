@@ -22,5 +22,7 @@ Order:
 5. Route backend-only or combined Cypress plus API/Oracle generation to qa-automation-generator;
    route its failure/review phases to the corresponding cross-layer specialist.
 
-`cypress-author` is not the FHF authoring path. Jira, Confluence, application-contract, and
+`cypress-author` is allowlisted as Cypress-native **convention** input. On FHF work it must not Write or Edit specs; the parent still spawns `cypress-generator` for file writes and `cypress-gate` for review. Jira, Confluence, application-contract, and
 evidence writes remain approval-gated. Never spawn an agent absent from the configured roster.
+
+`cypress-tap` is the Cypress AI Toolkit live-session driver. Stay in the parent and read `.claude/skills/cypress-tap/SKILL.md`; do not spawn a specialist for it. It requires Cypress 15.21+, a Chromium-family browser, and an already-running `cypress open` session. Prefer `--json`. Headless `cypress run` is out of scope. Smoke remains GET-only. New specs still spawn `cypress-generator`; `cypress-author` must not write those specs.

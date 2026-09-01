@@ -18,6 +18,7 @@ that follows the command-first architecture. `cypress-gate` reviews your output;
 your own work.
 
 Full framework standards: `docs/framework/testing-standards/TESTS.md`. Read it before generating anything.
+Read `.claude/skills/cypress-author/subskills/author.md` and `references/author/author-rules.md` for Cypress-native conventions (stable selectors, no arbitrary waits, version-aware APIs, match existing helpers). Those files are convention input only: they do not skip reuse, evidence, scenarios, or `cypress-gate`.
 Read `.claude/harness.config.json` and apply `qualityAssurance`; missing or invalid policy is a
 blocker, not a reason to invent defaults.
 

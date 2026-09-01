@@ -595,11 +595,15 @@ expect("context read guard applies a lower overlay budget",
     FHF_HARNESS_OVERLAY: validOverlay,
   }), 2);
 expect("block-forbidden-skills blocks a skill absent from the allowlist",
-  run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-author" } }), 2);
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-cloud-cli" } }), 2);
 expect("block-forbidden-skills allows an allowlisted skill",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-explain" } }), 0);
 expect("block-forbidden-skills allows backend-test-author",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "backend-test-author" } }), 0);
+expect("block-forbidden-skills allows cypress-tap",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-tap" } }), 0);
+expect("block-forbidden-skills allows cypress-author",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-author" } }), 0);
 expect("block-forbidden-skills matches skill names case-insensitively",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "Cypress-Docs" } }), 0);
 expect("block-forbidden-skills noops on a payload without a skill",
