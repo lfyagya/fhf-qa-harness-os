@@ -1052,9 +1052,11 @@
       "lienholder claim",
       "lien holder claim"
     ],
+    "letter-tracking": [
+      "letter tracking"
+    ],
     "letters": [
       "letters",
-      "letter tracking",
       "risc letter"
     ],
     "loss-mitigation": [
@@ -1197,9 +1199,10 @@
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/lienholder-claim.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/total-loss.yaml"
     ],
-    "letters": [
+    "letter-tracking": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/letter-tracking/letter-tracking.yaml"
     ],
+    "letters": [],
     "loss-mitigation": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml",
