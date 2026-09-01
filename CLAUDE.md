@@ -19,7 +19,7 @@ available, use it only for read-only API or Oracle evidence; never install, sync
     agents/     — 4 agents, one per harness phase: cypress-generator (build), cypress-gate
                   (evaluator), cypress-debugger (diagnose/fix), cypress-shipper (ship/report)
     rules/      — routing map, source map, session discipline, assertion precision
-    skills/     — cypress-author, cypress-docs, cypress-explain (Cypress's own, not ours)
+    skills/     — cypress-author (vendored; FHF convention-only, no spec writes), cypress-docs, cypress-explain, cypress-tap (Cypress AI Toolkit; not ours)
 scripts/harness/
     generate-coverage.mjs      — consent-gated scan; writes ignored runtime evidence into FHF/docs/evidence/
     qa-command-center.mjs      — sprint/spec intake plus portable JSON/Markdown/HTML dashboard

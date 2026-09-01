@@ -1705,22 +1705,28 @@
           "hint": "QA control plane → follow the repository's QA control-plane guide when available; otherwise use repository-local rules. Approval-gate every Jira, Confluence, or application-spec write."
         },
         {
+          "id": "cypress-tap",
+          "priority": 102,
+          "match": "\\bcypress tap\\b|\\btap (cli|session)\\b|\\b(open.?mode|live (cypress )?session)\\b",
+          "hint": "Live Cypress open session → stay in parent and use the cypress-tap skill. Do not spawn. Requires Cypress 15.21+, Chromium, and an already-running `cypress open` session. Prefer `--json`. Poll status until passed/failed with a new startedAt. If cypress-author auto-fires, it is convention-only on FHF work (no spec writes); new tests still spawn cypress-generator."
+        },
+        {
           "id": "cloud-failure",
           "priority": 100,
           "match": "cloud\\.cypress\\.io|cypress cloud.*(fail|run)",
-          "hint": "Cypress Cloud run → spawn cypress-debugger at the standard tier; pull E2E `cy-cloud replay timeline --aroundFailure 5 --commands --network --logs` before fixing. Frontier escalation requires verified evidence that the standard diagnosis is insufficient. Follow connectors.cypressCloud.queryOrder and laneAccess."
+          "hint": "Cypress Cloud run → spawn cypress-debugger at the standard tier; pull E2E `cy-cloud replay timeline --aroundFailure 5 --commands --network --logs` before fixing. After a local fix, verify with cypress-tap when an open Chromium session exists. Frontier escalation requires verified evidence that the standard diagnosis is insufficient. Follow connectors.cypressCloud.queryOrder and laneAccess."
         },
         {
           "id": "test-failure",
           "priority": 100,
           "match": "\\b(failing|fails|red|broken|error)\\b.*\\b(test|spec)\\b|\\b(test|spec)\\b.*\\b(failing|fails|red|broken)\\b",
-          "hint": "Failing test → spawn cypress-debugger (root cause + fix + regression test, configured escalation limit)."
+          "hint": "Failing Cypress test → if a Chromium `cypress open` session is already running and Cypress is 15.21+, stay in parent and use the cypress-tap skill. Otherwise spawn cypress-debugger (root cause + fix + regression test, configured escalation limit)."
         },
         {
           "id": "test-flake",
           "priority": 100,
           "match": "\\b(flaky|slow|intermittent)\\b.*\\b(test|spec|suite)\\b",
-          "hint": "Flakiness/performance → spawn cypress-debugger."
+          "hint": "Flakiness/performance → if a Chromium `cypress open` session is already running and Cypress is 15.21+, stay in parent and use cypress-tap (repeat runs, compare startedAt). Otherwise spawn cypress-debugger."
         },
         {
           "id": "cross-repository-change",
@@ -1777,7 +1783,7 @@
           "id": "new-test",
           "priority": 95,
           "match": "\\b(write|create|add|new|generate)\\b.*\\b(test|spec|suite)\\b",
-          "hint": "New test → spawn cypress-generator."
+          "hint": "New test → spawn cypress-generator. cypress-author may auto-fire first: treat it as Cypress conventions only; it must not Write FHF specs."
         },
         {
           "id": "api-interception",
@@ -1918,6 +1924,8 @@
       "skills": [
         "cypress-explain",
         "cypress-docs",
+        "cypress-tap",
+        "cypress-author",
         "backend-test-author"
       ],
       "boundaries": {

@@ -26,6 +26,7 @@ or a verified failure/flaky route with evidence that the standard-tier diagnosis
 | A pasted error + spec path | **Debug directly** — skip to Classify below. |
 | A Cypress Cloud run URL / "check the last run" | **Pull Cloud data first** — go to Cloud Investigation below. |
 | "This test is flaky/slow" | **Audit** — go to Performance Audit below. |
+| A live `cypress open` session | **Prefer TAP.** Use `npx cypress tap` (Cypress 15.21+, Chromium) against that session; do not start a parallel headless `cy:run` that fights the open app. |
 
 ## Run and report (when asked to execute)
 
