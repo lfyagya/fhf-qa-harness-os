@@ -80,13 +80,6 @@ function fixture() {
         { id: "e2e", repoId: "front-end-automation-e2e", paths: ["CypressFHF/fhf-dashboards/cypress/tests"], dependsOn: ["ui"] },
       ],
       impact: { functional: ["contract reference"], regression: ["contracts dashboard"], smoke: [] },
-      scenarios: [
-        {
-          id: "SC-contract-reference",
-          acceptanceIds: ["ac-contract-reference"],
-          description: "Contract reference is visible on the contracts dashboard.",
-        },
-      ],
       tests: [
         {
           id: "ui-unit",
@@ -95,7 +88,11 @@ function fixture() {
           path: "src/contracts/contract-reference.test.tsx",
           environment: "local",
           proofMode: "red-green-replay",
-          scenarioIds: ["SC-contract-reference"],
+          scenarioRef: {
+            registry: "regression-checklist",
+            source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+            group: "B14.3",
+          },
           testData: { none: "Hermetic unit test builds its own props." },
         },
         {
@@ -107,7 +104,11 @@ function fixture() {
           proofMode: "external-execution-evidence",
           honesty: "live",
           acceptanceIds: ["ac-contract-reference"],
-          scenarioIds: ["SC-contract-reference"],
+          scenarioRef: {
+            registry: "regression-checklist",
+            source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+            group: "B14.3",
+          },
           testData: {
             fixture: "CypressFHF/fhf-dashboards/cypress/fixtures/unifi/collections/pinnedAccounts.json",
             key: "dpdUnder17",
@@ -165,7 +166,11 @@ crossLayer.plan.tests.push({
   proofMode: "external-execution-evidence",
   honesty: "live",
   acceptanceIds: ["ac-contract-reference"],
-  scenarioIds: ["SC-contract-reference"],
+  scenarioRef: {
+    registry: "regression-checklist",
+    source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+    group: "B13.5",
+  },
   testData: { none: "Contract test builds its own request body." },
 });
 crossLayer.plan.capabilities.push({ id: "backend-api-oracle", subject: "qa backend", status: "ready", evidenceRef: "backend preflight" });

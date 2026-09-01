@@ -1364,17 +1364,62 @@
         "autoApproval": false
       },
       "testCaseBinding": {
-        "version": 1,
-        "chain": "requirement -> scenario -> test case -> steps, precondition, test data, assertion",
-        "requirement": "grounding.intentVsBuilt.rows",
-        "scenarios": "plan.scenarios",
-        "scenarioRequiredFields": ["id", "acceptanceIds", "description"],
-        "testCases": "plan.tests",
-        "testRequiredFields": ["scenarioIds", "assertion", "environment", "testData"],
-        "testDataShape": "{ fixture: <repo-relative path>, key: <fixture key>, resolver?: <command> } or { none: <reason> }",
-        "testDataEnforcement": "fixture-file-and-key-must-resolve-at-selected-repository-root",
-        "onUnresolvedTestData": "block-validation",
-        "rationale": "A test case may not name literal account or record values. It cites a fixture key, so the pinned-data strategy is read from the manifest instead of asked for each session."
+        "version": 2,
+        "chain": "requirement -> scenario -> test case -> pre-condition, test data, assertion",
+        "authority": "The application spec repository owns scenarios and data strategy. The manifest cites them; it never restates them.",
+        "specRoot": "paths.applicationIntelligence",
+        "requirement": {
+          "harnessView": "grounding.intentVsBuilt.rows",
+          "specView": ["business_rules", "negative_scenarios", "edge_scenarios", "flows"],
+          "boundTo": "plan.tests[].acceptanceIds"
+        },
+        "scenario": {
+          "boundTo": "plan.tests[].scenarioRef",
+          "shape": "{ registry, source: <repo-relative path>, group, covers?: [<BR-*|NG-*|EG-*|FL-*>] }",
+          "registries": {
+            "spec-test-scenario-groups": {
+              "owns": "product behaviour derived from module business rules",
+              "section": "test_scenario_groups",
+              "group": "test_scenario_groups[].prefix",
+              "coversRequired": true,
+              "coverage": "14 of 58 module specs declare this section today"
+            },
+            "regression-checklist": {
+              "owns": "sprint execution rows: canaries, baselines, latency measurements that are deliberately not module business rules",
+              "section": "flat list of `- id:` rows",
+              "group": "the row id",
+              "coversRequired": false,
+              "example": "docs/evidence/regression-effort/records/<sprint>/regression-checklist.yaml"
+            }
+          },
+          "enforcement": "cited-group-must-exist-in-the-cited-registry-file",
+          "retired": ["plan.scenarios", "plan.tests[].scenarioIds"],
+          "retiredReason": "A manifest-local registry duplicates whichever real one owns the scenario, and the two can disagree. A citation cannot."
+        },
+        "testData": {
+          "specSection": "data_population_rules",
+          "boundTo": "plan.tests[].testData",
+          "shape": "{ fixture: <repo-relative path>, key: <fixture key>, resolver?: <command> } or { none: <reason> }",
+          "enforcement": "fixture-file-and-key-must-resolve-at-selected-repository-root",
+          "note": "data_population_rules states where data comes from (source views, eligibility, population delay); the fixture key states which record a test pins. Both are needed."
+        },
+        "componentContracts": {
+          "source": "specs/components/*.component.yaml",
+          "moduleMap": "specs/mappings/module-component-map.yaml",
+          "inheritanceKey": "depends_on_components",
+          "policyNote": "Expectations are mirrored here, not added to the spec repo: that repo is the application contract and is approval-gated for writes.",
+          "table": {
+            "expectedModuleSections": [
+              "depends_on_components",
+              "table_column_contract.required_headers",
+              "business_rules"
+            ],
+            "requiredHeaderProperties": ["editable", "copyable", "sortable", "filterable"],
+            "rationale": "table.component.yaml: a header missing any of these generates RL-002, RL-003 or RL-006 without the correct assertion."
+          }
+        },
+        "onUnresolvedReference": "block-validation",
+        "onAbsentSpecRepository": "skip-not-block"
       }
     },
     "capabilityControl": {

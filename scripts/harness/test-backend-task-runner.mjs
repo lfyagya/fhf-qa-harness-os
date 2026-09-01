@@ -116,11 +116,6 @@ const manifest = {
       dependsOn: [],
     }],
     impact: { functional: ["contract reference"], regression: [], smoke: [] },
-    scenarios: [{
-      id: "SC-contract-reference",
-      acceptanceIds: ["ac-contract-reference"],
-      description: "Contract reference is returned by the contracts endpoint.",
-    }],
     tests: [{
       id: "backend-contracts",
       runnerId: "backend-api-oracle",
@@ -130,7 +125,11 @@ const manifest = {
       proofMode: "external-execution-evidence",
       honesty: "live",
       acceptanceIds: ["ac-contract-reference"],
-      scenarioIds: ["SC-contract-reference"],
+      scenarioRef: {
+        registry: "regression-checklist",
+        source: "docs/evidence/regression-effort/records/sprint-26.3.5/regression-checklist.yaml",
+        group: "A13.3",
+      },
       testData: { none: "Contract test builds its own request body." },
     }],
   },

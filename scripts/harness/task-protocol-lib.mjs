@@ -181,41 +181,50 @@ function intentVsBuiltRowIds(manifest) {
   return new Set((manifest?.grounding?.intentVsBuilt?.rows ?? []).map((row) => row?.id).filter(Boolean));
 }
 
+export const SCENARIO_REGISTRIES = Object.freeze([
+  "spec-test-scenario-groups",
+  "regression-checklist",
+]);
+
+// Scenario and test-data binding. Scenarios are NOT restated here. Two registries already own
+// them and they are not interchangeable: the application spec repo owns product behaviour as
+// test_scenario_groups[].prefix + covers, while a sprint regression checklist owns execution rows
+// (canaries, baselines, latency measurements) that are deliberately not module business rules.
+// A manifest cites whichever one actually owns the scenario. Resolving the citation needs the
+// filesystem and lives in the CLI. Requirement linkage stays on acceptanceIds -> intentVsBuilt.
 function validateTestCaseBinding(manifest) {
   const issues = [];
-  const knownRows = intentVsBuiltRowIds(manifest);
-  const scenarios = manifest.plan?.scenarios ?? [];
-  const scenarioIds = new Set();
-
-  for (const scenario of scenarios) {
-    if (!scenario?.id || scenarioIds.has(scenario.id)) {
-      issues.push("plan.scenarios IDs must be present and unique");
-      continue;
-    }
-    scenarioIds.add(scenario.id);
-    if (typeof scenario.description !== "string" || !scenario.description.trim()) {
-      issues.push(`${scenario.id}.description must state the scenario`);
-    }
-    const derivedFrom = scenario.acceptanceIds;
-    if (!Array.isArray(derivedFrom) || derivedFrom.length === 0) {
-      issues.push(`${scenario.id}.acceptanceIds must bind the requirement it derives from`);
-    } else {
-      for (const id of derivedFrom) {
-        if (!knownRows.has(id)) issues.push(`${scenario.id} acceptanceIds references unknown intentVsBuilt row ${id}`);
-      }
-    }
+  if (manifest.plan?.scenarios !== undefined) {
+    issues.push("plan.scenarios is retired; cite a registry via plan.tests[].scenarioRef");
   }
-
   for (const test of manifest.plan?.tests ?? []) {
     if (test.proofMode === "tests-not-applicable") continue;
     const label = test.id ?? "test";
 
-    const cited = test.scenarioIds;
-    if (!Array.isArray(cited) || cited.length === 0) {
-      issues.push(`${label}.scenarioIds must cite at least one plan.scenarios row`);
+    if (test.scenarioIds !== undefined) {
+      issues.push(`${label}.scenarioIds is retired; use scenarioRef { registry, source, group }`);
+    }
+    const ref = test.scenarioRef;
+    if (!ref || typeof ref !== "object") {
+      issues.push(`${label}.scenarioRef must cite the registry that owns the scenario`);
     } else {
-      for (const id of cited) {
-        if (!scenarioIds.has(id)) issues.push(`${label} scenarioIds references unknown plan.scenarios row ${id}`);
+      if (!SCENARIO_REGISTRIES.includes(ref.registry)) {
+        issues.push(`${label}.scenarioRef.registry must be one of ${SCENARIO_REGISTRIES.join(', ')}`);
+      }
+      if (!isRelativeSafePath(ref.source)) {
+        issues.push(`${label}.scenarioRef.source must be a repo-relative path to the registry file`);
+      }
+      if (typeof ref.group !== "string" || !ref.group.trim()) {
+        issues.push(`${label}.scenarioRef.group must name the scenario group or row`);
+      }
+      // covers only means something for spec groups; checklist rows are single scenarios.
+      if (ref.registry === "spec-test-scenario-groups") {
+        if (!Array.isArray(ref.covers) || ref.covers.length === 0
+            || ref.covers.some((id) => typeof id !== "string" || !id.trim())) {
+          issues.push(`${label}.scenarioRef.covers must list the rule IDs the group covers`);
+        }
+      } else if (ref.covers !== undefined) {
+        issues.push(`${label}.scenarioRef.covers applies only to spec-test-scenario-groups`);
       }
     }
 
