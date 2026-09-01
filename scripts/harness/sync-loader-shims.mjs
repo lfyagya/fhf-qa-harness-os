@@ -86,7 +86,7 @@ const FIRST_SYNC_GENERATED = new Set([
   path.join(HARNESS_ROOT, ".claude", "settings.json"),
 ]);
 
-function manifestKey(filePath) {
+function resolveAgainstRoots(filePath) {
   const absolute = path.resolve(filePath);
   const roots = [
     [HARNESS_ROOT, "harness"],
@@ -97,10 +97,36 @@ function manifestKey(filePath) {
   ].sort((a, b) => b[0].length - a[0].length);
   for (const [root, prefix] of roots) {
     if (absolute === root || absolute.startsWith(`${root}${path.sep}`)) {
-      return `${prefix}/${path.relative(root, absolute).replaceAll(path.sep, "/")}`;
+      return { prefix, rel: path.relative(root, absolute).replaceAll(path.sep, "/") };
     }
   }
-  return `external/${absolute.replaceAll("\\", "/")}`;
+  return { prefix: "external", rel: absolute.replaceAll("\\", "/") };
+}
+
+function manifestKey(filePath) {
+  const { prefix, rel } = resolveAgainstRoots(filePath);
+  return `${prefix}/${rel}`;
+}
+
+// Lane-local files: a target owns them, canonical does not, and sync must never delete them.
+// copyDirSync mirrors canonical and removes anything else, so before this list a lane-local file
+// was structurally doomed - flagged on every run and destroyed by the first bare --force. That
+// nearly took the e2e selector-liveness gate (249 lines, closed Cloud run 754). The check sits
+// ahead of the FORCE branch on purpose: --force is the failure mode, so it must not override it.
+const LANE_LOCAL_PATHS = (() => {
+  try {
+    return JSON.parse(HARNESS_CONFIG_TEXT).engineering?.harness?.laneLocalPaths ?? [];
+  } catch {
+    return [];
+  }
+})();
+
+function isLaneLocal(filePath) {
+  const { rel } = resolveAgainstRoots(filePath);
+  return LANE_LOCAL_PATHS.some((kept) => {
+    const base = String(kept).replace(/\/+$/, "");
+    return base.length > 0 && (rel === base || rel.startsWith(`${base}/`));
+  });
 }
 
 function normalizeManifest(raw) {
@@ -218,6 +244,7 @@ function copyDirSync(src, dest) {
   for (const name of destExistingNames) {
     if (srcNames.has(name)) continue;
     const dpath = path.join(dest, name);
+    if (isLaneLocal(dpath)) continue;
     if (!FORCE && fs.existsSync(dpath)) {
       if (fs.statSync(dpath).isDirectory()) {
         blocked.push(`${dpath} (would be deleted — directory ownership is untracked)`);

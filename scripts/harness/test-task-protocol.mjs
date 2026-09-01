@@ -80,6 +80,13 @@ function fixture() {
         { id: "e2e", repoId: "front-end-automation-e2e", paths: ["CypressFHF/fhf-dashboards/cypress/tests"], dependsOn: ["ui"] },
       ],
       impact: { functional: ["contract reference"], regression: ["contracts dashboard"], smoke: [] },
+      scenarios: [
+        {
+          id: "SC-contract-reference",
+          acceptanceIds: ["ac-contract-reference"],
+          description: "Contract reference is visible on the contracts dashboard.",
+        },
+      ],
       tests: [
         {
           id: "ui-unit",
@@ -88,6 +95,8 @@ function fixture() {
           path: "src/contracts/contract-reference.test.tsx",
           environment: "local",
           proofMode: "red-green-replay",
+          scenarioIds: ["SC-contract-reference"],
+          testData: { none: "Hermetic unit test builds its own props." },
         },
         {
           id: "e2e",
@@ -98,6 +107,11 @@ function fixture() {
           proofMode: "external-execution-evidence",
           honesty: "live",
           acceptanceIds: ["ac-contract-reference"],
+          scenarioIds: ["SC-contract-reference"],
+          testData: {
+            fixture: "CypressFHF/fhf-dashboards/cypress/fixtures/unifi/collections/pinnedAccounts.json",
+            key: "dpdUnder17",
+          },
         },
       ],
     },
@@ -151,6 +165,8 @@ crossLayer.plan.tests.push({
   proofMode: "external-execution-evidence",
   honesty: "live",
   acceptanceIds: ["ac-contract-reference"],
+  scenarioIds: ["SC-contract-reference"],
+  testData: { none: "Contract test builds its own request body." },
 });
 crossLayer.plan.capabilities.push({ id: "backend-api-oracle", subject: "qa backend", status: "ready", evidenceRef: "backend preflight" });
 assert.deepEqual(validateTaskManifest(crossLayer, options), []);

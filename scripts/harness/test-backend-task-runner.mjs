@@ -116,6 +116,11 @@ const manifest = {
       dependsOn: [],
     }],
     impact: { functional: ["contract reference"], regression: [], smoke: [] },
+    scenarios: [{
+      id: "SC-contract-reference",
+      acceptanceIds: ["ac-contract-reference"],
+      description: "Contract reference is returned by the contracts endpoint.",
+    }],
     tests: [{
       id: "backend-contracts",
       runnerId: "backend-api-oracle",
@@ -125,6 +130,8 @@ const manifest = {
       proofMode: "external-execution-evidence",
       honesty: "live",
       acceptanceIds: ["ac-contract-reference"],
+      scenarioIds: ["SC-contract-reference"],
+      testData: { none: "Contract test builds its own request body." },
     }],
   },
   approval: { required: true, approvedDigest: null, reference: "human-review" },

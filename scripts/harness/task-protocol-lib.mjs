@@ -181,6 +181,58 @@ function intentVsBuiltRowIds(manifest) {
   return new Set((manifest?.grounding?.intentVsBuilt?.rows ?? []).map((row) => row?.id).filter(Boolean));
 }
 
+function validateTestCaseBinding(manifest) {
+  const issues = [];
+  const knownRows = intentVsBuiltRowIds(manifest);
+  const scenarios = manifest.plan?.scenarios ?? [];
+  const scenarioIds = new Set();
+
+  for (const scenario of scenarios) {
+    if (!scenario?.id || scenarioIds.has(scenario.id)) {
+      issues.push("plan.scenarios IDs must be present and unique");
+      continue;
+    }
+    scenarioIds.add(scenario.id);
+    if (typeof scenario.description !== "string" || !scenario.description.trim()) {
+      issues.push(`${scenario.id}.description must state the scenario`);
+    }
+    const derivedFrom = scenario.acceptanceIds;
+    if (!Array.isArray(derivedFrom) || derivedFrom.length === 0) {
+      issues.push(`${scenario.id}.acceptanceIds must bind the requirement it derives from`);
+    } else {
+      for (const id of derivedFrom) {
+        if (!knownRows.has(id)) issues.push(`${scenario.id} acceptanceIds references unknown intentVsBuilt row ${id}`);
+      }
+    }
+  }
+
+  for (const test of manifest.plan?.tests ?? []) {
+    if (test.proofMode === "tests-not-applicable") continue;
+    const label = test.id ?? "test";
+
+    const cited = test.scenarioIds;
+    if (!Array.isArray(cited) || cited.length === 0) {
+      issues.push(`${label}.scenarioIds must cite at least one plan.scenarios row`);
+    } else {
+      for (const id of cited) {
+        if (!scenarioIds.has(id)) issues.push(`${label} scenarioIds references unknown plan.scenarios row ${id}`);
+      }
+    }
+
+    const data = test.testData;
+    if (!data || typeof data !== "object") {
+      issues.push(`${label}.testData must reference a fixture key or record { none: "<reason>" }`);
+    } else if (typeof data.none === "string") {
+      if (!data.none.trim()) issues.push(`${label}.testData.none must give a reason`);
+    } else if (!isRelativeSafePath(data.fixture) || typeof data.key !== "string" || !data.key.trim()) {
+      issues.push(`${label}.testData needs a repo-relative fixture path and a non-empty key`);
+    } else if (data.resolver !== undefined && (typeof data.resolver !== "string" || !data.resolver.trim())) {
+      issues.push(`${label}.testData.resolver must be the command that reads the key`);
+    }
+  }
+  return issues;
+}
+
 function validateTestHonesty(manifest) {
   const issues = [];
   const knownRows = intentVsBuiltRowIds(manifest);
@@ -404,6 +456,7 @@ export function validateTaskManifest(manifest, { repoIds = [], runnerIds = [], r
   if (typeof manifest.approval?.required !== "boolean") issues.push("approval.required must be boolean");
   if (!Array.isArray(manifest.evidence?.artifacts)) issues.push("evidence.artifacts must be an array");
   issues.push(...validateTestHonesty(manifest));
+  issues.push(...validateTestCaseBinding(manifest));
   issues.push(...validateCapabilities(manifest, capabilityControl, runners));
   return [...new Set(issues)];
 }

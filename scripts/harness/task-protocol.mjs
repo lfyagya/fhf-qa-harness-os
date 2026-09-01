@@ -36,6 +36,51 @@ function loadManifest() {
   return JSON.parse(fs.readFileSync(path.resolve(source), "utf8"));
 }
 
+// Structural testData checks live in the lib; existence needs the filesystem, so it lives here.
+function fixtureIssues(manifest, config) {
+  const repositories = config.productTopology?.repositories ?? {};
+  const issues = [];
+  for (const test of manifest.plan?.tests ?? []) {
+    const data = test.testData;
+    if (!data?.fixture || typeof data.none === "string") continue;
+    const label = test.id ?? "test";
+    const root = repositories[test.repoId]?.root;
+    if (!root) {
+      issues.push(`${label}.testData cannot resolve: repository ${test.repoId} has no configured root`);
+      continue;
+    }
+    // Two run locations, same as loadConfig(): projected at <consumer>/.harness, and canonical
+    // at <harness>/scripts/harness with the consumer tree alongside. Try both.
+    const repoRoot = [
+      path.resolve(HERE, "..", root),
+      path.resolve(HERE, "..", "..", config.paths?.consumerRoot ?? "..", root),
+    ].find((candidate) => fs.existsSync(candidate));
+    // A repository that is not checked out here cannot be judged. Skip rather than block:
+    // partial checkouts are normal (one lane cloned, not the meta-root), and a gate that
+    // fires on absent siblings gets switched off. An absent file inside a PRESENT repo is
+    // still a hard failure - that is the case this check exists for.
+    if (!repoRoot) continue;
+    const file = path.join(repoRoot, data.fixture);
+    if (!fs.existsSync(file)) {
+      issues.push(`${label}.testData fixture not found: ${root}/${data.fixture}`);
+      continue;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch (error) {
+      issues.push(`${label}.testData fixture is not readable JSON: ${error.message}`);
+      continue;
+    }
+    // ponytail: key resolves at the top level or one level in (fixtures nest under "accounts" etc).
+    const resolves = Object.hasOwn(parsed, data.key)
+      || Object.values(parsed).some((group) =>
+        group && typeof group === "object" && !Array.isArray(group) && Object.hasOwn(group, data.key));
+    if (!resolves) issues.push(`${label}.testData key "${data.key}" is absent from ${root}/${data.fixture}`);
+  }
+  return issues;
+}
+
 function protocolOptions(config) {
   const runners = config.engineering?.executionRunners?.runners ?? {};
   return {
@@ -108,7 +153,7 @@ try {
     contract(config);
   } else if (command === "validate") {
     const manifest = loadManifest();
-    const issues = validateTaskManifest(manifest, options);
+    const issues = [...validateTaskManifest(manifest, options), ...fixtureIssues(manifest, config)];
     print({ valid: issues.length === 0, issues });
     if (issues.length > 0) process.exitCode = 1;
   } else if (command === "digest") {

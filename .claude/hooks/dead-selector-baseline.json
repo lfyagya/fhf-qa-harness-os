@@ -1,0 +1,25 @@
+{
+  "$comment": [
+    "Grandfathered dead data-cy selectors: declared in cypress/configs/ui/** but emitted",
+    "nowhere in the application, per scripts/harness/selector-inventory.json.",
+    "Enforced by .claude/hooks/validate-cypress-rules.mjs.",
+    "A dead selector listed here WARNS. A dead selector NOT listed here BLOCKS the write.",
+    "This file may only shrink. Removing an entry means the selector was retired or the",
+    "data-cy was backfilled upstream; adding one requires the same review as a guardrail",
+    "exception (see .claude/rules/ai-pilot.md, Guardrail findings).",
+    "Generated 2026-08-28 from Cloud run 754 triage against app dev@545f15c5a — 3 entries."
+  ],
+  "generated": "2026-08-28",
+  "appRef": "dev",
+  "appSha": "545f15c5a8da8234348dde44906af768371263c8",
+  "baselineCount": 3,
+  "selectors": {
+    "modules/unifi/collections/financialSnapshot.ui.js": [
+      "pie-chart"
+    ],
+    "modules/unifi/collections/questionFlow.ui.js": [
+      "continue-button",
+      "next-step-button"
+    ]
+  }
+}

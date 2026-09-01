@@ -1362,6 +1362,19 @@
         "autoDeploy": false,
         "autoExternalWrite": false,
         "autoApproval": false
+      },
+      "testCaseBinding": {
+        "version": 1,
+        "chain": "requirement -> scenario -> test case -> steps, precondition, test data, assertion",
+        "requirement": "grounding.intentVsBuilt.rows",
+        "scenarios": "plan.scenarios",
+        "scenarioRequiredFields": ["id", "acceptanceIds", "description"],
+        "testCases": "plan.tests",
+        "testRequiredFields": ["scenarioIds", "assertion", "environment", "testData"],
+        "testDataShape": "{ fixture: <repo-relative path>, key: <fixture key>, resolver?: <command> } or { none: <reason> }",
+        "testDataEnforcement": "fixture-file-and-key-must-resolve-at-selected-repository-root",
+        "onUnresolvedTestData": "block-validation",
+        "rationale": "A test case may not name literal account or record values. It cites a fixture key, so the pinned-data strategy is read from the manifest instead of asked for each session."
       }
     },
     "capabilityControl": {
@@ -1920,6 +1933,8 @@
         "cypress-docs",
         "backend-test-author"
       ],
+      "laneLocalPaths": [],
+      "laneLocalPathsNote": "Repo-relative paths (file or directory) a lane owns and canonical does not. sync-loader-shims never deletes these, including under --force. Prefer promoting shared infrastructure to canonical; use this only for genuinely lane-specific files inside a synced directory.",
       "boundaries": {
         "applicationSource": {
           "mode": "read-only",
