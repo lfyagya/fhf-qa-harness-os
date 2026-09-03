@@ -190,7 +190,27 @@ Progress means the error changed, the change digest changed, or the rule-violati
 
 For harness owners. Everyday QA work does not require this section.
 
-There is one reviewed policy. Generated assistant surfaces, hook registrations, and the CLI contract are produced from it. Do not hand-edit a generated file to "fix" a ticket — fix policy, regenerate, verify. Read-only discovery is autonomous, but Jira, Confluence, product contract, and evidence-export writes each need an explicit one-time approval of the exact target and payload immediately before the write. The agent may never approve.
+There is one reviewed policy. Generated assistant surfaces, hook registrations, and the CLI contract are produced from it. Do not hand-edit a generated file to "fix" a ticket — fix policy, regenerate, verify.
+
+### Keeping consumer repos in sync
+
+The aggregation workspace (`fhf-qa-harness-os`) is the canonical source. Consumer repos (`front-end-automation-e2e`, `front-end-automation-smoke`) receive generated config via the sync script. Run this after every `git pull` on the aggregation workspace:
+
+```shell
+node scripts/harness/sync-loader-shims.mjs --only-root
+node scripts/harness/sync-loader-shims.mjs --only-e2e
+node scripts/harness/sync-loader-shims.mjs --only-smoke
+```
+
+Run the three commands separately — a combined run hits a Windows transaction conflict on `settings.json`. The sync writes a `.sync-manifest.json` in the aggregation workspace root; that file is gitignored and machine-local, do not commit it.
+
+After syncing, commit the updated `harness.config.json` in each consumer repo to the correct baseline branch (`dev` for E2E, `staging` for smoke). Run the drift check to confirm nothing was missed:
+
+```shell
+node scripts/harness/check-loader-drift.mjs
+```
+
+A clean result prints `Harness loader shims are clean and centralized.` If drift is reported, check whether the consumer copy is ahead of the source (consumer was updated directly) — in that case copy the consumer file back into the harness source, then re-run sync. Read-only discovery is autonomous, but Jira, Confluence, product contract, and evidence-export writes each need an explicit one-time approval of the exact target and payload immediately before the write. The agent may never approve.
 
 | Connector | How it is used |
 | --- | --- |
