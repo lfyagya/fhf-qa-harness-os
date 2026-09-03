@@ -1,8 +1,10 @@
 # Agent and Skill Router
 
-Apply this to FHF QA automation work. fhf-backend-automation remains an independent repository
-with local pytest rules; the centralized harness may author and run it only through an active,
-task-scoped manifest. Never install or generate the centralized harness inside that repository.
+Apply this to FHF QA automation work. fhf-backend-automation is a full harness sync consumer —
+its `.claude/{hooks,agents,rules,skills}/` are generated from this harness, same as E2E and Smoke.
+Pytest authoring and execution inside it stay task-scoped: writes and runs require an active,
+validated `FHF_ACTIVE_TASK` manifest and remain within its selected paths — see
+`.claude/rules/backend-automation.md`.
 
 Read `.claude/harness.config.json`:
 

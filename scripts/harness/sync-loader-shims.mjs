@@ -408,9 +408,27 @@ function syncSubRepo(repoPath, lane) {
   syncRuntimeEvidence(repoPath, lane);
 }
 
+// Backend's .gitignore predates full-consumer status and blanket-ignores .claude/ and CLAUDE.md,
+// which would silently drop the generated agents/rules/skills below. Narrow it to the same scope
+// E2E and Smoke use (local secrets and runtime state only) instead of hand-editing it out of band.
+function scopeBackendGitignore(repoPath) {
+  const gitignorePath = path.join(repoPath, ".gitignore");
+  if (!fs.existsSync(gitignorePath)) return;
+  const original = fs.readFileSync(gitignorePath, "utf8");
+  const blanketPattern = /(\r?\n)\.claude\/\1CLAUDE\.md\1\.cursor\/\1/;
+  const match = original.match(blanketPattern);
+  if (!match) return;
+  const eol = match[1];
+  const scoped = `${eol}.claude/settings.local.json${eol}.claude/hooks/.sweep-retries${eol}`;
+  const updated = original.replace(blanketPattern, scoped);
+  if (preflight) return;
+  fs.writeFileSync(gitignorePath, updated, "utf8");
+}
+
 // Backend is a full harness sync consumer — same as E2E/smoke lanes. Backend-specific agents,
 // rules, and skills live in the harness and are generated here; nothing is backend-authoritative.
 function syncBackend() {
+  scopeBackendGitignore(SUB_REPOS.backend);
   for (const sub of CLAUDE_SUBFOLDERS) {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(SUB_REPOS.backend, ".claude", sub));
   }
