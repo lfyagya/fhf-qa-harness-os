@@ -39,6 +39,8 @@ import {
   CAPABILITY_DOCTOR_TEXT,
   WORKSPACE_SETUP_TEXT,
   executionProfileExample,
+  lanePackage,
+  npmrcExample,
   laneMarker,
   workspaceExample,
 } from "./loader-templates.mjs";
@@ -206,6 +208,11 @@ function stageWrite(filePath, content) {
   const temporary = transactionPath(filePath, "tmp");
   fs.mkdirSync(path.dirname(temporary), { recursive: true });
   fs.writeFileSync(temporary, content, "utf8");
+  // The temp name is derived from filePath, so staging one destination twice (harness root and
+  // FHF root coincide in a local aggregation workspace) would queue two publishes of one temp
+  // file and the second rename would ENOENT. Last write wins; keep a single pending entry.
+  const already = pendingWrites.find((entry) => entry.filePath === filePath);
+  if (already) return;
   pendingWrites.push({
     filePath,
     temporary,
@@ -336,6 +343,8 @@ function syncRuntimeEvidence(repoPath, lane) {
   if (lane === "e2e" || lane === "smoke") {
     writeText(path.join(repoPath, ".harness", "prepare-execution.mjs"), EXECUTION_SETUP_TEXT);
     writeText(path.join(repoPath, ".harness", "execution.example.json"), executionProfileExample(lane));
+    const pkg = lanePackage(lane);
+    if (pkg) writeText(path.join(repoPath, pkg, ".npmrc.example"), npmrcExample(lane));
   }
 }
 
@@ -399,10 +408,12 @@ function syncSubRepo(repoPath, lane) {
   syncRuntimeEvidence(repoPath, lane);
 }
 
-// Backend receives harness.config.json, settings.json, and hooks — but NOT agents/rules/skills,
-// which are pytest-specific and authoritative for that lane.
+// Backend is a full harness sync consumer — same as E2E/smoke lanes. Backend-specific agents,
+// rules, and skills live in the harness and are generated here; nothing is backend-authoritative.
 function syncBackend() {
-  copyDirSync(path.join(HARNESS_ROOT, ".claude", "hooks"), path.join(SUB_REPOS.backend, ".claude", "hooks"));
+  for (const sub of CLAUDE_SUBFOLDERS) {
+    copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(SUB_REPOS.backend, ".claude", sub));
+  }
   writeText(path.join(SUB_REPOS.backend, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(path.join(SUB_REPOS.backend, ".claude", "settings.json"), portableSettings("backend"));
 }
