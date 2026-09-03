@@ -202,7 +202,7 @@ node scripts/harness/sync-loader-shims.mjs --only-e2e
 node scripts/harness/sync-loader-shims.mjs --only-smoke
 ```
 
-Run the three commands separately — a combined run hits a Windows transaction conflict on `settings.json`. The sync writes a `.sync-manifest.json` in the aggregation workspace root; that file is gitignored and machine-local, do not commit it.
+Run the three commands separately — a combined run hits a Windows transaction conflict on `settings.json`. The sync writes a `.sync-manifest.json` in the aggregation workspace root; that file is gitignored and machine-local, do not commit it. `fhf-backend-automation` is not a sync consumer and is never touched by this script.
 
 After syncing, commit the updated `harness.config.json` in each consumer repo to the correct baseline branch (`dev` for E2E, `staging` for smoke). Run the drift check to confirm nothing was missed:
 
