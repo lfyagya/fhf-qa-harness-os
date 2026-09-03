@@ -54,6 +54,7 @@ const BASELINE_ROOT = process.env.FHF_BASELINE_TARGET
 const SUB_REPOS = {
   e2e: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "e2e", { explicit: process.env.FHF_E2E_TARGET_ROOT }),
   smoke: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "smoke", { explicit: process.env.FHF_SMOKE_TARGET_ROOT }),
+  backend: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "backend", { explicit: process.env.FHF_BACKEND_TARGET_ROOT }),
 };
 
 // FHF root gets the full generated .claude tree — it's the project root Claude Code
@@ -72,6 +73,7 @@ const ONLY_E2E = process.argv.includes("--only-e2e");
 const ONLY_SMOKE = process.argv.includes("--only-smoke");
 const ONLY_ROOT = process.argv.includes("--only-root");
 const ONLY_BASELINE = process.argv.includes("--only-baseline");
+const ONLY_BACKEND = process.argv.includes("--only-backend");
 const MANIFEST_PATH = process.env.FHF_SYNC_MANIFEST
   ? path.resolve(process.env.FHF_SYNC_MANIFEST)
   : path.join(HARNESS_ROOT, ".sync-manifest.json");
@@ -94,6 +96,7 @@ function resolveAgainstRoots(filePath) {
     ...(BASELINE_ROOT ? [[BASELINE_ROOT, "baseline"]] : []),
     [SUB_REPOS.e2e, "consumer/e2e"],
     [SUB_REPOS.smoke, "consumer/smoke"],
+    [SUB_REPOS.backend, "consumer/backend"],
   ].sort((a, b) => b[0].length - a[0].length);
   for (const [root, prefix] of roots) {
     if (absolute === root || absolute.startsWith(`${root}${path.sep}`)) {
@@ -396,6 +399,14 @@ function syncSubRepo(repoPath, lane) {
   syncRuntimeEvidence(repoPath, lane);
 }
 
+// Backend receives harness.config.json, settings.json, and hooks — but NOT agents/rules/skills,
+// which are pytest-specific and authoritative for that lane.
+function syncBackend() {
+  copyDirSync(path.join(HARNESS_ROOT, ".claude", "hooks"), path.join(SUB_REPOS.backend, ".claude", "hooks"));
+  writeText(path.join(SUB_REPOS.backend, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
+  writeText(path.join(SUB_REPOS.backend, ".claude", "settings.json"), portableSettings("backend"));
+}
+
 function removeEmptyLegacyCodexDirectory(repoPath) {
   const directory = path.join(repoPath, ".codex");
   if (fs.existsSync(directory) && fs.readdirSync(directory).length === 0) {
@@ -405,8 +416,8 @@ function removeEmptyLegacyCodexDirectory(repoPath) {
 
 withFileLock(MANIFEST_PATH, () => {
   if (
-    (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT || ONLY_BASELINE)) ||
-    [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT, ONLY_BASELINE].filter(Boolean).length > 1
+    (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT || ONLY_BASELINE || ONLY_BACKEND)) ||
+    [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT, ONLY_BASELINE, ONLY_BACKEND].filter(Boolean).length > 1
   ) {
     throw new Error("Use only one scoped sync mode.");
   }
@@ -417,6 +428,8 @@ withFileLock(MANIFEST_PATH, () => {
     syncSubRepo(SUB_REPOS.e2e, "e2e");
   } else if (ONLY_SMOKE) {
     syncSubRepo(SUB_REPOS.smoke, "smoke");
+  } else if (ONLY_BACKEND) {
+    syncBackend();
   } else if (ONLY_BASELINE) {
     syncBaseline();
   } else if (ONLY_ROOT) {
@@ -426,6 +439,7 @@ withFileLock(MANIFEST_PATH, () => {
     syncFhfRoot();
     if (!SKIP_E2E) syncSubRepo(SUB_REPOS.e2e, "e2e");
     syncSubRepo(SUB_REPOS.smoke, "smoke");
+    syncBackend();
   }
 
   if (blocked.length) {
@@ -442,6 +456,8 @@ withFileLock(MANIFEST_PATH, () => {
     } else if (ONLY_SMOKE) {
       syncSubRepo(SUB_REPOS.smoke, "smoke");
       removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
+    } else if (ONLY_BACKEND) {
+      syncBackend();
     } else if (ONLY_BASELINE) {
       syncBaseline();
     } else if (ONLY_ROOT) {
@@ -451,6 +467,7 @@ withFileLock(MANIFEST_PATH, () => {
       syncFhfRoot();
       if (!SKIP_E2E) syncSubRepo(SUB_REPOS.e2e, "e2e");
       syncSubRepo(SUB_REPOS.smoke, "smoke");
+      syncBackend();
       removeEmptyLegacyCodexDirectory(FHF_ROOT);
       if (!SKIP_E2E) removeEmptyLegacyCodexDirectory(SUB_REPOS.e2e);
       removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
@@ -464,6 +481,8 @@ withFileLock(MANIFEST_PATH, () => {
         ? "Synced loader shims for E2E repo only."
         : ONLY_SMOKE
         ? "Synced loader shims for Smoke repo only."
+        : ONLY_BACKEND
+        ? "Synced loader shims for backend repo only."
         : ONLY_BASELINE
         ? "Synced loader shims for master baseline only."
         : ONLY_ROOT

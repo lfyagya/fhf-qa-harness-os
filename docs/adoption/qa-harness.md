@@ -200,11 +200,12 @@ The aggregation workspace (`fhf-qa-harness-os`) is the canonical source. Consume
 node scripts/harness/sync-loader-shims.mjs --only-root
 node scripts/harness/sync-loader-shims.mjs --only-e2e
 node scripts/harness/sync-loader-shims.mjs --only-smoke
+node scripts/harness/sync-loader-shims.mjs --only-backend
 ```
 
-Run the three commands separately — a combined run hits a Windows transaction conflict on `settings.json`. The sync writes a `.sync-manifest.json` in the aggregation workspace root; that file is gitignored and machine-local, do not commit it. `fhf-backend-automation` is not a sync consumer and is never touched by this script.
+Run the four commands separately — a combined run hits a Windows transaction conflict on `settings.json`. The sync writes a `.sync-manifest.json` in the aggregation workspace root; that file is gitignored and machine-local, do not commit it.
 
-After syncing, commit the updated `harness.config.json` in each consumer repo to the correct baseline branch (`dev` for E2E, `staging` for smoke). Run the drift check to confirm nothing was missed:
+After syncing, commit the updated `harness.config.json` in each consumer repo to the correct baseline branch (`dev` for E2E, `staging` for smoke, `main` for backend). Run the drift check to confirm nothing was missed:
 
 ```shell
 node scripts/harness/check-loader-drift.mjs

@@ -144,6 +144,11 @@
         "root": "front-end-automation-smoke",
         "package": "CypressFHF/fhf-dashboards",
         "branch": "staging"
+      },
+      "backend": {
+        "rootEnv": "FHF_BACKEND_TARGET_ROOT",
+        "root": "fhf-backend-automation",
+        "branch": "main"
       }
     },
     "automationLanes": {
