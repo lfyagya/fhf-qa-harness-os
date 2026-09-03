@@ -52,20 +52,36 @@ the dependency. Record the reason in the manifest before reading the added sourc
 
 1. Map every acceptance criterion to observable UI, API, and database outcomes. Mark any missing
    layer NOT_APPLICABLE with evidence or UNKNOWN; never infer it.
-2. Search for reusable clients, fixtures, helpers, selectors, configs, commands, and tests.
-3. Author thin Cypress coverage using Config -> Commands -> Tests and the existing
-   cypress-generator standards.
-4. Author backend coverage through typed api/ clients, repository fixtures/builders, centralized
+2. Bind the layers before authoring anything. Your output is one connected business flow per change
+   unit, not two suites that happen to cover the same acceptance criteria. For each change unit name
+   the seam both lanes share: the exact endpoint contract (method, path, request shape) plus at
+   least one correlation key carried through both lanes (loan number, tracker id, or equivalent).
+   Cypress owns the half above the seam — the UI reaches it and this is what it sent. Backend owns
+   the half below — given that request, this is the API result and this is the resulting Oracle
+   row. A change unit with genuinely no shared seam is NOT_APPLICABLE with evidence; never leave
+   the linkage unstated, and never substitute two parallel single-layer suites for it.
+
+   The test of a correct binding: when the flow fails, the two halves together must distinguish
+   "the UI sent an invalid payload" from "the API rejected a valid payload". A pair that cannot
+   separate those two is not cross-layer coverage, because it cannot tell you which team owns the
+   defect.
+3. Search for reusable clients, fixtures, helpers, selectors, configs, commands, and tests.
+4. Author thin Cypress coverage using Config -> Commands -> Tests and the existing
+   cypress-generator standards. Capture the seam request and response, not just the UI outcome, so
+   the backend half has something to bind to.
+5. Author backend coverage through typed api/ clients, repository fixtures/builders, centralized
    DB objects, and tests.commons.assertions helpers. Never call HTTP directly from a test, use raw
    assert, read secrets, use real PII, or sleep.
-5. Keep backend tests in Dev/QA. A persistent mutation needs synthetic owned data, a known
+6. Keep backend tests in Dev/QA. A persistent mutation needs synthetic owned data, a known
    baseline, exact API result, exact Oracle result when applicable, prohibited outcome, and
    verified cleanup.
-6. Run only manifest-selected test paths and runners. For backend API/Oracle work, use the FHF-root
+7. Run only manifest-selected test paths and runners. For backend API/Oracle work, use the FHF-root
    `.harness/backend-task-runner.mjs` preflight and runner; do not invoke TestRail/email wrappers.
    A setup/auth/network failure is setup evidence, not a test pass or product failure.
-7. Return an AC coverage map, changed-path list, functional/regression/smoke selection, and native
-   evidence references. State unresolved facts as UNKNOWN.
+8. Return an AC coverage map, changed-path list, functional/regression/smoke selection, and native
+   evidence references. The coverage map states, per change unit, the seam (endpoint plus
+   correlation key) and which lane proved which half; a change unit whose seam is missing or
+   unproven is reported as such, not as covered. State unresolved facts as UNKNOWN.
 
 Do not commit, push, open/merge a PR, transition Jira, upload TestRail/Allure results, install
 dependencies, or modify credentials. Hand the completed diff to qa-automation-gate.

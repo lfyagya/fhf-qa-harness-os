@@ -38,6 +38,19 @@ function declared(root, config, capability) {
   return Boolean(workspaceConnectorDeclarations({ root, config })[capability.workspaceDeclaration]);
 }
 
+// Statuses only the owner can clear. On these the agent stops and asks the
+// owner; it must not retry, silently degrade, or substitute a fallback on its
+// own initiative. Retryable/unavailable is deliberately absent — recovering
+// from transient connector failure stays the agent's job.
+export const OWNER_ACTION_STATUSES = Object.freeze([
+  "access-request-required",
+  "blocked-authentication",
+  "blocked-authorization",
+  "escalated",
+]);
+
+export const isOwnerAction = (status) => OWNER_ACTION_STATUSES.includes(status);
+
 function decision({ policy, capability, state, isDeclared }) {
   if (!isDeclared) return {
     status: "access-request-required", exitCode: 2,
@@ -64,10 +77,12 @@ export function capabilityStatus({ id, subject, root, config } = {}) {
   if (typeof subject !== "string" || !subject.trim()) throw new Error("Capability subject is required");
   const { policy, capability } = policyFor(config, id);
   const file = safeStateFile(root, policy, id, subject.trim());
+  const verdict = decision({ policy, capability, state: readState(file), isDeclared: declared(root, config, capability) });
   return {
     schema: "fhf-harness/capability-status/v1", id, subject: subject.trim(), label: capability.label,
     stateFile: path.relative(root, file).replaceAll("\\", "/"),
-    ...decision({ policy, capability, state: readState(file), isDeclared: declared(root, config, capability) }),
+    ...verdict,
+    ownerAction: isOwnerAction(verdict.status),
   };
 }
 
@@ -88,6 +103,9 @@ export function recordCapabilityOutcome({ id, subject, root, config, outcome } =
 export function formatCapabilityStatus(result) {
   const lines = [
     result.exitCode === 0 ? "CAPABILITY READY" : "CAPABILITY BLOCKED",
+    ...(result.ownerAction
+      ? ["OWNER ACTION REQUIRED: stop work and ask the owner. Do not retry, degrade, or pick a fallback unprompted."]
+      : []),
     `Capability: ${result.id} (${result.label})`, `Subject: ${result.subject}`, `Reason: ${result.reason}`,
   ];
   for (const step of result.requiredInput?.nextSteps ?? result.requiredInput?.steps ?? []) lines.push(`- ${step}`);
