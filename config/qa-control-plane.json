@@ -1847,7 +1847,7 @@
           "id": "pull-request",
           "priority": 95,
           "match": "\\b(open (a )?pr|pull request)\\b",
-          "hint": "Open a PR → spawn cypress-shipper."
+          "hint": "Open a PR → spawn cypress-shipper for frontend; use qa-automation-gate + direct gh pr create for backend. Both must pass --body-file pointing to the lane template in documentation.owners (pr-template-frontend or pr-template-backend)."
         },
         {
           "id": "test-explanation",
@@ -2383,7 +2383,9 @@
     "regression-sprint-records": "front-end-automation-e2e/docs/evidence/regression-effort/records",
     "qa-onboarding": "docs/adoption/qa-harness.md",
     "qa-adoption": "docs/adoption/qa-ai-adoption-strategy.md",
-    "backend-standards": "fhf-backend-automation/CLAUDE.md"
+    "backend-standards": "fhf-backend-automation/CLAUDE.md",
+    "pr-template-frontend": "docs/standards/pr-template-frontend.md",
+    "pr-template-backend": "docs/standards/pr-template-backend.md"
     },
     "publishing": {
       "confluence": {
