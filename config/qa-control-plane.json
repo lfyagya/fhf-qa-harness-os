@@ -938,6 +938,15 @@
       "stubbedMutationAsWorkflowAccepted": false,
       "structuralInventoryAsProductCoverageAccepted": false
     },
+    "falseGreenEnforcement": {
+      "minimumAssertionsPerTest": 1,
+      "assertionPatterns": [
+        "\\.should\\s*\\(",
+        "\\.and\\s*\\(",
+        "(?<![A-Za-z0-9_.])expect\\s*\\(",
+        "(?<![A-Za-z0-9_.])assert[.(]"
+      ]
+    },
     "lanes": {
       "smoke": {
         "environment": "production",
@@ -2030,6 +2039,23 @@
       }
     },
     "harness": {
+      "governance": {
+        "ownerOverrideEnv": "FHF_ALLOW_HARNESS_EDIT",
+        "protectedPaths": [
+          "config/qa-control-plane.json",
+          ".claude/settings.json",
+          ".claude/harness.config.json",
+          ".claude/hooks/"
+        ]
+      },
+      "citationVerification": {
+        "enabled": true,
+        "maxCitationsChecked": 40,
+        "sourceExtensions": [
+          "cjs", "cy.js", "js", "json", "jsx", "md", "mjs", "mts",
+          "py", "sql", "ts", "tsx", "yaml", "yml"
+        ]
+      },
       "agentRuntime": {
         "maxTurns": 100,
         "preloadedSkills": {
@@ -2110,12 +2136,14 @@
           "prompt-router.mjs"
         ],
         "preWrite": [
+          "protect-harness-governance.mjs",
           "protect-app-source.mjs",
           "protect-automation-scope.mjs",
           "protect-second-brain-boundary.mjs",
           "pre-validate-cypress-rules.mjs"
         ],
         "preShell": [
+          "protect-harness-governance.mjs",
           "manual-task-guard.mjs"
         ],
         "preSubagent": [
@@ -2132,6 +2160,9 @@
         ],
         "subagentStart": [
           "block-generic-agents.mjs"
+        ],
+        "subagentStop": [
+          "verify-subagent-citations.mjs"
         ],
         "postWrite": [
           "validate-backend-automation.mjs",

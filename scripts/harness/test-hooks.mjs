@@ -232,7 +232,7 @@ writeFileSync(goodSpec, [
   "describe('x', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); });",
-  "  it('y', { tags: [TAGS.STATUS.REGRESSION] }, () => { cy.apiWait('@a'); });",
+  "  it('y', { tags: [TAGS.STATUS.REGRESSION] }, () => { cy.apiWait('@a'); cy.get('.r').should('be.visible'); });",
   "});",
 ].join("\n"));
 const untaggedSpec = path.join(specDir, "untagged.cy.js");
@@ -292,7 +292,7 @@ writeFileSync(smokeLoadSpec, [
   "describe('x', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); });",
-  "  it('y', { tags: [TAGS.STATUS.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "  it('y', { tags: [TAGS.STATUS.CRITICAL] }, () => { cy.apiWait('@a'); cy.get('.r').should('be.visible'); });",
   "});",
 ].join("\n"));
 const smokeOverCapSpec = path.join(smokeSpecDir, "over-cap.cy.js");
@@ -385,6 +385,7 @@ expect("pre-validate blocks cy.wait(number) before write",
 expect("pre-validate blocks cy.wait(number) in ApplyPatch payload",
   run("pre-validate-cypress-rules.mjs", { input: { patch: "*** Update File: cypress/tests/a.cy.js\n@@\n-old\n+cy.wait(3000);" } }), 2);
 expect("pre-validate blocks mutation in smoke",
+
   run("pre-validate-cypress-rules.mjs", { tool_input: { file_path: "cypress/tests/smoke/a.cy.js", content: "cy.request({ method: 'POST' }); .post(" } }), 2);
 expect("pre-validate emits runtime-neutral JSON",
   run("pre-validate-cypress-rules.mjs", {
@@ -627,6 +628,34 @@ expect("block-forbidden-skills consumes the central skill roster",
 // PostToolUse — validators must exit 2 (exit 1 would be invisible to Claude)
 expect("validate-cypress-rules flags bad spec with exit 2",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: badSpec } }), 2);
+
+// -- falseGreen enforcement: the four declared booleans now bite -----------------------
+// Before this, qualityAssurance.falseGreen declared the policy and nothing enforced it.
+// Density needs the whole file, so this is the post-write validator, not pre-validate.
+const fgHead = "describe(" + JSON.stringify("x") + ", { testIsolation: true }, () => { beforeEach(() => cy.ensureAuthenticated());";
+const noAssertSpec = path.join(specDir, "no-assert.cy.js");
+writeFileSync(noAssertSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { cy.visit(" + JSON.stringify("/x") + "); }); });");
+expect("validate-cypress-rules flags an it() block with no assertion",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: noAssertSpec } }), 2);
+const skipSpec = path.join(specDir, "skipped.cy.js");
+writeFileSync(skipSpec, fgHead + " it.skip(" + JSON.stringify("a") + ", () => { cy.get(" + JSON.stringify(".r") + ").should(" + JSON.stringify("exist") + "); }); });");
+expect("validate-cypress-rules flags a skipped suite",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: skipSpec } }), 2);
+const onlySpec = path.join(specDir, "only.cy.js");
+writeFileSync(onlySpec, fgHead + " it.only(" + JSON.stringify("a") + ", () => { cy.get(" + JSON.stringify(".r") + ").should(" + JSON.stringify("exist") + "); }); });");
+expect("validate-cypress-rules flags .only",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: onlySpec } }), 2);
+const swallowSpec = path.join(specDir, "swallow.cy.js");
+writeFileSync(swallowSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { try { cy.get(" + JSON.stringify(".r") + ").should(" + JSON.stringify("exist") + "); } catch (e) {} }); });");
+expect("validate-cypress-rules flags an empty catch block",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: swallowSpec } }), 2);
+const goodFgSpec = path.join(specDir, "good-fg.cy.js");
+writeFileSync(goodFgSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { cy.get(" + JSON.stringify(".r") + ").should(" + JSON.stringify("be.visible") + "); }); });");
+// An asserting spec raises no false-green violation. Asserted on the message rather than the
+// exit code: this fixture still trips the pre-existing tag-taxonomy rules, which is unrelated.
+expect("validate-cypress-rules raises no false-green violation for an asserting spec",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: goodFgSpec } }),
+  (r) => !/no assertion|below the configured|skipped suite|empty catch/.test(r.stderr));
 expect("validate-cypress-rules passes clean spec",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: goodSpec } }), 0);
 expect("validate-cypress-rules enforces the configured tag taxonomy",
@@ -830,6 +859,64 @@ expect("stop hook does not repeat an issued escalation",
     cursor_version: "1.7.2",
     conversation_id: failurePayload.conversation_id,
   }, { FHF_HARNESS_CONFIG: customConfigPath }), cursorEmitsNeutral);
+
+
+// ── protect-harness-governance: the gates are not agent-writable ──────────────────────
+// Regression for the hole this hook was written to close: before it, all four Edit|Write
+// guards returned 0 for every one of these paths.
+expect("governance guard blocks a control-plane write",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: `${HARNESS_ROOT}/config/qa-control-plane.json` } }), 2);
+expect("governance guard blocks a hook-source write",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: `${HARNESS_ROOT}/.claude/hooks/validate-cypress-rules.mjs` } }), 2);
+expect("governance guard blocks a generated-settings write",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: `${HARNESS_ROOT}/.claude/settings.json` } }), 2);
+expect("governance guard blocks a consumer projection write too",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: "C:/x/front-end-automation-smoke/.claude/hooks/failure-loop-guard.mjs" } }), 2);
+expect("governance guard allows an ordinary spec write",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: "C:/x/CypressFHF/fhf-dashboards/cypress/tests/a.cy.js" } }), 0);
+expect("governance guard allows a rules write (prompt layer, not a gate)",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: `${HARNESS_ROOT}/.claude/rules/assertions.md` } }), 0);
+expect("governance guard yields to the owner opt-in",
+  run("protect-harness-governance.mjs",
+    { tool_input: { file_path: `${HARNESS_ROOT}/config/qa-control-plane.json` } },
+    { FHF_ALLOW_HARNESS_EDIT: "1" }), 0);
+expect("governance guard blocks an in-place shell rewrite of a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "Bash", tool_input: { command: "sed -i s/0.8/0.1/ config/qa-control-plane.json" } }), 2);
+expect("governance guard blocks a redirect over a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "Bash", tool_input: { command: "echo {} > .claude/settings.json" } }), 2);
+expect("governance guard blocks an interpreter pointed at a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "Bash", tool_input: { command: "node -e \"require('fs').writeFileSync('config/qa-control-plane.json','{}')\"" } }), 2);
+expect("governance guard allows reading a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "Bash", tool_input: { command: "cat config/qa-control-plane.json" } }), 0);
+expect("governance guard accepts the inline shell opt-in",
+  run("protect-harness-governance.mjs",
+    { tool_name: "Bash", tool_input: { command: "FHF_ALLOW_HARNESS_EDIT=1 sed -i s/a/b/ config/qa-control-plane.json" } }), 0);
+
+// ── verify-subagent-citations: a summary must cite locations that exist ────────────────
+expect("citation verifier blocks an unresolvable file",
+  run("verify-subagent-citations.mjs",
+    { cwd: HARNESS_ROOT, tool_response: "Fixed it in scripts/harness/does-not-exist.mjs:12 as described." }), 2);
+expect("citation verifier blocks a line past end of file",
+  run("verify-subagent-citations.mjs",
+    { cwd: HARNESS_ROOT, tool_response: "See config/qa-control-plane.json:9999999 for the threshold." }), 2);
+expect("citation verifier allows a citation that resolves",
+  run("verify-subagent-citations.mjs",
+    { cwd: HARNESS_ROOT, tool_response: "The list is in config/qa-control-plane.json:1 and it is correct." }), 0);
+expect("citation verifier allows prose with no citations",
+  run("verify-subagent-citations.mjs",
+    { cwd: HARNESS_ROOT, tool_response: "I reviewed the branch and found nothing to change." }), 0);
+expect("citation verifier ignores a timestamp",
+  run("verify-subagent-citations.mjs",
+    { cwd: HARNESS_ROOT, tool_response: "The run started at 10:30 and finished at 11:05." }), 0);
+expect("citation verifier ignores a ticket reference",
+  run("verify-subagent-citations.mjs",
+    { cwd: HARNESS_ROOT, tool_response: "Tracked as SERV-12053:1 in the backlog." }), 0);
+expect("citation verifier allows an unrecognised payload shape",
+  run("verify-subagent-citations.mjs", { cwd: HARNESS_ROOT, unexpected_field: "nope" }), 0);
 
 rmSync(tmp, { recursive: true, force: true });
 

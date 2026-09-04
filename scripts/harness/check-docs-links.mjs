@@ -682,6 +682,45 @@ if (engineering) {
   issues.push("engineering must configure context, memory, harness, and loops");
 }
 
+// Every hook encodes an assumption about what the model cannot do reliably on its own. An
+// assumption nobody wrote down cannot be stress-tested, so the hook can never be retired and
+// quietly becomes dead weight. This is a ratchet against the baseline, not a retro-fit demand:
+// hooks recorded in rationale-baseline.json predate the requirement, and a hook absent from it
+// must carry a dated rationale. Writing one is expected to shrink the baseline over time.
+{
+  const hooksDir = path.join(HARNESS_ROOT, ".claude", "hooks");
+  let baseline = null;
+  try {
+    baseline = JSON.parse(fs.readFileSync(path.join(hooksDir, "rationale-baseline.json"), "utf8"));
+  } catch {
+    issues.push("Hook rationale baseline is missing or unreadable: .claude/hooks/rationale-baseline.json");
+  }
+  if (baseline) {
+    const exempt = new Set(baseline.undocumented ?? []);
+    const present = fs.existsSync(hooksDir)
+      ? fs.readdirSync(hooksDir).filter((name) => name.endsWith(".mjs"))
+      : [];
+    const documents = (name) => {
+      const head = fs.readFileSync(path.join(hooksDir, name), "utf8").slice(0, 3000).toLowerCase();
+      return head.includes("why this exists") || head.includes("compensat");
+    };
+    for (const name of present) {
+      const documented = documents(name);
+      if (!documented && !exempt.has(name)) {
+        issues.push(`Hook has no recorded rationale: .claude/hooks/${name} - add a dated "Why this exists" header naming the model limitation it compensates for`);
+      }
+      if (documented && exempt.has(name)) {
+        issues.push(`Hook documents its rationale but is still baselined: remove ${name} from .claude/hooks/rationale-baseline.json`);
+      }
+    }
+    for (const name of exempt) {
+      if (!present.includes(name)) {
+        issues.push(`Hook rationale baseline names a hook that no longer exists: ${name}`);
+      }
+    }
+  }
+}
+
 const moduleSpecPaths = config?.moduleSpecPaths;
 const moduleAliases = config?.moduleAliases;
 const moduleSpecBase = config?.moduleSpecPathsBase;

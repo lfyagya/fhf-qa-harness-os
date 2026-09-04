@@ -17,6 +17,7 @@ import { execFileSync } from 'child_process';
 import {
   HARDCODED_CREDENTIAL_RE,
   checkTagTaxonomy,
+  checkFalseGreen,
   isSpecFile,
   isConfigPath,
   isSmokePath,
@@ -208,6 +209,10 @@ if (isSpec && HARDCODED_CREDENTIAL_RE.test(content))
 if (isSpec) {
   try {
     violations.push(...checkTagTaxonomy(content));
+    // falseGreen enforcement lives here rather than in pre-validate because assertion
+    // density is a whole-file property: an Edit payload carries one fragment, so counting
+    // assertions there would flag every single-line edit to a perfectly good spec.
+    violations.push(...checkFalseGreen(content));
   } catch (error) {
     violations.push(`Tag taxonomy policy unavailable: ${error.message}`);
   }

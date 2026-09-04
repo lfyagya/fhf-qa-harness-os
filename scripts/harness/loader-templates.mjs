@@ -219,6 +219,7 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
       UserPromptSubmit: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.prompt) }],
       PreToolUse: preToolUse,
       SubagentStart: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.subagentStart) }],
+      SubagentStop: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.subagentStop) }],
       Stop: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.stop) }],
       PreCompact: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preCompact) }],
       SessionEnd: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionEnd) }],

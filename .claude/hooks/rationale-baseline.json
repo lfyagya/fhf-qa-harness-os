@@ -1,0 +1,28 @@
+{
+  "schema": "fhf-harness/hook-rationale-baseline/v1",
+  "why": "Each hook encodes an assumption about what the model cannot do reliably alone. An assumption that is not written down cannot be stress-tested, so the scaffolding can never be retired and becomes dead weight. Hooks listed here predate that requirement and carry no recorded rationale. This is a ratchet: a hook absent from this list must carry a dated 'Why this exists' header naming the limitation it compensates for. Remove a name from this list when its rationale is written; never add one.",
+  "recorded": "2026-09-05",
+  "undocumented": [
+    "artifact-duplication-guard.mjs",
+    "block-forbidden-skills.mjs",
+    "block-generic-agents.mjs",
+    "context-read-guard.mjs",
+    "coverage-strategy-guard.mjs",
+    "failure-loop-guard.mjs",
+    "manual-task-guard.mjs",
+    "memory-checkpoint.mjs",
+    "pre-validate-cypress-rules.mjs",
+    "prompt-router.mjs",
+    "protect-app-source.mjs",
+    "protect-automation-scope.mjs",
+    "protect-second-brain-boundary.mjs",
+    "scenario-content-guard.mjs",
+    "scenario-file-guard.mjs",
+    "session-context.mjs",
+    "session-end-reminder.mjs",
+    "spec-sweep-stop-hook.mjs",
+    "sync-reminder.mjs",
+    "validate-backend-automation.mjs",
+    "validate-cypress-rules.mjs"
+  ]
+}

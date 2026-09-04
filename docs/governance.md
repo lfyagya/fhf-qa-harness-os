@@ -17,6 +17,9 @@ changes this list. If you are writing an ADR and no trigger covers it, that is t
 - Any change to **boundaries, gates, or lane contracts** — what may be written, run, or approved, including execution topology, approval binding, task-protocol stages, and the architecture a lane’s tests must follow: ADR-0006, ADR-0008, ADR-0014, ADR-0016, ADR-0017
 - Any change to an **external publication surface** — adding a Confluence, TestRail, or evidence-export target, or changing what may be written outward: ADR-0019
 
+- Any change to **what the harness protects from itself** — placing a path beyond agent write access, or
+  removing that protection, and any change to the owner-override mechanism: ADR-0027
+
 Not required for: adding a new skill file that does not change routing; fixing a bug in an existing
 hook (its *purpose* did not change); declaring a repository record or a topology edge inside an
 existing schema, with evidence — the schema was the decision and the record is data; or any change

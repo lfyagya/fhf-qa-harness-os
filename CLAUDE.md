@@ -20,7 +20,13 @@ manifest and stay inside its selected paths in a non-production environment — 
 
 ```
 .claude/
-    hooks/      — the 22 deterministic gates (PreToolUse/PostToolUse/Stop/UserPromptSubmit)
+    hooks/      — the 24 deterministic gates, across SessionStart, UserPromptSubmit,
+                  PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart, SubagentStop,
+                  PreCompact, Stop and SessionEnd. The control plane, the generated settings
+                  and the hook sources are themselves default-deny for agent writes
+                  (ADR-0027); owner opt-in is FHF_ALLOW_HARNESS_EDIT=1. Every hook must
+                  record the model limitation it compensates for, ratcheted against
+                  .claude/hooks/rationale-baseline.json.
     agents/     — 7 agents. Cypress lane, one per phase: cypress-generator (build), cypress-gate
                   (evaluator), cypress-debugger (diagnose/fix), cypress-shipper (ship/report).
                   Cross-layer/backend: qa-automation-generator, qa-automation-debugger,
