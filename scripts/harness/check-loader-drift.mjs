@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { resolveConsumerRoot, resolveLaneRoot } from "./workspace-paths.mjs";
 import {
   CURSOR_HOOKS,
+  harnessConfigTextForLane,
+  laneAllows,
   HARNESS_CONFIG_TEXT,
   claudeSettingsText,
   cursorHooks,
@@ -84,15 +86,20 @@ function checkExactText(actualPath, expectedText) {
   }
 }
 
-function dirsMatch(srcDir, destDir, prefix) {
+function dirsMatch(srcDir, destDir, prefix, lane) {
   if (!fs.existsSync(destDir)) {
     issues.push(`Missing generated directory: ${destDir}`);
     return;
   }
   const ignored = new Set([".sweep-retries"]);
+  // A consumer only receives the agents/skills its lane can act on, so drift must compare
+  // against that same scoped set - otherwise each lane reports the other lanes' entries missing.
+  const kind = prefix.endsWith("/agents") ? "agents" : prefix.endsWith("/skills") ? "skills" : null;
+  const allow = lane && kind ? laneAllows(lane, kind) : null;
   const srcEntries = fs
     .readdirSync(srcDir, { withFileTypes: true })
-    .filter((entry) => !ignored.has(entry.name));
+    .filter((entry) => !ignored.has(entry.name))
+    .filter((entry) => !allow || allow.has(entry.name.replace(/\.md$/, "")));
   const destNames = new Set(
     fs.readdirSync(destDir).filter((name) => !ignored.has(name)),
   );
@@ -206,7 +213,7 @@ function checkSubRepo(repoPath, lane) {
 
   const settingsPath = path.join(claudeDir, "settings.json");
   checkExactText(settingsPath, portableSettings(lane));
-  checkExactText(path.join(claudeDir, "harness.config.json"), HARNESS_CONFIG_TEXT);
+  checkExactText(path.join(claudeDir, "harness.config.json"), harnessConfigTextForLane(lane));
   if (fs.existsSync(settingsPath)) {
     const actual = fs.readFileSync(settingsPath, "utf8");
     if (/[A-Za-z]:[/\\]Users[/\\]/.test(actual)) {
@@ -215,7 +222,7 @@ function checkSubRepo(repoPath, lane) {
   }
 
   for (const sub of CLAUDE_SUBFOLDERS) {
-    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
+    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`, lane);
   }
 
   checkExactText(path.join(docsDir, "README.md"), docsReadme(lane));
@@ -294,9 +301,9 @@ function checkBackend() {
   requireFile(path.join(claudeDir, "settings.json"));
   requireFile(path.join(claudeDir, "harness.config.json"));
   checkExactText(path.join(claudeDir, "settings.json"), portableSettings("backend"));
-  checkExactText(path.join(claudeDir, "harness.config.json"), HARNESS_CONFIG_TEXT);
+  checkExactText(path.join(claudeDir, "harness.config.json"), harnessConfigTextForLane("backend"));
   for (const sub of CLAUDE_SUBFOLDERS) {
-    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
+    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`, "backend");
   }
 }
 

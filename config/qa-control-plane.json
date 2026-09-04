@@ -2041,6 +2041,68 @@
       }
     },
     "harness": {
+      "laneScope": {
+        "purpose": "A consumer receives only the agents and skills its lane can act on. Shipping everything everywhere put four Cypress agents plus cypress-author and cypress-tap into a pytest repo with no Cypress, and the pytest generators into the Cypress lanes. Inert entries are not free: they consume the skill-listing budget every session and offer the model actions it cannot perform. Read-only Cypress explainers stay in backend for cross-layer debugging.",
+        "root": "all",
+        "baseline": "all",
+        "e2e": {
+          "agents": [
+            "cypress-generator",
+            "cypress-gate",
+            "cypress-debugger",
+            "cypress-shipper",
+            "qa-automation-generator",
+            "qa-automation-gate",
+            "qa-automation-debugger"
+          ],
+          "skills": [
+            "cypress-author",
+            "cypress-docs",
+            "cypress-explain",
+            "cypress-tap",
+            "e2e-tests-generator",
+            "backend-test-author"
+          ]
+        },
+        "smoke": {
+          "agents": [
+            "cypress-generator",
+            "cypress-gate",
+            "cypress-debugger",
+            "cypress-shipper",
+            "qa-automation-generator",
+            "qa-automation-gate",
+            "qa-automation-debugger"
+          ],
+          "skills": [
+            "cypress-author",
+            "cypress-docs",
+            "cypress-explain",
+            "cypress-tap",
+            "smoke-test-cases",
+            "smoke-tests-writer",
+            "backend-test-author"
+          ]
+        },
+        "backend": {
+          "agents": [
+            "qa-automation-generator",
+            "qa-automation-gate",
+            "qa-automation-debugger"
+          ],
+          "skills": [
+            "backend-test-author",
+            "cypress-docs",
+            "cypress-explain",
+            "generate-api-client",
+            "generate-conftest",
+            "generate-data-builder",
+            "generate-test-file",
+            "setup-test-module",
+            "plan"
+          ]
+        }
+      },
       "governance": {
         "ownerOverrideEnv": "FHF_ALLOW_HARNESS_EDIT",
         "protectedPaths": [
