@@ -521,8 +521,8 @@ regenerate.
 | `node .harness/capability-doctor.mjs --capability <id> --subject <label>` | Missing access. Never accepts credentials |
 
 The seven specialists are cypress-generator, cypress-gate, cypress-debugger, cypress-shipper,
-qa-automation-generator, qa-automation-gate, and qa-automation-debugger. The read-only skills are
-cypress-explain, cypress-docs, and backend-test-author.
+qa-automation-generator, qa-automation-gate, and qa-automation-debugger. The allowed skills are cypress-explain, cypress-docs, cypress-tap, cypress-author, and
+backend-test-author. cypress-author is convention-only on FHF work and must not write specs.
 
 Spawn budget is one per session, one at a time, depth one. The default model tier is standard;
 frontier is used only on an explicit request or a verified failure or flake, and only for
