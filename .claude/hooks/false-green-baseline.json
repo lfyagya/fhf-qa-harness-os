@@ -1,0 +1,25 @@
+{
+  "schema": "fhf-harness/false-green-baseline/v1",
+  "why": "falseGreen enforcement landed against lanes that already carried violations. Blocking them outright would make those specs uneditable, and an unusable gate gets switched off - the same reasoning recorded for dead-selector-baseline.json. These entries WARN; anything not listed BLOCKS. One-directional: remove an entry when the spec is fixed, never add one to silence a new violation. Each line here is a real false green, not a false positive.",
+  "recorded": "2026-09-05",
+  "specs": {
+    "fhf-dashboard/e2e/auth/login.cy.js": [
+      "this.skip()"
+    ],
+    "fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice.cy.js": [
+      "this.skip()"
+    ],
+    "fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoiceDashboardSorting.cy.js": [
+      "no assertion"
+    ],
+    "fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoices.cy.js": [
+      "this.skip()"
+    ],
+    "fhf-dashboard/smoke/checks/insuranceRepairChecks.cy.js": [
+      ".skip("
+    ],
+    "fhf-dashboard/smoke/checks/lockboxChecks.cy.js": [
+      ".skip("
+    ]
+  }
+}

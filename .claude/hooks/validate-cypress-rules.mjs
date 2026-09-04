@@ -17,6 +17,7 @@ import { execFileSync } from 'child_process';
 import {
   HARDCODED_CREDENTIAL_RE,
   checkTagTaxonomy,
+  tagTaxonomy,
   checkFalseGreen,
   isSpecFile,
   isConfigPath,
@@ -208,11 +209,49 @@ if (isSpec && HARDCODED_CREDENTIAL_RE.test(content))
 
 if (isSpec) {
   try {
-    violations.push(...checkTagTaxonomy(content));
-    // falseGreen enforcement lives here rather than in pre-validate because assertion
-    // density is a whole-file property: an Edit payload carries one fragment, so counting
-    // assertions there would flag every single-line edit to a perfectly good spec.
-    violations.push(...checkFalseGreen(content));
+    // Tag taxonomy is warn-by-default: it landed against lanes that are not tagged yet, where
+    // blocking fails 50 of 56 E2E and 41 of 41 Smoke specs - every spec uneditable, and an
+    // unusable gate gets switched off. Same reasoning the @critical coverage rule below already
+    // records. qualityAssurance.tagTaxonomy.enforcement flips it to block once tags have landed.
+    const tagFindings = checkTagTaxonomy(content);
+    if (tagTaxonomy().enforcement === "block") violations.push(...tagFindings);
+    else warnings.push(...tagFindings.map((m) => `${m} - not blocking while tag enforcement is warn`));
+    // falseGreen enforcement lives here rather than in pre-validate because assertion density
+    // is a whole-file property: an Edit payload carries one fragment, so counting assertions
+    // there would flag every single-line edit to a perfectly good spec.
+    //
+    // Tiered exactly like the dead-selector check above, and for the same reason: this landed
+    // against lanes that already carried 6 real violations, and blocking all of them would make
+    // those specs uneditable until fixed, at which point the gate gets switched off. Baselined
+    // entries WARN; anything not listed BLOCKS. Every baselined line is a genuine false green -
+    // three conditional this.skip() calls, one spec with three it() blocks and no assertion, and
+    // the two skipped Checks suites that produced 0/10 inside a 634/669 headline.
+    const fgFindings = checkFalseGreen(content);
+    if (fgFindings.length > 0) {
+      let fgBaseline = {};
+      try {
+        fgBaseline = JSON.parse(readFileSync(
+          join(dirname(fileURLToPath(import.meta.url)), "false-green-baseline.json"), "utf8",
+        )).specs ?? {};
+      } catch {
+        // Missing baseline: grandfather nothing, report everything as new.
+      }
+      const specKey = filePath.split("/cypress/tests/")[1] ?? "";
+      const carriedMarkers = fgBaseline[specKey] ?? [];
+      const marker = (message) => message.includes("no assertion") ? "no assertion"
+        : message.includes("below the configured") ? "below the configured"
+        : message.split(" ")[0];
+      for (const finding of fgFindings) {
+        if (carriedMarkers.includes(marker(finding))) {
+          warnings.push(
+            `${finding} — carried, listed in false-green-baseline.json. Not blocking, but this ` +
+            `spec cannot prove what it claims. Fixing it means deleting the entry too.`,
+          );
+        } else {
+          violations.push(finding);
+        }
+      }
+    }
   } catch (error) {
     violations.push(`Tag taxonomy policy unavailable: ${error.message}`);
   }
