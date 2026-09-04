@@ -1,0 +1,25 @@
+{
+  "schema": "fhf-coverage-ratchet/v1",
+  "note": "Baseline for the no-regression gate. Raise it deliberately in a reviewed PR; never lower it to make CI pass.",
+  "capturedFrom": {
+    "coverage": "docs/evidence/coverage-computed.json",
+    "chain": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
+    "coverageGeneratedAt": "2026-08-03T09:43:31.218Z"
+  },
+  "acceptedEvidence": {
+    "acceptedFullChain": 0,
+    "backendOnlyAccepted": 1,
+    "partialNotAccepted": 6,
+    "mutationNotAccepted": 6
+  },
+  "falseGreenDebt": {
+    "e2eFallbackMarkers": 198,
+    "e2eDisabledSuiteFiles": 0,
+    "smokeFallbackMarkers": 1,
+    "smokeDisabledSuiteFiles": 1,
+    "backendSkipCalls": 75
+  },
+  "uiCoverage": null,
+  "uiCoverageFloors": {},
+  "uiCoverageFloorsNote": "Floors start at 0 so the first commit cannot false-block. Set each critical view to its lane floor (e2e 50 / smoke 30 per the buildspecs) once one clean run exists, then raise only from run data."
+}
