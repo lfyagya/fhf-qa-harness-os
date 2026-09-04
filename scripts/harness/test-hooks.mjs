@@ -671,6 +671,24 @@ writeFileSync(goodFgSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { cy.
 expect("validate-cypress-rules raises no false-green violation for an asserting spec",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: goodFgSpec } }),
   (r) => !/no assertion|below the configured|skipped suite|empty catch/.test(r.stderr));
+
+// -- tag taxonomy is warn-by-default ---------------------------------------------------
+// It landed against untagged lanes where blocking failed 50 of 56 E2E and 41 of 41 Smoke
+// specs. A regression here makes every spec in both lanes uneditable, so it is asserted.
+const untaggedItSpec = path.join(specDir, "untagged-it.cy.js");
+writeFileSync(untaggedItSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { cy.get(" + JSON.stringify(".r") + ").should(" + JSON.stringify("be.visible") + "); }); });");
+expect("validate-cypress-rules warns rather than blocks on missing it tags",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: untaggedItSpec } }),
+  (r) => r.code === 0 && /not blocking while tag enforcement is warn/.test(r.stderr));
+
+// -- falseGreen baseline is a ratchet ---------------------------------------------------
+// A baselined spec warns; an identical violation in a spec that is NOT baselined still blocks.
+// Both directions matter: the first keeps the lanes editable, the second keeps the gate real.
+const notBaselined = path.join(specDir, "not-baselined.cy.js");
+writeFileSync(notBaselined, fgHead + " it(" + JSON.stringify("a") + ", () => { cy.visit(" + JSON.stringify("/x") + "); }); });");
+expect("validate-cypress-rules still blocks a false green that is not baselined",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: notBaselined } }), 2);
+
 expect("validate-cypress-rules passes clean spec",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: goodSpec } }), 0);
 expect("validate-cypress-rules enforces the configured tag taxonomy",

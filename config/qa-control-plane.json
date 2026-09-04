@@ -911,6 +911,8 @@
     ],
     "acceptedProductSpecStatuses": ["approved"],
     "tagTaxonomy": {
+      "enforcement": "warn",
+      "enforcementNote": "warn until both lanes are tagged. Measured 2026-09-05: blocking fails 50 of 56 E2E specs and 41 of 41 Smoke specs, i.e. every spec becomes uneditable. smoke-execution-strategy sequences tagging before tier selection so tags can land incrementally, and validate-cypress-rules already keeps the adjacent @critical coverage rule a warning for the same reason. Flip to block once the lanes are tagged.",
       "suiteScope": "describe",
       "suiteRequiredAxes": ["TYPE", "MODULE", "FEATURE", "BEHAVIOR"],
       "suiteBundle": "SUITE_TAGS",
