@@ -656,6 +656,14 @@ const swallowSpec = path.join(specDir, "swallow.cy.js");
 writeFileSync(swallowSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { try { cy.get(" + JSON.stringify(".r") + ").should(" + JSON.stringify("exist") + "); } catch (e) {} }); });");
 expect("validate-cypress-rules flags an empty catch block",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: swallowSpec } }), 2);
+// Assertions factored into a custom command are still assertions. This architecture requires
+// that factoring, so counting only inline .should()/expect() reported a compliant spec as
+// asserting nothing. Caught on loss-mitigation/impound.cy.js by the spec-sweep Stop hook.
+const cmdAssertSpec = path.join(specDir, "cmd-assert.cy.js");
+writeFileSync(cmdAssertSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { cy.lmImpoundUpdateDropdownRandom(1, 2); cy.lmImpoundAssertSingleDashboardWrite(); }); });");
+expect("validate-cypress-rules counts an assertion inside a custom command",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: cmdAssertSpec } }),
+  (r) => !/no assertion|below the configured/.test(r.stderr));
 const goodFgSpec = path.join(specDir, "good-fg.cy.js");
 writeFileSync(goodFgSpec, fgHead + " it(" + JSON.stringify("a") + ", () => { cy.get(" + JSON.stringify(".r") + ").should(" + JSON.stringify("be.visible") + "); }); });");
 // An asserting spec raises no false-green violation. Asserted on the message rather than the
