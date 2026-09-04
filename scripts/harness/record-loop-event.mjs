@@ -88,11 +88,19 @@ if (!event.runId || !event.goal || !event.type) {
   process.exit(2);
 }
 
+// One generic phase pair rather than a started/completed pair per agent: the
+// phase is data in a validated field, so adding a roster agent does not widen
+// this allowlist. Deliberately NOT reusing repair_started/repair_completed for
+// non-repair work — repairOutcomesFromTrace derives repair convergence from
+// those two types, so labelling a first-pass generation a repair would corrupt
+// the metric the instrumentation exists to make trustworthy.
 const traceTypes = new Set([
   "loop_started",
   "gate_verdict",
   "repair_started",
   "repair_completed",
+  "phase_started",
+  "phase_completed",
   "loop_completed",
   "loop_escalated",
   "progress",
@@ -101,6 +109,13 @@ const traceTypes = new Set([
 if (!traceTypes.has(event.type)) {
   console.error(`Unsupported loop event type: ${event.type}`);
   process.exit(2);
+}
+const configuredPhases = config.engineering?.loops?.phases ?? [];
+if (event.type === "phase_started" || event.type === "phase_completed") {
+  if (!configuredPhases.includes(event.phase)) {
+    console.error(`${event.type} requires phase from: ${configuredPhases.join(", ") || "engineering.loops.phases"}`);
+    process.exit(2);
+  }
 }
 if (event.repairCycle !== undefined && (!Number.isInteger(event.repairCycle) || event.repairCycle < 0)) {
   console.error("repairCycle must be a non-negative integer");
@@ -181,4 +196,39 @@ if (exceeded) {
 
 writeRuntimeArtifact(stateFile, state);
 appendTrace(traceFile, { ...event, executionBudget: state.executionBudget }, config);
+
+// Memory at phase boundaries. The PreCompact/SessionEnd checkpoint fires after
+// compaction has already discarded the within-session channel, so a completion
+// event is the moment actually worth capturing. Resolved by probe, matching
+// loadConfig above, so the projected .harness/ copy works from its own root.
+// A memory failure must never cost the trace write, hence the try/catch and the
+// ordering after writeRuntimeArtifact/appendTrace.
+const COMPLETION_TYPES = new Set(["phase_completed", "repair_completed", "loop_completed"]);
+if (COMPLETION_TYPES.has(event.type)) {
+  const memory = config.engineering?.memory;
+  const lib = path.join(ROOT, ".claude", "hooks", "lib", "memory-state.mjs");
+  if (memory?.handoffFile && fs.existsSync(lib)) {
+    try {
+      const { extractFacts, mergeHandoff } = await import(pathToFileURL(lib).href);
+      const observed = [
+        event.goal,
+        event.findings,
+        event.currentStep,
+        ...(Array.isArray(event.artifacts) ? event.artifacts : []),
+        event.artifact?.path,
+      ].filter(Boolean).join("\n");
+      mergeHandoff({ cwd: ROOT }, memory, {
+        checkpointAt: new Date().toISOString(),
+        checkpointReason: `${event.type}:${event.phase ?? "loop"}`,
+        runId: event.runId,
+        lane,
+        status: state.status,
+        repairCycles: state.repairCycles,
+        facts: extractFacts(observed, memory),
+      });
+    } catch (error) {
+      console.error(`Phase checkpoint skipped: ${error.message}`);
+    }
+  }
+}
 console.log(`Recorded ${event.type} for ${event.runId}`);

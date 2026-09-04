@@ -682,6 +682,45 @@ if (engineering) {
   issues.push("engineering must configure context, memory, harness, and loops");
 }
 
+// Every hook encodes an assumption about what the model cannot do reliably on its own. An
+// assumption nobody wrote down cannot be stress-tested, so the hook can never be retired and
+// quietly becomes dead weight. This is a ratchet against the baseline, not a retro-fit demand:
+// hooks recorded in rationale-baseline.json predate the requirement, and a hook absent from it
+// must carry a dated rationale. Writing one is expected to shrink the baseline over time.
+{
+  const hooksDir = path.join(HARNESS_ROOT, ".claude", "hooks");
+  let baseline = null;
+  try {
+    baseline = JSON.parse(fs.readFileSync(path.join(hooksDir, "rationale-baseline.json"), "utf8"));
+  } catch {
+    issues.push("Hook rationale baseline is missing or unreadable: .claude/hooks/rationale-baseline.json");
+  }
+  if (baseline) {
+    const exempt = new Set(baseline.undocumented ?? []);
+    const present = fs.existsSync(hooksDir)
+      ? fs.readdirSync(hooksDir).filter((name) => name.endsWith(".mjs"))
+      : [];
+    const documents = (name) => {
+      const head = fs.readFileSync(path.join(hooksDir, name), "utf8").slice(0, 3000).toLowerCase();
+      return head.includes("why this exists") || head.includes("compensat");
+    };
+    for (const name of present) {
+      const documented = documents(name);
+      if (!documented && !exempt.has(name)) {
+        issues.push(`Hook has no recorded rationale: .claude/hooks/${name} - add a dated "Why this exists" header naming the model limitation it compensates for`);
+      }
+      if (documented && exempt.has(name)) {
+        issues.push(`Hook documents its rationale but is still baselined: remove ${name} from .claude/hooks/rationale-baseline.json`);
+      }
+    }
+    for (const name of exempt) {
+      if (!present.includes(name)) {
+        issues.push(`Hook rationale baseline names a hook that no longer exists: ${name}`);
+      }
+    }
+  }
+}
+
 const moduleSpecPaths = config?.moduleSpecPaths;
 const moduleAliases = config?.moduleAliases;
 const moduleSpecBase = config?.moduleSpecPathsBase;
@@ -718,10 +757,15 @@ if (!moduleSpecPaths || typeof moduleSpecPaths !== "object" || Array.isArray(mod
 } else {
   for (const module of Object.keys(moduleAliases ?? {})) {
     const targets = moduleSpecPaths[module];
-    if (!Array.isArray(targets) || targets.length === 0) {
+    if (!Array.isArray(targets)) {
       issues.push(`moduleSpecPaths.${module} must contain at least one product contract path`);
       continue;
     }
+    // An explicitly empty list declares a backend-only module with no UI product contract
+    // (Letters). A missing or malformed entry is still a fault, so an undeclared module cannot
+    // pass. ponytail: presence-is-the-declaration; add a named exemption list if a module ever
+    // needs an empty list for a different reason.
+    if (targets.length === 0) continue;
     for (const target of targets) {
       if (typeof target !== "string" || !target || path.isAbsolute(target)) {
         issues.push(`moduleSpecPaths.${module} contains a non-relative path: ${target}`);
@@ -764,8 +808,14 @@ if (!evaluationPolicy || typeof evaluationPolicy !== "object") {
       issues.push(`engineering.context.evaluation.${key} must point to an existing relative file`);
     }
   }
+  // Rates are 0..1; a `minimum*Samples` threshold is a sample count, so it is
+  // validated as a positive integer instead of being forced into the rate range.
   for (const [name, value] of Object.entries(evaluationPolicy.thresholds ?? {})) {
-    if (!Number.isFinite(value) || value < 0 || value > 1) issues.push(`Invalid evaluation threshold: ${name}`);
+    const isSampleCount = /Samples$/.test(name);
+    const valid = isSampleCount
+      ? Number.isInteger(value) && value >= 1
+      : Number.isFinite(value) && value >= 0 && value <= 1;
+    if (!valid) issues.push(`Invalid evaluation threshold: ${name}`);
   }
 }
 

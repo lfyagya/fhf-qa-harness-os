@@ -39,6 +39,8 @@ import {
   CAPABILITY_DOCTOR_TEXT,
   WORKSPACE_SETUP_TEXT,
   executionProfileExample,
+  lanePackage,
+  npmrcExample,
   laneMarker,
   workspaceExample,
 } from "./loader-templates.mjs";
@@ -206,6 +208,11 @@ function stageWrite(filePath, content) {
   const temporary = transactionPath(filePath, "tmp");
   fs.mkdirSync(path.dirname(temporary), { recursive: true });
   fs.writeFileSync(temporary, content, "utf8");
+  // The temp name is derived from filePath, so staging one destination twice (harness root and
+  // FHF root coincide in a local aggregation workspace) would queue two publishes of one temp
+  // file and the second rename would ENOENT. Last write wins; keep a single pending entry.
+  const already = pendingWrites.find((entry) => entry.filePath === filePath);
+  if (already) return;
   pendingWrites.push({
     filePath,
     temporary,
@@ -336,6 +343,8 @@ function syncRuntimeEvidence(repoPath, lane) {
   if (lane === "e2e" || lane === "smoke") {
     writeText(path.join(repoPath, ".harness", "prepare-execution.mjs"), EXECUTION_SETUP_TEXT);
     writeText(path.join(repoPath, ".harness", "execution.example.json"), executionProfileExample(lane));
+    const pkg = lanePackage(lane);
+    if (pkg) writeText(path.join(repoPath, pkg, ".npmrc.example"), npmrcExample(lane));
   }
 }
 
@@ -399,10 +408,30 @@ function syncSubRepo(repoPath, lane) {
   syncRuntimeEvidence(repoPath, lane);
 }
 
-// Backend receives harness.config.json, settings.json, and hooks — but NOT agents/rules/skills,
-// which are pytest-specific and authoritative for that lane.
+// Backend's .gitignore predates full-consumer status and blanket-ignores .claude/ and CLAUDE.md,
+// which would silently drop the generated agents/rules/skills below. Narrow it to the same scope
+// E2E and Smoke use (local secrets and runtime state only) instead of hand-editing it out of band.
+function scopeBackendGitignore(repoPath) {
+  const gitignorePath = path.join(repoPath, ".gitignore");
+  if (!fs.existsSync(gitignorePath)) return;
+  const original = fs.readFileSync(gitignorePath, "utf8");
+  const blanketPattern = /(\r?\n)\.claude\/\1CLAUDE\.md\1\.cursor\/\1/;
+  const match = original.match(blanketPattern);
+  if (!match) return;
+  const eol = match[1];
+  const scoped = `${eol}.claude/settings.local.json${eol}.claude/hooks/.sweep-retries${eol}`;
+  const updated = original.replace(blanketPattern, scoped);
+  if (preflight) return;
+  fs.writeFileSync(gitignorePath, updated, "utf8");
+}
+
+// Backend is a full harness sync consumer — same as E2E/smoke lanes. Backend-specific agents,
+// rules, and skills live in the harness and are generated here; nothing is backend-authoritative.
 function syncBackend() {
-  copyDirSync(path.join(HARNESS_ROOT, ".claude", "hooks"), path.join(SUB_REPOS.backend, ".claude", "hooks"));
+  scopeBackendGitignore(SUB_REPOS.backend);
+  for (const sub of CLAUDE_SUBFOLDERS) {
+    copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(SUB_REPOS.backend, ".claude", sub));
+  }
   writeText(path.join(SUB_REPOS.backend, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(path.join(SUB_REPOS.backend, ".claude", "settings.json"), portableSettings("backend"));
 }
@@ -487,7 +516,7 @@ withFileLock(MANIFEST_PATH, () => {
         ? "Synced loader shims for master baseline only."
         : ONLY_ROOT
         ? "Synced loader shims for FHF root only."
-        : `Synced loader shims for FHF root and ${SKIP_E2E ? "Smoke" : "E2E and Smoke"} repos.`,
+        : `Synced loader shims for FHF root, ${SKIP_E2E ? "Smoke" : "E2E, Smoke"} and backend repos.`,
     );
   }
 });

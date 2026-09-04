@@ -87,6 +87,21 @@ try {
   });
   assert.equal(completeProjection.status, 0, completeProjection.stderr);
 
+  // Backend is a full sync consumer: the unflagged sync writes it and the
+  // unflagged drift check must catch it drifting. Before this pairing existed,
+  // backend was synced by default but never verified, so a stale backend
+  // projection stayed green and needed a separate --only-backend run to notice.
+  const backendProjection = path.join(root, "fhf-backend-automation", ".claude", "harness.config.json");
+  const backendBefore = fs.readFileSync(backendProjection, "utf8");
+  fs.writeFileSync(backendProjection, `${backendBefore}\n// drift\n`, "utf8");
+  const backendDrift = spawnSync(process.execPath, [driftScript], {
+    encoding: "utf8",
+    env: { ...process.env, FHF_SYNC_TARGET_ROOT: root, FHF_SYNC_MANIFEST: manifest },
+  });
+  assert.notEqual(backendDrift.status, 0, "default drift check must cover the backend consumer");
+  assert.match(backendDrift.stderr, /fhf-backend-automation/, backendDrift.stderr);
+  fs.writeFileSync(backendProjection, backendBefore, "utf8");
+
   const lock = `${manifest}.lock`;
   fs.writeFileSync(lock, JSON.stringify({ pid: process.pid }), "utf8");
   const concurrent = run();
@@ -110,6 +125,18 @@ try {
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "verify.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "prepare-execution.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "record-loop-event.mjs")), true);
+  // The lane .npmrc is gitignored, so the key-less template is the only committed carrier of the
+  // Windows script-shell line. Assert it ships per lane with that lane's record-key field.
+  for (const [lane, laneKey] of [["e2e", "cypress_record_key_e2e"], ["smoke", "cypress_record_key_smoke"]]) {
+    const example = path.join(root, `front-end-automation-${lane}`, "CypressFHF", "fhf-dashboards", ".npmrc.example");
+    assert.equal(fs.existsSync(example), true, `missing generated .npmrc.example for ${lane}`);
+    const text = fs.readFileSync(example, "utf8");
+    assert.ok(text.includes("script-shell=C:\\Program Files\\Git\\bin\\bash.exe"), "template must pin Git\\bin\\bash.exe");
+    const shellLine = text.split("\n").map((line) => line.trim()).find((line) => line.startsWith("script-shell="));
+    assert.ok(shellLine && !shellLine.includes("Git\\usr\\bin"), "script-shell must not use the coreutils-less usr\\bin shell");
+    assert.match(text, new RegExp(`^${laneKey}=$`, "m"), `${lane} example must expose ${laneKey}`);
+    assert.doesNotMatch(text, /^cypress_record_key_\w+=.+$/m, "template must never carry a record key value");
+  }
 
   const rootOnly = path.join(root, "root-only");
   const rootOnlyRun = spawnSync(process.execPath, [script, "--force", "--only-root"], {

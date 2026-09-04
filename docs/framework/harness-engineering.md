@@ -167,7 +167,8 @@ triage, never a reason to loosen the assertion or declare a task successful.
 - Exact ticket IDs, module/spec names, selectors, endpoints, and evidence paths survive handoff.
 - `factExtractors` persist only those bounded facts, and `handoffMaxAgeHours` rejects stale state.
 - `engineering.memory.handoffFile` is overwritten, not accumulated.
-- Session-start, pre-compaction, and session-end hooks restore or checkpoint the same file.
+- Session-start, pre-compaction, and session-end hooks restore or checkpoint the same file,
+  and every loop completion event checkpoints it at the phase boundary.
 - Obsidian is retrieval-only and cannot write product facts back.
 
 Compaction shortens the current session. A handoff starts a fresh session from durable facts.
@@ -202,6 +203,53 @@ Dev/QA; validate-backend-automation.mjs parses changed Python and enforces test-
 Shell writes, credentials, dependency changes, Git publication, uploads, and production backend
 execution stay blocked.
 
+### Vendor conformance
+
+Verified 2026-09-03 against the vendor sources, not against recollection: Claude Code hooks,
+sub-agents, and settings references; Cursor hooks and rules references; and the AGENTS.md
+standard. Re-verify when a vendor changes its lifecycle surface.
+
+Confirmed correct, no change warranted:
+
+- Exit 2 is the only self-blocking exit code, which is what every guard here uses. Exit 0 with
+  `hookSpecificOutput` is the structured alternative, and `lib/hook-runtime.mjs` already emits
+  `permissionDecision: allow` and `additionalContext` in that form.
+- `SubagentStart` is wired on both Claude and Cursor, so agent-roster enforcement no longer
+  depends on matching the Task tool alone and is not bypassed by other spawn paths.
+- `cursor.promptRouting: session-context` is the correct adapter decision. Cursor `beforeSubmitPrompt`
+  returns only `continue` and `user_message`; it has no `additionalContext` or `updatedPrompt`, so it
+  cannot carry per-prompt routing. The generator throw that pins this is justified.
+- Cursor defaults to fail-open on hook crash or timeout. Every protective `preToolUse` entry and the
+  `subagentStart` entry set `failClosed: true`. Post-write validators also fail closed, so a validator
+  crash cannot be reported as a clean pass.
+- `codex.instructionFile: AGENTS.md` with `hookCapability: instruction-only` matches the standard:
+  plain Markdown, no frontmatter, no hook surface, nearest-file precedence.
+- Cursor rules ship as `.mdc`. Plain `.md` in `.cursor/rules/` is ignored by Cursor.
+- Agent `maxTurns` is pinned by `engineering.harness.agentRuntime` and checked before projection.
+  Backend and cross-layer agents preload `backend-test-author` through native `skills` frontmatter;
+  projection fails when either guarantee drifts from policy.
+
+Known divergence from available vendor capability, recorded rather than silently accepted:
+
+- `updatedInput` on `PreToolUse` can correct a tool call instead of rejecting it. Every guard here
+  blocks; none repair.
+- The hook `if` field can pre-filter a command before the script runs. Not used; all filtering is
+  in-script.
+
+Newly governed and enforced:
+
+- `qualityAssurance.tagTaxonomy` owns the Cypress hierarchy: TYPE plus MODULE plus FEATURE plus
+  BEHAVIOR on `describe` (directly or through `SUITE_TAGS`), and STATUS on every `it`.
+  `validate-cypress-rules.mjs` consumes that policy for both lanes in addition to the Smoke critical
+  cap and quarantine metadata.
+- `qualityAssurance.frontendTestData` owns allowed and forbidden data sources, isolation, and
+  cleanup. Cypress builders and evaluators consume it; persistent E2E mutation retains the stronger
+  synthetic-owned identity, known-baseline, exact-result, prohibited-outcome, and verified-cleanup
+  requirements.
+- `engineering.taskProtocol.crossRepositorySeam` makes ADR-0024's first step executable. When a
+  manifest selects frontend and backend automation, each participating change unit records the same
+  `{ endpoint, correlationKey }`, or an explicit `NOT_APPLICABLE` with evidence. Task validation
+  rejects omission, malformed linkage, and mismatched seams.
 ### Cypress Cloud diagnostics
 
 `connectors.cypressCloud` owns one read-only evidence chain: Cloud MCP → Cloud CLI → local JUnit.
@@ -228,6 +276,31 @@ Loops are proposal-only. They never self-approve, merge, or determine release qu
 terminates as `completed`, `blocked`, or `escalated`; it does not invent a fourth strategy after
 the configured limit.
 
+### Agent loop contract
+
+Every roster agent participates in the same loop under one `runId` (ADR-0025). The contract has two
+halves and both are required — an agent that only records produces a log, and an agent that only
+reads cannot be measured.
+
+- **Read first.** Before planning, an agent reads `engineering.context.runtime.stateFile`. Absent
+  means first pass. Present and matching the active `runId` means `verdicts`, `failures`,
+  `lastProgressAt`, and `repairCycles` are inputs: the agent states what changed since that cycle
+  and never re-applies an action the state records as attempted without effect. An identical repeat
+  is the escalation signal, not a retry.
+- **Record throughout.** Evaluators record `gate_verdict`. Every other phase records
+  `phase_started` and `phase_completed` with a `phase` from `engineering.loops.phases`
+  (`generation`, `debug`, `ship`, `gate`, `sweep`), validated by the recorder. `progress` is true
+  only when the pass changed a file or produced new evidence.
+
+`repair_started` and `repair_completed` stay reserved for repair cycles, because
+`repairOutcomesFromTrace` derives convergence from those two types — labelling first-pass work as
+repair would corrupt the metric.
+
+A `phase_completed`, `repair_completed`, or `loop_completed` event is also a **memory checkpoint**:
+the recorder merges the event's `findings` and `artifacts` through the configured `factExtractors`
+into `engineering.memory.handoffFile`. Compaction discards the within-session channel before the
+PreCompact hook fires, so the phase boundary — not session end — is where facts are captured.
+
 ### Runtime evaluation evidence
 
 The evaluator does not use a committed repair-outcome fixture. Gate agents record `gate_verdict`,
@@ -235,6 +308,11 @@ The evaluator does not use a committed repair-outcome fixture. Gate agents recor
 `eval-harness.mjs` discovers the ignored `engineering.context.runtime.traceFile` under the configured
 workspace and lane roots, groups events by `runId`, and measures convergence only for runs that
 actually entered repair. Missing traces remain `unavailable`, never zero or a fabricated pass.
+
+Convergence is gated on `thresholds.minimumRepairSamples`, not on the first recorded outcome. Below
+that floor the rate is reported and marked UNKNOWN without failing the gate: a single outcome
+carries a Wilson interval too wide to support any verdict, and failing on it would make recording
+the first real trace the act that turns the gate red.
 
 Gate calibration is a separate human-review workflow:
 

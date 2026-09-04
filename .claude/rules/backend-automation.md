@@ -4,10 +4,11 @@ paths:
 ---
 # Backend Automation Boundary
 
-fhf-backend-automation is a task-scoped authoring and execution lane. It is a harness sync
-consumer: `harness.config.json`, `settings.json`, and hooks are generated from the aggregation
-workspace. Local agents, rules, and skills remain authoritative for pytest architecture and are
-never overwritten by sync.
+fhf-backend-automation is a task-scoped authoring and execution lane. It is a full harness sync
+consumer on equal footing with the E2E and Smoke lanes: `harness.config.json`, `settings.json`,
+hooks, agents, rules, and skills are all generated from the aggregation workspace. Backend-specific
+rules and skills (api-standards, assertions, oracle-db, testing, security, new-module, and all
+backend skill directories) live in the harness and are synced out — nothing is locally authoritative.
 
 - FHF_ACTIVE_TASK must point to a validated absolute task-manifest path.
 - Writes must be inside both grounding.repositories[].selectedPaths and

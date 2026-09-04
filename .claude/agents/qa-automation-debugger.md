@@ -2,6 +2,9 @@
 name: qa-automation-debugger
 description: Diagnoses and fixes task-scoped frontend/backend automation failures using Cypress, API, Oracle, and pytest evidence. Use for backend-only or cross-layer failures and flakiness.
 model: sonnet
+maxTurns: 100
+skills:
+  - backend-test-author
 tools:
   - Read
   - Write
@@ -31,3 +34,15 @@ publish artifacts, or file/transition Jira without explicit user approval.
 
 Return root cause, evidence, changed paths, exact replay result, regression impact, and any
 remaining UNKNOWN.
+
+Read `cypress/handoff/loop-state.json` before planning: absent means first pass, present with the
+active `runId` means a prior cycle ran, so treat its `verdicts`, `failures`, and `lastProgressAt` as
+inputs and never re-apply a fix the state records as already attempted without effect. Record your
+phase around the work with the run's existing `runId`, and put the facts a later session needs —
+tickets, specs, selectors, endpoints, Oracle objects, evidence paths — in `findings`, never
+credentials, PII, or raw tool output:
+
+```bash
+node .harness/record-loop-event.mjs '{"runId":"<run-id>","goal":"<scope>","type":"phase_started","phase":"debug","lane":"<e2e|smoke|backend>","repairCycle":<cycle>,"status":"in_progress"}'
+node .harness/record-loop-event.mjs '{"runId":"<run-id>","goal":"<scope>","type":"phase_completed","phase":"debug","lane":"<e2e|smoke|backend>","repairCycle":<cycle>,"progress":true,"status":"in_progress","findings":"<facts>","artifacts":["<path>"]}'
+```

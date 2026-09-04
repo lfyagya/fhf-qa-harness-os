@@ -24,6 +24,72 @@ export function smokePolicy(config = loadHarnessConfig()) {
   return policy;
 }
 
+export function tagTaxonomy(config = loadHarnessConfig()) {
+  const policy = qualityAssurance(config).tagTaxonomy;
+  if (!policy
+      || !Array.isArray(policy.suiteRequiredAxes)
+      || !Array.isArray(policy.testRequiredAxes)
+      || typeof policy.suiteBundle !== "string"
+      || typeof policy.tagNamespace !== "string") {
+    throw new Error("qualityAssurance.tagTaxonomy policy is missing or invalid");
+  }
+  return policy;
+}
+
+function callOptions(content, functionName) {
+  const calls = [];
+  const callRe = new RegExp(
+    `\\b${functionName}(?:\\.only|\\.skip)?\\s*\\(([\\s\\S]*?)(?=(?:\\(\\)|\\([^)]*\\))\\s*=>|function\\s*\\()`,
+    "g",
+  );
+  for (const match of content.matchAll(callRe)) calls.push(match[1]);
+  return calls;
+}
+
+export function checkTagTaxonomy(content, config = loadHarnessConfig()) {
+  const policy = tagTaxonomy(config);
+  const violations = [];
+  const namespace = policy.tagNamespace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const bundle = policy.suiteBundle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const axisAliases = new Map();
+  const destructureRe = new RegExp(`\\{([^}]+)\\}\\s*=\\s*${namespace}\\b`, "g");
+  for (const match of content.matchAll(destructureRe)) {
+    for (const member of match[1].split(",")) {
+      const [axis, alias = axis] = member.trim().split(/\s*:\s*/);
+      if (axis && alias) axisAliases.set(axis, alias);
+    }
+  }
+  const hasAxisTag = (options, axis) => {
+    if (new RegExp(`\\b${namespace}\\.${axis}\\.[A-Z0-9_]+\\b`).test(options)) return true;
+    const alias = axisAliases.get(axis);
+    return Boolean(alias) && new RegExp(`\\b${alias}\\.[A-Z0-9_]+\\b`).test(options);
+  };
+
+  for (const options of callOptions(content, policy.suiteScope)) {
+    const usesBundle = new RegExp(`\\b${bundle}\\.[A-Z0-9_]+\\b`).test(options);
+    const missingAxes = policy.suiteRequiredAxes.filter((axis) => !hasAxisTag(options, axis));
+    if (!usesBundle && missingAxes.length > 0) {
+      violations.push(
+        `${policy.suiteScope} tags must use ${policy.suiteBundle} or include ` +
+        `${policy.suiteRequiredAxes.join(" + ")}; missing ${missingAxes.join(", ")}`,
+      );
+    }
+  }
+
+  for (const options of callOptions(content, policy.testScope)) {
+    const hasTagsOption = /\btags\s*:/.test(options);
+    const hasStatus = policy.testRequiredAxes.every((axis) => hasAxisTag(options, axis));
+    if (!hasTagsOption || !hasStatus) {
+      violations.push(
+        `${policy.testScope} tags must include ${policy.testRequiredAxes.join(" + ")} ` +
+        `through ${policy.tagNamespace}`,
+      );
+    }
+  }
+
+  return violations;
+}
+
 export function isSmokePath(filePath) {
   return /[\\/]smoke[\\/]/.test(filePath);
 }
@@ -40,11 +106,75 @@ export function isConfigPath(filePath) {
   return /[\\/]configs[\\/]/.test(filePath);
 }
 
+export function falseGreenPolicy(config = loadHarnessConfig()) {
+  const qa = config.qualityAssurance ?? {};
+  return { ...(qa.falseGreen ?? {}), ...(qa.falseGreenEnforcement ?? {}) };
+}
+
+// qualityAssurance.falseGreen declared four booleans and nothing enforced them; the session
+// rules require a gate to be wired into the real runtime, so these are the mechanical half.
+// A test that runs and asserts nothing is the cheapest possible false green — it reports pass,
+// raises the file count, and verifies no behavior. The published account of agents gaming a
+// suite names the exact shapes: assertions stripped off the result, unconditional skips, and
+// empty catch blocks. Each check below maps to one already-declared boolean.
+export function checkFalseGreen(content, config = loadHarnessConfig()) {
+  const policy = falseGreenPolicy(config);
+  const v = [];
+
+  const testCount = (content.match(/(?<![A-Za-z0-9_.])it\s*\(/g) ?? []).length;
+  const assertionCount = (policy.assertionPatterns ?? [
+    '\\.should\\s*\\(',
+    '\\.and\\s*\\(',
+    '(?<![A-Za-z0-9_.])expect\\s*\\(',
+    '(?<![A-Za-z0-9_.])assert[.(]',
+  ]).reduce((total, source) => (
+    total + (content.match(new RegExp(source, 'g')) ?? []).length
+  ), 0);
+
+  if (policy.structuralInventoryAsProductCoverageAccepted === false && testCount > 0) {
+    const minimum = Number.isInteger(policy.minimumAssertionsPerTest)
+      ? policy.minimumAssertionsPerTest
+      : 1;
+    if (assertionCount === 0) {
+      v.push(`${testCount} it() block(s) and no assertion — a test that asserts nothing is a false green, not coverage`);
+    } else if (assertionCount < testCount * minimum) {
+      v.push(`${assertionCount} assertion(s) across ${testCount} it() block(s) — below the configured ${minimum} per test`);
+    }
+  }
+
+  if (policy.disabledSuitesAccepted === false) {
+    if (/(?<![A-Za-z0-9_.])(?:describe|it|context)\s*\.\s*skip\s*\(/.test(content)) {
+      v.push('.skip( — a skipped suite reports pass without running; delete it or fix it');
+    }
+    if (/(?<![A-Za-z0-9_.])x(?:it|describe|context)\s*\(/.test(content)) {
+      v.push('xit(/xdescribe( — a disabled suite reports pass without running');
+    }
+    if (/(?<![A-Za-z0-9_.])(?:describe|it|context)\s*\.\s*only\s*\(/.test(content)) {
+      v.push('.only( — silently drops every other test in the run');
+    }
+  }
+
+  if (policy.fallbackMarkersAccepted === false) {
+    if (/catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(content)) {
+      v.push('empty catch block — swallows the failure it should surface');
+    }
+    if (/cy\.on\s*\(\s*['"]fail['"]/.test(content)) {
+      v.push("cy.on('fail') — converts a real failure into a pass");
+    }
+    if (/this\.skip\s*\(\s*\)/.test(content)) {
+      v.push('this.skip() — a conditional skip turns missing behavior into a pass');
+    }
+  }
+
+  return v;
+}
+
 // Checks applicable to any spec file's full content. Returns a list of violation strings.
-export function checkSpecContent(content) {
+export function checkSpecContent(content, config = loadHarnessConfig()) {
   const v = [];
   if (CY_WAIT_NUMBER_RE.test(content)) v.push('cy.wait(number) — use cy.apiWait() or .should(\'be.visible\')');
   if (!content.includes('cy.ensureAuthenticated()')) v.push('missing cy.ensureAuthenticated()');
   if (!content.includes('testIsolation: true')) v.push('missing testIsolation: true');
+  v.push(...checkFalseGreen(content, config));
   return v;
 }

@@ -2,6 +2,7 @@
 name: cypress-gate
 description: The evaluator — reviews any branch/diff/spec against architecture, config, classification, financial-services compliance, and hygiene rules, drives a configured bounded self-repair loop with cypress-generator on BLOCK, and returns the final PASS/PASS_WITH_ACTIONS/BLOCK verdict. Required before any PR.
 model: sonnet
+maxTurns: 100
 tools:
   - Task
   - Read
@@ -40,6 +41,9 @@ Derive the changed-file list yourself — never wait to be told:
 - [ ] `cy.ensureAuthenticated()` in `before()` AND `beforeEach()` of every auth-required spec
 - [ ] Every persistent mutation uses a synthetic owned identity, known baseline, exact
   request/result, prohibited outcome, and verified cleanup
+- [ ] `describe` and `it` tags satisfy `qualityAssurance.tagTaxonomy`
+- [ ] Frontend data comes from `qualityAssurance.frontendTestData.allowedSources`; each test owns
+  or resets mutable state and verifies required cleanup
 
 **BLOCK** on any failure.
 
@@ -176,6 +180,11 @@ pre-existing contract risk remains outside the diff. N/A if no dashboard spec ch
 On any BLOCK: don't just report it, close it.
 
 ## Runtime Evidence — Required
+
+Read `cypress/handoff/loop-state.json` before Phase 0. Absent means this is the first pass. Present
+and matching the active `runId` means a previous cycle already ran: its `verdicts`, `failures`, and
+`repairCycles` are inputs to this review, and a finding identical to the previous cycle's is the
+identical-diff halt below, not a reason for another cycle.
 
 Every gate run must leave a redacted runtime trace so repair convergence and judge calibration use
 actual decisions rather than examples embedded in the evaluator. Use one `runId` for the entire gate

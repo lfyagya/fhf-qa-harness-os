@@ -1,0 +1,470 @@
+{
+  "schema": "fhf-impact-map/v1",
+  "generatedBy": "hand-authored; verified against the working tree on 2026-08-04",
+  "description": "Maps a changed file path to the module keys it can affect, and each module key to the exact automation it owns in each lane. Consumed by scripts/execution/select-impacted.mjs. Module keys are identical to .harness/config.json moduleAliases keys so selection, coverage, and the chain ledger all speak one vocabulary.",
+  "boundaries": {
+    "applicationSource": "read-only; this map only reads paths, never writes to fhf-dashboards",
+    "smokeLane": "GET-only against production; selection may narrow smoke but must never add a mutating spec",
+    "e2eLane": "dev/qa only"
+  },
+
+  "repositories": {
+    "application": {
+      "remote": "https://github.com/treacyandcoventures/fhf-dashboards.git",
+      "role": "system under test"
+    },
+    "uiAutomation": {
+      "remote": "https://github.com/treacyandcoventures/front-end-automation.git",
+      "role": "hosts BOTH the e2e and smoke lanes; lane is selected by spec pattern, not by repository",
+      "package": "CypressFHF/fhf-dashboards"
+    },
+    "backendAutomation": {
+      "remote": "git@github.com:treacyandcoventures/fhf-backend-automation.git",
+      "role": "api + oracle lane"
+    }
+  },
+
+  "_scopeNote": "This map covers the CypressFHF/fhf-dashboards package only. The scope boundary below is recorded deliberately so the excluded package is not repeatedly rediscovered as a coverage gap.",
+  "inScopePackage": {
+    "path": "CypressFHF/fhf-dashboards",
+    "specExtension": ".cy.js",
+    "cloudProjects": { "e2e": "nptdoe", "smoke": "r5k1ro" },
+    "runner": "scripts/run-parallel.sh — 2 machines x 3 workers, Cypress Cloud load balancing"
+  },
+  "outOfScope": [
+    {
+      "package": "CypressFHF/fhf-los",
+      "cloudProject": "fcnnrc",
+      "cloudProjectName": "FHF-LOS-Spark",
+      "decision": "out-of-scope",
+      "decidedBy": "QA owner",
+      "decidedOn": "2026-08-04",
+      "reason": "Loan origination (B2F queues and Matching Module) is not this team's remit.",
+      "observedContents": "14 spec files (7 .E2E.js + 7 .smoke.js), 29 declared tests, verified from git ls-files and its cypress.config.js specPattern",
+      "consequence": "Selection, the coverage ratchet, and the chain ledger all exclude it by design. Coverage figures describe fhf-dashboards only and must be reported with that qualifier — they are not whole-org figures.",
+      "reopenIf": "Ownership of loan origination moves to this team, or an origination-to-servicing seam becomes a stated product risk."
+    },
+    {
+      "cloudProject": "8ezjbp",
+      "cloudProjectName": "Local Testing",
+      "decision": "out-of-scope",
+      "decidedOn": "2026-08-04",
+      "reason": "Scratch/experimentation project; not a release-bearing lane.",
+      "consequence": "Never cite its runs as evidence."
+    }
+  ],
+
+  "_sharedNote": "A shared path has no single owning module. Changing one selects the blastRadius scope instead of a module list. This is deliberate: silently mapping a shared component change to one module is how impact-based selection produces false confidence.",
+  "shared": {
+    "blastRadius": "all-modules-with-coverage",
+    "paths": [
+      "src/Router.tsx",
+      "src/App.jsx",
+      "src/index.jsx",
+      "src/init.js",
+      "src/store.js",
+      "src/environmentConfig.js",
+      "src/routes/index.ts",
+      "src/modules/index.ts",
+      "src/components/common/",
+      "src/components/commonWidgets/",
+      "src/components/DashboardGenerator/",
+      "src/components/modals/",
+      "src/components/hoc/",
+      "src/components/index.js",
+      "src/services/common/",
+      "src/services/network.js",
+      "src/services/authAxiosInstance.js",
+      "src/services/accessControl.js",
+      "src/services/apiErrorHandler.js",
+      "src/services/dashboardFilter.js",
+      "src/services/dashboardDefaultPaginatioSize.js",
+      "src/services/generateQuery/",
+      "src/services/generateQueryParam.js",
+      "src/services/generateQueryString.ts",
+      "src/services/generateURL.js",
+      "src/services/grid.js",
+      "src/services/filter.js",
+      "src/services/cache.ts",
+      "src/services/exportCsv.ts",
+      "src/services/csvParse.ts",
+      "src/services/fetchNextRecords.js",
+      "src/services/modalService.js",
+      "src/utils/",
+      "src/hooks/",
+      "src/hoc/",
+      "src/context/",
+      "src/providers/",
+      "src/reducers/",
+      "src/actions/",
+      "src/config/",
+      "src/constants/",
+      "src/schema/",
+      "src/types/",
+      "package.json",
+      "package-lock.json",
+      "yarn.lock",
+      "vite.config.js",
+      "vite.config.ts",
+      "tsconfig.json"
+    ]
+  },
+
+  "_authNote": "Auth/session changes select the auth scope: the e2e login spec plus the smoke unauthenticated spec. They also force a full run, because a broken session invalidates every other result in the run.",
+  "auth": {
+    "paths": [
+      "src/services/authAxiosInstance.js",
+      "src/services/accessControl.js",
+      "src/context/auth",
+      "src/providers/auth"
+    ],
+    "e2eSpecs": [
+      "cypress/tests/fhf-dashboard/e2e/auth/login.cy.js"
+    ],
+    "smokeSpecs": [
+      "cypress/tests/fhf-dashboard/smoke/common/unauthenticated.smoke.cy.js"
+    ],
+    "forcesFullRun": true
+  },
+
+  "modules": {
+    "ancillary": {
+      "businessName": "Ancillary (APD all-product/verification, ACD cancellation/follow-up)",
+      "lifecycleStage": "Ancillary",
+      "applicationPaths": [
+        "src/modules/ancillary/",
+        "src/modules/ancillaryProducts/",
+        "src/services/ancillary/",
+        "src/services/ancillaryProducts/",
+        "src/routes/ancillary.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/ancillary/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/ancillary/**/*.cy.js"],
+      "backendPaths": ["tests/ancillary", "tests/smoke/ancillary"],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/general-dashboard.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-cancellation/follow-up-dashboard-export-activity.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/all-product-dashboard.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/ancillary/ancillary-products/verification-dashboard.yaml"
+      ]
+    },
+    "call-reports": {
+      "businessName": "Call Reports (agent call volume, call recording)",
+      "lifecycleStage": "Call Reports",
+      "applicationPaths": [
+        "src/modules/callRecording/",
+        "src/modules/reports/",
+        "src/services/datadog/",
+        "src/routes/reports.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/call-reports/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/call-reports/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-reports/agent-call-volume.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-reports/call-recording.yaml"
+      ]
+    },
+    "checks": {
+      "businessName": "Checks (insurance repair check, lockbox check)",
+      "lifecycleStage": "Checks",
+      "applicationPaths": [
+        "src/modules/checks/",
+        "src/services/checks/",
+        "src/routes/checks.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/checks/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/checks/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/checks-module/insurance-repair-checks.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/checks-module/lockbox-check.yaml"
+      ]
+    },
+    "complaints": {
+      "businessName": "Complaints (CFPB/BBB complaint lifecycle)",
+      "lifecycleStage": "Complaints",
+      "applicationPaths": [
+        "src/modules/complaints/",
+        "src/services/complaints/",
+        "src/routes/complaints.routes.tsx"
+      ],
+      "e2eSpecs": [],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/complaints/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/complaints/complaints-view.yaml"
+      ]
+    },
+    "contracts": {
+      "businessName": "Contracts (contract prep)",
+      "lifecycleStage": "Custodian",
+      "applicationPaths": [
+        "src/components/contracts/",
+        "src/services/contractServices.js"
+      ],
+      "e2eSpecs": [],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/contracts/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/contracts.yaml"
+      ]
+    },
+    "custodian": {
+      "businessName": "Custodian (dashboard, requests, exception queue, portfolio view)",
+      "lifecycleStage": "Custodian",
+      "applicationPaths": [
+        "src/modules/custodian/",
+        "src/services/custodian/",
+        "src/routes/custodian.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/custodian/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/custodian/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/exception-queue.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/custodian-requests.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/portfolio-view.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/custodian/custodian-dashboard.yaml"
+      ]
+    },
+    "doc-repository": {
+      "businessName": "Document Repository (loan packages, download job queue)",
+      "lifecycleStage": "Document Repository",
+      "applicationPaths": [
+        "src/modules/docRepository/",
+        "src/services/docRepository/",
+        "src/services/loanDocumentService.ts",
+        "src/services/missingDocStatus.js",
+        "src/routes/docRepository.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/doc-repository/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/doc-repository/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/document-repository/loan-packages.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/document-repository/download-job-queue.yaml"
+      ]
+    },
+    "funding": {
+      "businessName": "Funding (dashboard, monthly spreadsheet, coordinator, my queue)",
+      "lifecycleStage": "Funding",
+      "applicationPaths": [
+        "src/components/funding/",
+        "src/services/funding/",
+        "src/routes/funding.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/funding/**/*.cy.js"],
+      "smokeSpecs": [],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/dashboard.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/monthly-spreadsheet.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/coordinator.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/funding/my-queue.yaml"
+      ]
+    },
+    "insurance": {
+      "businessName": "Insurance (total loss, lienholder claim)",
+      "lifecycleStage": "Insurance",
+      "applicationPaths": [
+        "src/modules/insurance/",
+        "src/components/insurance/",
+        "src/services/insurance/",
+        "src/routes/insurance.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/insurance/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/insurance/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/total-loss.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/insurance/lienholder-claim.yaml"
+      ]
+    },
+    "letters": {
+      "businessName": "Letter Tracking (RISC letters)",
+      "lifecycleStage": "Ancillary",
+      "applicationPaths": [
+        "src/modules/lettersTracking/",
+        "src/services/lettersTracking/",
+        "src/routes/lettersTracking.routes.tsx"
+      ],
+      "e2eSpecs": [],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/letters-tracking/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/letter-tracking/letter-tracking.yaml"
+      ]
+    },
+    "loss-mitigation": {
+      "businessName": "Loss Mitigation (assignment, repo, skip trace, re-marketing, impound, transport, invoices, recon)",
+      "lifecycleStage": "Loss Mitigation",
+      "applicationPaths": [
+        "src/modules/lossMitigation/",
+        "src/components/lossMitigation/",
+        "src/services/lossMitigation/",
+        "src/services/impound/",
+        "src/routes/lossMitigation.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/loss-mitigation/**/*.cy.js"],
+      "backendPaths": [
+        "tests/repo_invoice",
+        "tests/auction_invoice",
+        "tests/smoke/repo_invoice",
+        "tests/smoke/auction_invoice"
+      ],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/re-marketing.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/transport.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/invoices.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml"
+      ]
+    },
+    "post-funding": {
+      "businessName": "Post Funding (dealer detail annotation)",
+      "lifecycleStage": "Post Funding",
+      "applicationPaths": [
+        "src/components/postFunding/"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/post-funding/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/post-funding/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/post-funding/post-funding.yaml"
+      ]
+    },
+    "titles": {
+      "businessName": "Titles (general, release, remarketing, remarketing titles, missing titles, re-registration)",
+      "lifecycleStage": "Titles",
+      "applicationPaths": [
+        "src/modules/titles/",
+        "src/modules/reRegistration/",
+        "src/components/titles/",
+        "src/routes/titles.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/titles/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/titles/**/*.cy.js"],
+      "backendPaths": [],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/general.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/release.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/remarketing.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/remarketing-titles.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/missing-titles.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/titles/re-registration.yaml"
+      ]
+    },
+    "unifi": {
+      "businessName": "UniFi (collections, servicing, contact log, Payix promise-to-pay)",
+      "lifecycleStage": "UniFi Servicing / UniFi Collections",
+      "applicationPaths": [
+        "src/modules/servicing/",
+        "src/modules/callLog/",
+        "src/services/callLog/",
+        "src/routes/servicing.routes.tsx",
+        "src/routes/callLog.routes.tsx"
+      ],
+      "e2eSpecs": ["cypress/tests/fhf-dashboard/e2e/dashboards/uni-fi/**/*.cy.js"],
+      "smokeSpecs": ["cypress/tests/fhf-dashboard/smoke/unifi/**/*.cy.js"],
+      "backendPaths": ["tests/unifi"],
+      "productSpecs": [
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-center/collections.yaml",
+        "Test-Case-Automation-Using-Claude-Agents/specs/modules/call-center/servicing.yaml"
+      ]
+    }
+  },
+
+  "_crossModuleNote": "A change in the source module can break the target module even though no target file changed. These edges exist because the modules share a record, a status, or a downstream artifact — not because they share code. Verified from the chain-risk ledger and module-component-map.yaml. Each edge names the lane that can actually observe the break.",
+  "crossModuleEdges": [
+    {
+      "from": "insurance",
+      "to": "loss-mitigation",
+      "seam": "Total Loss / Lienholder Claim state movement raises Impound notification behavior",
+      "observableBy": ["e2e"],
+      "evidence": "fullstack-chain-risk-matrix.md — Insurance row names Impound notification identity as a missing link"
+    },
+    {
+      "from": "loss-mitigation",
+      "to": "titles",
+      "seam": "Repo/remarketing progression drives the title flip type and remarketing-title cascade",
+      "observableBy": ["e2e", "smoke"],
+      "evidence": "state-to-flip-type-map.yaml; chain ledger Titles Remarketing row names the repo/title cascade"
+    },
+    {
+      "from": "loss-mitigation",
+      "to": "checks",
+      "seam": "Repo/auction invoice accounting and insurance repair check posting both settle money against the loan",
+      "observableBy": ["backend"],
+      "evidence": "chain ledger Checks row (posting ownership unverified) + LM accounting flow backend suite"
+    },
+    {
+      "from": "custodian",
+      "to": "titles",
+      "seam": "Custodian document location/status synchronization feeds title custodian management",
+      "observableBy": ["e2e"],
+      "evidence": "account-details-page-shared.yaml Custodian Management section; chain ledger flags cross-dashboard location sync as explicitly unverified"
+    },
+    {
+      "from": "custodian",
+      "to": "doc-repository",
+      "seam": "Loan package contents depend on custodian-held documents and exception queue state",
+      "observableBy": ["e2e"],
+      "evidence": "module-component-map.yaml sub-menu structure; chain ledger Document Repository row"
+    },
+    {
+      "from": "unifi",
+      "to": "loss-mitigation",
+      "seam": "Delinquency, contact outcome and promise-to-pay state drive assignment/repo eligibility",
+      "observableBy": ["e2e", "backend"],
+      "evidence": "modules/loss-mitigation/assignment.yaml routing algorithm; modules/common/call-center/payment-page.yaml payment/verification gating"
+    },
+    {
+      "from": "unifi",
+      "to": "call-reports",
+      "seam": "Call log and call events are the source records for agent call volume and call recording reporting",
+      "observableBy": ["smoke"],
+      "evidence": "modules/common/call-center/account-details-page.yaml Events/Notes rules (BR-CCD-002/003/007/008) and Daily Outbound Batch flows (FL-CCD-030/031); components/event.component.yaml; call-reports specs"
+    },
+    {
+      "from": "ancillary",
+      "to": "unifi",
+      "seam": "ACD cancellation refund reduces the payoff/balance the servicing and collections views present",
+      "observableBy": ["backend"],
+      "evidence": "chain ledger APD/ACD row; ancillary backend suite asserts API+DB refund state"
+    },
+    {
+      "from": "ancillary",
+      "to": "letters",
+      "seam": "Cancellation and packet events drive outbound letter tracking records",
+      "observableBy": ["smoke"],
+      "evidence": "common-ancillary-cancellation.yaml packet rules; letter-tracking.yaml"
+    },
+    {
+      "from": "funding",
+      "to": "post-funding",
+      "seam": "Funding completion is the precondition for post-funding dealer annotation",
+      "observableBy": ["e2e"],
+      "evidence": "loan-lifecycle order in .claude/rules/session-rules.md"
+    },
+    {
+      "from": "funding",
+      "to": "contracts",
+      "seam": "Contract prep output is what funding coordinates and custodian later receives",
+      "observableBy": ["smoke"],
+      "evidence": "module-component-map.yaml; specs/modules/custodian/contracts.yaml"
+    },
+    {
+      "from": "complaints",
+      "to": "unifi",
+      "seam": "Complaint records attach to the account and constrain collection contact activity",
+      "observableBy": ["smoke"],
+      "evidence": "modules/complaints/complaints-view.yaml; modules/common/call-center/account-details-page.yaml Complaints widget (Manage Complaint modal detail cards + Notes/Add Note)"
+    }
+  ]
+}

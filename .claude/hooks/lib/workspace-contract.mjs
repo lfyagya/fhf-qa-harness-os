@@ -243,6 +243,13 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
     }
   }
 
+  // .npmrc is gitignored (it holds Cloud record keys), so a fresh clone has no script-shell line.
+  // Warn rather than block: it only breaks npm run cy:*, not harness policy.
+  const lanePkg = config.paths?.lanes?.[lane]?.package;
+  if (lanePkg && !fs.existsSync(path.join(projectRoot, lanePkg, ".npmrc"))) {
+    warnings.push(`Missing ${lanePkg}/.npmrc; copy ${lanePkg}/.npmrc.example to .npmrc before running npm run cy:* on Windows.`);
+  }
+
   if (!values?.backendRoot) warnings.push("Backend automation repository is not configured; backend generation and evidence remain unavailable.");
   if (!values?.jiraMcp) warnings.push("Jira MCP/OAuth is not configured; Jira discovery and writes are unavailable.");
   if (!values?.confluenceMcp) warnings.push("Confluence MCP/OAuth is not configured; Confluence discovery and writes are unavailable.");

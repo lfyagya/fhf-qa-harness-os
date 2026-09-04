@@ -910,11 +910,42 @@
       "assertions"
     ],
     "acceptedProductSpecStatuses": ["approved"],
+    "tagTaxonomy": {
+      "suiteScope": "describe",
+      "suiteRequiredAxes": ["TYPE", "MODULE", "FEATURE", "BEHAVIOR"],
+      "suiteBundle": "SUITE_TAGS",
+      "testScope": "it",
+      "testRequiredAxes": ["STATUS"],
+      "tagNamespace": "TAGS"
+    },
+    "frontendTestData": {
+      "repositories": ["front-end-automation-e2e", "front-end-automation-smoke"],
+      "allowedSources": ["fixture-key", "synthetic-builder", "api-seed", "hermetic-inline"],
+      "forbiddenSources": ["production-pii", "shared-mutable-record", "untracked-live-record"],
+      "persistentMutationRequires": [
+        "syntheticOwnedIdentity",
+        "knownBaseline",
+        "exactRequestAndResult",
+        "prohibitedOutcome",
+        "verifiedCleanup"
+      ],
+      "isolation": "each test owns or resets every record it mutates",
+      "cleanup": "verify cleanup before reporting pass"
+    },
     "falseGreen": {
       "fallbackMarkersAccepted": false,
       "disabledSuitesAccepted": false,
       "stubbedMutationAsWorkflowAccepted": false,
       "structuralInventoryAsProductCoverageAccepted": false
+    },
+    "falseGreenEnforcement": {
+      "minimumAssertionsPerTest": 1,
+      "assertionPatterns": [
+        "\\.should\\s*\\(",
+        "\\.and\\s*\\(",
+        "(?<![A-Za-z0-9_.])expect\\s*\\(",
+        "(?<![A-Za-z0-9_.])assert[.(]"
+      ]
     },
     "lanes": {
       "smoke": {
@@ -1287,6 +1318,14 @@
         "approvalBinding": "plan-is-digest-bound",
         "recorderEnforcement": "elapsed-time-recorded-tool-results-and-retryable-failures",
         "onExceeded": "block-and-record-budget-exceeded"
+      },
+      "crossRepositorySeam": {
+        "manifestPath": "plan.changeUnits[].seam",
+        "frontendRepositories": ["front-end-automation-e2e", "front-end-automation-smoke"],
+        "backendRepositories": ["fhf-backend-automation"],
+        "requiredFields": ["endpoint", "correlationKey"],
+        "notApplicableStatus": "NOT_APPLICABLE",
+        "notApplicableEvidenceField": "evidence"
       },
       "snapshot": {
         "freeze": [
@@ -1722,7 +1761,8 @@
           "routeAccuracy": 1,
           "minimumCalibrationKappa": 0.6,
           "minimumCalibrationRho": 0.8,
-          "minimumRepairConvergence": 0.8
+          "minimumRepairConvergence": 0.8,
+        "minimumRepairSamples": 5
         }
       },
       "runtime": {
@@ -1999,6 +2039,31 @@
       }
     },
     "harness": {
+      "governance": {
+        "ownerOverrideEnv": "FHF_ALLOW_HARNESS_EDIT",
+        "protectedPaths": [
+          "config/qa-control-plane.json",
+          ".claude/settings.json",
+          ".claude/harness.config.json",
+          ".claude/hooks/"
+        ]
+      },
+      "citationVerification": {
+        "enabled": true,
+        "maxCitationsChecked": 40,
+        "sourceExtensions": [
+          "cjs", "cy.js", "js", "json", "jsx", "md", "mjs", "mts",
+          "py", "sql", "ts", "tsx", "yaml", "yml"
+        ]
+      },
+      "agentRuntime": {
+        "maxTurns": 100,
+        "preloadedSkills": {
+          "qa-automation-generator": ["backend-test-author"],
+          "qa-automation-debugger": ["backend-test-author"],
+          "qa-automation-gate": ["backend-test-author"]
+        }
+      },
       "agents": [
         "cypress-generator",
         "cypress-gate",
@@ -2071,12 +2136,14 @@
           "prompt-router.mjs"
         ],
         "preWrite": [
+          "protect-harness-governance.mjs",
           "protect-app-source.mjs",
           "protect-automation-scope.mjs",
           "protect-second-brain-boundary.mjs",
           "pre-validate-cypress-rules.mjs"
         ],
         "preShell": [
+          "protect-harness-governance.mjs",
           "manual-task-guard.mjs"
         ],
         "preSubagent": [
@@ -2093,6 +2160,9 @@
         ],
         "subagentStart": [
           "block-generic-agents.mjs"
+        ],
+        "subagentStop": [
+          "verify-subagent-citations.mjs"
         ],
         "postWrite": [
           "validate-backend-automation.mjs",
@@ -2188,6 +2258,7 @@
             "scripts/harness/check-loader-drift.mjs",
             "scripts/harness/check-docs-links.mjs",
             "scripts/harness/test-hooks.mjs",
+            "scripts/harness/test-import-graph.mjs",
             "scripts/harness/test-adapter-contract.mjs",
             "scripts/harness/test-sync-loader.mjs",
             "scripts/harness/test-runtime-state.mjs",
@@ -2212,6 +2283,13 @@
       "sameFailureLimit": 3,
       "gateRepairLimit": 3,
       "specSweepLimit": 3,
+      "phases": [
+        "generation",
+        "debug",
+        "ship",
+        "gate",
+        "sweep"
+      ],
       "phaseBoundary": "owner-approval",
       "terminalStates": [
         "completed",

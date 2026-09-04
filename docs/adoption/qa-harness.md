@@ -197,13 +197,12 @@ There is one reviewed policy. Generated assistant surfaces, hook registrations, 
 The aggregation workspace (`fhf-qa-harness-os`) is the canonical source. Consumer repos (`front-end-automation-e2e`, `front-end-automation-smoke`) receive generated config via the sync script. Run this after every `git pull` on the aggregation workspace:
 
 ```shell
-node scripts/harness/sync-loader-shims.mjs --only-root
-node scripts/harness/sync-loader-shims.mjs --only-e2e
-node scripts/harness/sync-loader-shims.mjs --only-smoke
-node scripts/harness/sync-loader-shims.mjs --only-backend
+node scripts/harness/sync-loader-shims.mjs
 ```
 
-Run the four commands separately — a combined run hits a Windows transaction conflict on `settings.json`. The sync writes a `.sync-manifest.json` in the aggregation workspace root; that file is gitignored and machine-local, do not commit it.
+One unflagged run covers the FHF root, both Cypress lanes, and the backend repo. The scoped flags (`--only-root`, `--only-e2e`, `--only-smoke`, `--only-backend`, `--only-baseline`) remain for targeted re-syncs; use them one at a time, since the script rejects more than one scope per run. If a run ever reports a Windows transaction conflict on `settings.json`, fall back to the scoped commands in sequence.
+
+The sync writes a `.sync-manifest.json` in the aggregation workspace root; that file is gitignored and machine-local, do not commit it.
 
 After syncing, commit the updated `harness.config.json` in each consumer repo to the correct baseline branch (`dev` for E2E, `staging` for smoke, `main` for backend). Run the drift check to confirm nothing was missed:
 

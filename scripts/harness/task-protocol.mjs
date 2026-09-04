@@ -302,6 +302,8 @@ function protocolOptions(config) {
     runners,
     approvalFields: config.engineering?.taskProtocol?.approval?.boundFields,
     executionBudget: config.engineering?.taskProtocol?.executionBudget,
+    crossRepositorySeam: config.engineering?.taskProtocol?.crossRepositorySeam,
+    frontendTestData: config.qualityAssurance?.frontendTestData,
     capabilityControl: config.engineering?.capabilityControl,
   };
 }
@@ -318,6 +320,8 @@ function contract(config) {
     requiredSections: config.engineering.taskProtocol.requiredSections,
     approvalBoundFields: config.engineering.taskProtocol.approval.boundFields,
     executionBudget: config.engineering.taskProtocol.executionBudget,
+    crossRepositorySeam: config.engineering.taskProtocol.crossRepositorySeam,
+    frontendTestData: config.qualityAssurance.frontendTestData,
     capabilityControl: config.engineering.capabilityControl,
     proofModes: Object.keys(config.engineering.taskProtocol.proofModes),
     runnerIds: Object.keys(config.engineering.executionRunners.runners),
