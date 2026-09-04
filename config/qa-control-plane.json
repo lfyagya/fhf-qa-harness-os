@@ -148,7 +148,7 @@
       "backend": {
         "rootEnv": "FHF_BACKEND_TARGET_ROOT",
         "root": "fhf-backend-automation",
-        "branch": "main"
+        "branch": "master"
       }
     },
     "automationLanes": {
