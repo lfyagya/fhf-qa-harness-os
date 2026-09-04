@@ -11,7 +11,7 @@ ADR-0018 parked the documentation payload on branch `fhf-docs`, whose history is
 `main`, and kept payload placement on the FHF side. It recorded one cost — onboarding means checking
 out an unrelated-history branch — and missed a larger one.
 
-The engine was checked out *at* `C:\Users\Leapfrog\FHF` rather than as its sibling. That makes
+The engine was checked out *at* the workspace root (`<parent>/FHF`) rather than as its sibling. That makes
 `paths.consumerRoot: "../FHF"` an identity no-op: `HARNESS_ROOT` and `FHF_ROOT` resolve to the same
 directory. The engine main line and the payload branch then compete for one working tree, and only
 one can be present at a time. Checking out any engine branch deletes every payload-only file from
@@ -39,9 +39,9 @@ copies, including `import-graph-lib.mjs` and `test-import-graph.mjs` — both re
 The two trees are separated, as ADR-0001 and ADR-0018 always specified, and implemented as two
 worktrees of one repository rather than two clones:
 
-- `C:\Users\Leapfrog\qa-harness-os` — the engine, on an engine branch. Authoritative
+- the engine checkout (`<parent>/qa-harness-os`) — the engine, on an engine branch. Authoritative
   `.claude/{hooks,agents,rules,skills}` source.
-- `C:\Users\Leapfrog\FHF` — the consumer workspace, on `fhf-docs`. Holds the documentation payload,
+- the workspace root (`<parent>/FHF`) — the consumer workspace, on `fhf-docs`. Holds the documentation payload,
   the lane repositories, and the generated local-only projection of `.claude/`.
 
 `paths.consumerRoot: "../FHF"` now resolves correctly from the engine root and is unchanged. No
@@ -59,7 +59,7 @@ real documentation edit and retaining the commit as branch `payload-checkpoint-7
 
 `engineering.harness.verify.canonical` passes 18/18 from the engine root.
 
-Checking out an engine branch at `C:\Users\Leapfrog\FHF` reintroduces every failure above. The
+Checking out an engine branch at the workspace root (`<parent>/FHF`) reintroduces every failure above. The
 payload workspace stays on `fhf-docs`.
 
 `.git/info/exclude` is shared across worktrees, so its workspace-era rules (`/scripts/`, `/.claude/`,
