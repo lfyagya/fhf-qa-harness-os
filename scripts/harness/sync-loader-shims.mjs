@@ -7,6 +7,8 @@ import { withFileLock } from "./evidence-export-policy.mjs";
 import {
   CURSOR_HOOKS,
   HARNESS_CONFIG_TEXT,
+  harnessConfigTextForLane,
+  laneAllows,
   claudeSettingsText,
   cursorHooks,
   VENDORED_HOOKS,
@@ -229,6 +231,41 @@ function writeText(filePath, content) {
   manifest[manifestKey(filePath)] = contentHash(normalized);
 }
 
+// Copy only the agents/skills a lane can act on. copyDirSync mirrors, so entries outside the
+// lane's scope are removed from the consumer on the next sync rather than lingering.
+function copySubfolderSync(src, dest, sub, lane) {
+  const allow = laneAllows(lane, sub === "agents" ? "agents" : sub === "skills" ? "skills" : null);
+  if (!allow) return copyDirSync(src, dest);
+  if (!fs.existsSync(src)) return;
+  const keep = fs.readdirSync(src, { withFileTypes: true }).filter((entry) => {
+    const name = entry.name.replace(/\.md$/, "");
+    return allow.has(name);
+  });
+  // Prune anything already projected that this lane no longer receives.
+  if (fs.existsSync(dest)) {
+    const kept = new Set(keep.map((e) => e.name));
+    for (const name of fs.readdirSync(dest)) {
+      if (name === ".sweep-retries" || kept.has(name)) continue;
+      if (preflight) continue;
+      fs.rmSync(path.join(dest, name), { recursive: true, force: true });
+      delete manifest[manifestKey(path.join(dest, name))];
+    }
+  }
+  for (const entry of keep) {
+    const s = path.join(src, entry.name);
+    const d = path.join(dest, entry.name);
+    if (entry.isDirectory()) copyDirSync(s, d);
+    else {
+      const content = normalizeEol(fs.readFileSync(s, "utf8"));
+      if (!guardWrite(d, content)) continue;
+      if (preflight) continue;
+      stageWrite(d, content);
+      manifest[manifestKey(d)] = contentHash(content);
+    }
+  }
+}
+
+
 function copyDirSync(src, dest) {
   const destExistingNames = fs.existsSync(dest)
     ? fs.readdirSync(dest).filter((n) => n !== ".sweep-retries")
@@ -393,10 +430,10 @@ function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, "ARCHITECTURE.md"), architectureOverlay(lane));
   writeText(path.join(repoPath, "CONTRIBUTING.md"), contributingOverlay(lane));
   for (const sub of CLAUDE_SUBFOLDERS) {
-    copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(repoPath, ".claude", sub));
+    copySubfolderSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(repoPath, ".claude", sub), sub, lane);
   }
   writeText(path.join(repoPath, ".claude", "settings.json"), portableSettings(lane));
-  writeText(path.join(repoPath, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
+  writeText(path.join(repoPath, ".claude", "harness.config.json"), harnessConfigTextForLane(lane));
   writeText(
     path.join(repoPath, ".cursor", "hooks.json"),
     `${JSON.stringify(cursorHooks(VENDORED_HOOKS, lane), null, 2)}\n`,
@@ -430,9 +467,9 @@ function scopeBackendGitignore(repoPath) {
 function syncBackend() {
   scopeBackendGitignore(SUB_REPOS.backend);
   for (const sub of CLAUDE_SUBFOLDERS) {
-    copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(SUB_REPOS.backend, ".claude", sub));
+    copySubfolderSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(SUB_REPOS.backend, ".claude", sub), sub, "backend");
   }
-  writeText(path.join(SUB_REPOS.backend, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
+  writeText(path.join(SUB_REPOS.backend, ".claude", "harness.config.json"), harnessConfigTextForLane("backend"));
   writeText(path.join(SUB_REPOS.backend, ".claude", "settings.json"), portableSettings("backend"));
 }
 

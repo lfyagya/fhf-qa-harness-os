@@ -48,6 +48,39 @@ for (const agent of ENGINEERING.harness.agents) {
 
 export const HARNESS_CONFIG_TEXT = `${JSON.stringify(HARNESS_CONFIG, null, 2)}\n`;
 
+// A consumer receives only the agents and skills its lane can act on (laneScope). The projected
+// harness.config.json must agree with what is on disk: block-generic-agents.mjs and
+// block-forbidden-skills.mjs read these lists, so a roster naming an agent the lane never
+// received would allow a spawn that then fails on a missing file.
+export const LANE_SCOPE = ENGINEERING.harness.laneScope ?? {};
+
+export function laneAllows(lane, kind) {
+  const scope = LANE_SCOPE[lane];
+  if (!scope || scope === "all") return null;          // null = no filtering, take everything
+  const list = scope[kind];
+  return Array.isArray(list) ? new Set(list) : null;
+}
+
+export function harnessConfigTextForLane(lane = "root") {
+  const agents = laneAllows(lane, "agents");
+  const skills = laneAllows(lane, "skills");
+  if (!agents && !skills) return HARNESS_CONFIG_TEXT;
+  const scoped = JSON.parse(HARNESS_CONFIG_TEXT);
+  const harness = scoped.engineering?.harness;
+  if (harness) {
+    if (agents) harness.agents = (harness.agents ?? []).filter((name) => agents.has(name));
+    if (skills) harness.skills = (harness.skills ?? []).filter((name) => skills.has(name));
+    if (agents && harness.agentRuntime?.preloadedSkills) {
+      harness.agentRuntime.preloadedSkills = Object.fromEntries(
+        Object.entries(harness.agentRuntime.preloadedSkills).filter(([name]) => agents.has(name)),
+      );
+    }
+  }
+  return `${JSON.stringify(scoped, null, 2)}
+`;
+}
+
+
 export function laneMarker(lane) {
   return `${JSON.stringify({ schema: "fhf-harness/lane/v1", lane }, null, 2)}\n`;
 }
