@@ -22,6 +22,13 @@ for (const key of [
   "GIT_OBJECT_DIRECTORY",
   "GIT_ALTERNATE_OBJECT_DIRECTORIES",
   "GIT_COMMON_DIR",
+  // Owner opt-in overrides must never reach a spawned guard. These tests assert that a guard
+  // DENIES; if the operator happens to have an override exported, every deny case silently
+  // returns allow and the suite reports green while testing nothing. Found the moment
+  // FHF_ALLOW_HARNESS_EDIT was introduced (2026-09-05); FHF_ALLOW_PROD_DATA had the same
+  // latent hole since that guard was written.
+  "FHF_ALLOW_HARNESS_EDIT",
+  "FHF_ALLOW_PROD_DATA",
 ]) delete isolatedGitEnv[key];
 
 function run(hook, payload, env = {}, args = []) {
