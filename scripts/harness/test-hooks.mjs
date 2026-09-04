@@ -229,6 +229,14 @@ const badSpec = path.join(specDir, "bad.cy.js");
 writeFileSync(badSpec, "describe('x', () => { it('y', () => { cy.wait(5000); }); });");
 const goodSpec = path.join(specDir, "good.cy.js");
 writeFileSync(goodSpec, [
+  "describe('x', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
+  "  before(() => { cy.ensureAuthenticated(); });",
+  "  beforeEach(() => { cy.ensureAuthenticated(); });",
+  "  it('y', { tags: [TAGS.STATUS.REGRESSION] }, () => { cy.apiWait('@a'); });",
+  "});",
+].join("\n"));
+const untaggedSpec = path.join(specDir, "untagged.cy.js");
+writeFileSync(untaggedSpec, [
   "describe('x', { testIsolation: true }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); });",
@@ -263,46 +271,47 @@ writeFileSync(largeRead, "export const value = true;\n".repeat(200));
 
 const directInterceptSpec = path.join(specDir, "direct-intercept.cy.js");
 writeFileSync(directInterceptSpec, [
-  "describe('x', { testIsolation: true }, () => {",
+  "describe('x', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); cy.apiIntercept(API.LIST); });",
-  "  it('y', () => { cy.apiWait(API.LIST); });",
+  "  it('y', { tags: [TAGS.STATUS.REGRESSION] }, () => { cy.apiWait(API.LIST); });",
   "});",
 ].join("\n"));
 const literalRouteSpec = path.join(specDir, "literal-route.cy.js");
 writeFileSync(literalRouteSpec, [
-  "describe('x', { testIsolation: true }, () => {",
+  "describe('x', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); cy.visit('/funding/dashboard'); });",
-  "  it('y', () => { cy.apiWait(API.LIST); });",
+  "  it('y', { tags: [TAGS.STATUS.REGRESSION] }, () => { cy.apiWait(API.LIST); });",
   "});",
 ].join("\n"));
 const smokeSpecDir = path.join(tmp, "cypress", "tests", "fhf-dashboard", "smoke");
 mkdirSync(smokeSpecDir, { recursive: true });
 const smokeLoadSpec = path.join(smokeSpecDir, "load.cy.js");
 writeFileSync(smokeLoadSpec, [
-  "describe('x', { testIsolation: true, tags: [S.CRITICAL] }, () => {",
+  "describe('x', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); });",
-  "  it('y', () => { cy.apiWait('@a'); });",
+  "  it('y', { tags: [TAGS.STATUS.CRITICAL] }, () => { cy.apiWait('@a'); });",
   "});",
 ].join("\n"));
 const smokeOverCapSpec = path.join(smokeSpecDir, "over-cap.cy.js");
 writeFileSync(smokeOverCapSpec, [
-  "describe('a', { testIsolation: true, tags: [S.CRITICAL] }, () => {",
+  "describe('a', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); });",
-  "  it('b', { tags: [S.CRITICAL] }, () => { cy.apiWait('@a'); });",
-  "  it('c', { tags: [S.CRITICAL] }, () => { cy.apiWait('@a'); });",
-  "  it('d', { tags: [S.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "  it('b', { tags: [TAGS.STATUS.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "  it('c', { tags: [TAGS.STATUS.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "  it('d', { tags: [TAGS.STATUS.CRITICAL] }, () => { cy.apiWait('@a'); });",
+  "  it('e', { tags: [TAGS.STATUS.CRITICAL] }, () => { cy.apiWait('@a'); });",
   "});",
 ].join("\n"));
 const smokeQuarantineSpec = path.join(smokeSpecDir, "quarantine.cy.js");
 writeFileSync(smokeQuarantineSpec, [
-  "describe('x', { testIsolation: true, tags: [S.CRITICAL] }, () => {",
+  "describe('x', { testIsolation: true, tags: SUITE_TAGS.CONTRACTS }, () => {",
   "  before(() => { cy.ensureAuthenticated(); });",
   "  beforeEach(() => { cy.ensureAuthenticated(); });",
-  "  it('y', { tags: [S.QUARANTINE] }, () => { cy.apiWait('@a'); });",
+  "  it('y', { tags: [TAGS.STATUS.QUARANTINE] }, () => { cy.apiWait('@a'); });",
   "});",
 ].join("\n"));
 
@@ -620,6 +629,8 @@ expect("validate-cypress-rules flags bad spec with exit 2",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: badSpec } }), 2);
 expect("validate-cypress-rules passes clean spec",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: goodSpec } }), 0);
+expect("validate-cypress-rules enforces the configured tag taxonomy",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: untaggedSpec } }), 2);
 expect("validate-cypress-rules blocks raw intercepts in specs",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: directInterceptSpec } }), 2);
 expect("validate-cypress-rules blocks literal routes in specs",

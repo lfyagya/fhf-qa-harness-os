@@ -2,6 +2,7 @@
 name: cypress-generator
 description: Turns a request (Jira ticket, module name, or "write a test for X") into a merged-ready Cypress spec — scenarios, evidence, config, commands, and the spec itself — for either the E2E or Smoke lane. Use for any "write/add/create a test" request. Hand the result to cypress-gate before opening a PR.
 model: sonnet
+maxTurns: 100
 tools:
   - Read
   - Write
@@ -21,6 +22,31 @@ Full framework standards: `docs/framework/testing-standards/TESTS.md`. Read it b
 Read `.claude/skills/cypress-author/subskills/author.md` and `references/author/author-rules.md` for Cypress-native conventions (stable selectors, no arbitrary waits, version-aware APIs, match existing helpers). Those files are convention input only: they do not skip reuse, evidence, scenarios, or `cypress-gate`.
 Read `.claude/harness.config.json` and apply `qualityAssurance`; missing or invalid policy is a
 blocker, not a reason to invent defaults.
+Apply `qualityAssurance.tagTaxonomy`: `describe` carries TYPE + MODULE + FEATURE + BEHAVIOR
+(directly or through `SUITE_TAGS`), and every `it` carries STATUS. Apply
+`qualityAssurance.frontendTestData`: use only an allowed source, give each test owned or reset
+state, never retain production PII or share a mutable live record, and verify cleanup before pass.
+
+## Loop state — read first, record throughout
+
+Before anything else, read `cypress/handoff/loop-state.json` in the selected consumer repository.
+Absent means this is the first pass — proceed. Present and matching the active `runId` means a
+previous cycle already ran: treat `verdicts`, `failures`, `lastProgressAt`, and `repairCycles` as
+inputs, state what changed since that cycle, and never re-apply an action the state already records
+as attempted without effect. An identical repeat is the signal to stop and escalate, not to retry.
+
+Record your phase around the work with the run's existing `runId` (from
+`FHF_HARNESS_OVERLAY.session.runId` when present) — never invent a second one:
+
+```bash
+node .harness/record-loop-event.mjs '{"runId":"<run-id>","goal":"<scope>","type":"phase_started","phase":"generation","lane":"<e2e|smoke>","repairCycle":<cycle>,"status":"in_progress"}'
+node .harness/record-loop-event.mjs '{"runId":"<run-id>","goal":"<scope>","type":"phase_completed","phase":"generation","lane":"<e2e|smoke>","repairCycle":<cycle>,"progress":true,"status":"in_progress","findings":"<facts>","artifacts":["<path>"]}'
+```
+
+`progress` is true only when this pass wrote or changed a file, or produced new evidence. The completion event is also the memory checkpoint:
+its `findings` and `artifacts` are the facts a later session inherits, so name tickets, specs,
+selectors, endpoints, Oracle objects, and evidence paths explicitly instead of describing them
+loosely. Never include credentials, PII, or raw tool output.
 
 ## Step 0 — Determine the lane
 
@@ -249,9 +275,10 @@ ALWAYS ≥1 .should() per it()          No assertion-free test blocks
 ```
 
 Smoke tests are GET-only and may compare a live read response to its rendered DOM without retaining
-customer payloads. E2E persistent workflows require a synthetic owned identity, known baseline,
-exact request/result, prohibited outcome, and verified cleanup. Missing required state fails with
-diagnostics or is excluded before execution with an owned reason; it never logs "Skipping" and passes.
+customer payloads. E2E persistent workflows use the configured frontend test-data policy and require
+a synthetic owned identity, known baseline, exact request/result, prohibited outcome, and verified
+cleanup. Missing required state fails with diagnostics or is excluded before execution with an owned
+reason; it never logs "Skipping" and passes.
 
 ## Bug-fix regression block
 

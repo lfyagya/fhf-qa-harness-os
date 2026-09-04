@@ -29,6 +29,23 @@ if (ADAPTERS.codex.instructionFile !== "AGENTS.md" || ADAPTERS.codex.hookCapabil
   throw new Error("Codex must use the verified AGENTS.md instruction-only adapter");
 }
 
+const agentRuntime = ENGINEERING.harness.agentRuntime;
+if (!Number.isInteger(agentRuntime?.maxTurns) || agentRuntime.maxTurns < 1) {
+  throw new Error("engineering.harness.agentRuntime.maxTurns must be a positive integer");
+}
+for (const agent of ENGINEERING.harness.agents) {
+  const source = fs.readFileSync(path.join(HARNESS_ROOT, ".claude", "agents", `${agent}.md`), "utf8");
+  const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "";
+  if (!new RegExp(`^maxTurns:\\s*${agentRuntime.maxTurns}\\s*$`, "m").test(frontmatter)) {
+    throw new Error(`${agent} must declare maxTurns: ${agentRuntime.maxTurns}`);
+  }
+  for (const skill of agentRuntime.preloadedSkills?.[agent] ?? []) {
+    if (!new RegExp(`^\\s*-\\s*${skill}\\s*$`, "m").test(frontmatter)) {
+      throw new Error(`${agent} must preload skill ${skill}`);
+    }
+  }
+}
+
 export const HARNESS_CONFIG_TEXT = `${JSON.stringify(HARNESS_CONFIG, null, 2)}\n`;
 
 export function laneMarker(lane) {
@@ -53,6 +70,19 @@ export function workspaceExample(lane) {
     testRail: false,
   };
   return `${JSON.stringify(example, null, 2)}\n`;
+}
+
+export function lanePackage(lane) {
+  return (HARNESS_CONFIG.paths ?? ENGINEERING.paths)?.lanes?.[lane]?.package ?? null;
+}
+
+// The lane .npmrc is gitignored because it carries Cypress Cloud record keys. That also hides the
+// non-secret script-shell line every Windows clone needs, so ship a key-less template beside it.
+export function npmrcExample(lane) {
+  return NPMRC_EXAMPLE_TEXT.replace(
+    "cypress_record_key_LANE=",
+    `cypress_record_key_${lane === "smoke" ? "smoke" : "e2e"}=`,
+  );
 }
 
 export const VENDORED_HOOKS = "project-hooks";
@@ -127,7 +157,10 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
           args: "--deny-matched-subagent",
         })),
       postToolUse: HOOKS.postWrite.map((script) =>
-        cursorCommand(HARNESS_HOOKS, script, { matcher: cursorPostWriteMatcher })),
+        cursorCommand(HARNESS_HOOKS, script, {
+          matcher: cursorPostWriteMatcher,
+          failClosed: true,
+        })),
       postToolUseFailure: HOOKS.postToolFailure.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
       preCompact: HOOKS.preCompact.map((script) =>
@@ -452,6 +485,11 @@ never approve, commit, merge, deploy, or write externally.${backendRunner ? `
 ${backendRunner.trimEnd()}` : ""}
 `;
 }
+
+const NPMRC_EXAMPLE_TEXT = fs.readFileSync(
+  path.join(HARNESS_ROOT, "scripts", "harness", "templates", "npmrc.example"),
+  "utf8",
+).replace(/\r\n/g, "\n");
 
 export const CONSUMER_VERIFIER_TEXT = fs.readFileSync(
   path.join(HARNESS_ROOT, "scripts", "harness", "verify-projection.mjs"),

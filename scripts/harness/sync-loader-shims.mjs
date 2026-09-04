@@ -516,7 +516,7 @@ withFileLock(MANIFEST_PATH, () => {
         ? "Synced loader shims for master baseline only."
         : ONLY_ROOT
         ? "Synced loader shims for FHF root only."
-        : `Synced loader shims for FHF root and ${SKIP_E2E ? "Smoke" : "E2E and Smoke"} repos.`,
+        : `Synced loader shims for FHF root, ${SKIP_E2E ? "Smoke" : "E2E, Smoke"} and backend repos.`,
     );
   }
 });

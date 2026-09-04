@@ -718,10 +718,15 @@ if (!moduleSpecPaths || typeof moduleSpecPaths !== "object" || Array.isArray(mod
 } else {
   for (const module of Object.keys(moduleAliases ?? {})) {
     const targets = moduleSpecPaths[module];
-    if (!Array.isArray(targets) || targets.length === 0) {
+    if (!Array.isArray(targets)) {
       issues.push(`moduleSpecPaths.${module} must contain at least one product contract path`);
       continue;
     }
+    // An explicitly empty list declares a backend-only module with no UI product contract
+    // (Letters). A missing or malformed entry is still a fault, so an undeclared module cannot
+    // pass. ponytail: presence-is-the-declaration; add a named exemption list if a module ever
+    // needs an empty list for a different reason.
+    if (targets.length === 0) continue;
     for (const target of targets) {
       if (typeof target !== "string" || !target || path.isAbsolute(target)) {
         issues.push(`moduleSpecPaths.${module} contains a non-relative path: ${target}`);
@@ -764,8 +769,14 @@ if (!evaluationPolicy || typeof evaluationPolicy !== "object") {
       issues.push(`engineering.context.evaluation.${key} must point to an existing relative file`);
     }
   }
+  // Rates are 0..1; a `minimum*Samples` threshold is a sample count, so it is
+  // validated as a positive integer instead of being forced into the rate range.
   for (const [name, value] of Object.entries(evaluationPolicy.thresholds ?? {})) {
-    if (!Number.isFinite(value) || value < 0 || value > 1) issues.push(`Invalid evaluation threshold: ${name}`);
+    const isSampleCount = /Samples$/.test(name);
+    const valid = isSampleCount
+      ? Number.isInteger(value) && value >= 1
+      : Number.isFinite(value) && value >= 0 && value <= 1;
+    if (!valid) issues.push(`Invalid evaluation threshold: ${name}`);
   }
 }
 

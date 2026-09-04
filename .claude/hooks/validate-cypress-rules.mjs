@@ -14,7 +14,13 @@ import { readFileSync, existsSync, readdirSync } from 'fs';
 import { extname, join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
-import { HARDCODED_CREDENTIAL_RE, isSpecFile, isConfigPath, isSmokePath } from './lib/cypress-rule-patterns.mjs';
+import {
+  HARDCODED_CREDENTIAL_RE,
+  checkTagTaxonomy,
+  isSpecFile,
+  isConfigPath,
+  isSmokePath,
+} from './lib/cypress-rule-patterns.mjs';
 import { loadSelectorInventory, findDeadSelectors } from './lib/selector-liveness.mjs';
 
 // Find the `cypress/configs/ui` root that contains this file, if any.
@@ -198,6 +204,14 @@ if (isSpec && !content.includes('testIsolation: true'))
 // NEVER hardcoded credentials in specs
 if (isSpec && HARDCODED_CREDENTIAL_RE.test(content))
   violations.push('Possible hardcoded credential — use Cypress.env() + { log: false }');
+
+if (isSpec) {
+  try {
+    violations.push(...checkTagTaxonomy(content));
+  } catch (error) {
+    violations.push(`Tag taxonomy policy unavailable: ${error.message}`);
+  }
+}
 
 // The two checks below match CODE, so they read comment-stripped source. A spec's own
 // @fileoverview routinely documents its intercept lifecycle by naming the very commands these

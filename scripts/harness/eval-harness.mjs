@@ -118,8 +118,18 @@ const repairRate = repairOutcomes.length ? repairConvergenceRate(repairOutcomes)
 const repairPasses = repairOutcomes.filter((outcome) => outcome.converged).length;
 const repairReliability = repairOutcomes.length >= 2 ? passHatK(repairOutcomes.length, repairPasses, 2) : null;
 const repairInterval = repairOutcomes.length ? wilsonInterval(repairPasses, repairOutcomes.length) : null;
+// Gate on a minimum sample, not on n >= 1. pass^2 above already refuses to
+// report below n=2; applying an 0.8 threshold to a single outcome asserted a
+// measurement the data cannot support (0/1 carries a 95% Wilson interval of
+// 0.000-0.793) and made recording the first real trace the act that turned an
+// INFO into a gate failure. An UNKNOWN is stated, never scored as a gap.
+const minimumRepairSamples = evaluation.thresholds.minimumRepairSamples ?? 1;
 if (repairRate === null) {
   console.log("INFO repair convergence is awaiting real loop-trace evidence");
+} else if (repairOutcomes.length < minimumRepairSamples) {
+  console.log(
+    `INFO repair convergence is UNKNOWN: ${repairOutcomes.length} of ${minimumRepairSamples} required samples`,
+  );
 } else {
   check(repairRate >= evaluation.thresholds.minimumRepairConvergence, `repair convergence ${repairRate} is below ${evaluation.thresholds.minimumRepairConvergence}`);
 }

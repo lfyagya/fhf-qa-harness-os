@@ -9,8 +9,9 @@ It is not a QA test suite. It contains no Cypress specs, no application docs, no
 - `paths.lanes.smoke.rootEnv` — the Smoke lane root selected by local environment/setup
 
 `fhf-backend-automation` is a full harness sync consumer, on equal footing with the E2E and Smoke
-lanes: hooks, agents, rules, and skills are all generated from this harness and synced out with
-`--only-backend`; nothing is locally authoritative there anymore. Backend authoring and pytest
+lanes: hooks, agents, rules, and skills are all generated from this harness, synced by the same
+unflagged `sync-loader-shims.mjs` run and verified by the same unflagged `check-loader-drift.mjs`
+run as the lanes; nothing is locally authoritative there anymore. Backend authoring and pytest
 execution remain task-scoped: writes and runs require an active, validated `FHF_ACTIVE_TASK`
 manifest and stay inside its selected paths in a non-production environment — see
 `.claude/rules/agent-spawning-gate.md` and `.claude/rules/backend-automation.md`.

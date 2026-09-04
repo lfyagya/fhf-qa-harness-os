@@ -138,8 +138,44 @@ const executionBudget = {
 const capabilityControl = { manifestPath: "plan.capabilities", capabilities: {
   "source-grounding": {}, "cypress-cli": {}, "execution-environment": {}, "backend-api-oracle": {},
 } };
-const options = { repoIds: repos, runnerIds, runners, executionBudget, capabilityControl };
+const crossRepositorySeam = {
+  frontendRepositories: ["front-end-automation-e2e", "front-end-automation-smoke"],
+  backendRepositories: ["fhf-backend-automation"],
+  requiredFields: ["endpoint", "correlationKey"],
+  notApplicableStatus: "NOT_APPLICABLE",
+  notApplicableEvidenceField: "evidence",
+};
+const frontendTestData = {
+  repositories: ["front-end-automation-e2e", "front-end-automation-smoke"],
+  allowedSources: ["fixture-key", "synthetic-builder", "api-seed", "hermetic-inline"],
+  forbiddenSources: ["production-pii", "shared-mutable-record", "untracked-live-record"],
+  persistentMutationRequires: [
+    "syntheticOwnedIdentity",
+    "knownBaseline",
+    "exactRequestAndResult",
+    "prohibitedOutcome",
+    "verifiedCleanup",
+  ],
+};
+const options = {
+  repoIds: repos,
+  runnerIds,
+  runners,
+  executionBudget,
+  capabilityControl,
+  crossRepositorySeam,
+  frontendTestData,
+};
 assert.deepEqual(validateTaskManifest(fixture(), options), []);
+const forbiddenFrontendData = fixture();
+forbiddenFrontendData.plan.tests[1].testData.source = "production-pii";
+assert.match(validateTaskManifest(forbiddenFrontendData, options).join("\n"), /source must be allowed/);
+const incompleteMutationData = fixture();
+incompleteMutationData.plan.tests[1].testData.persistentMutation = true;
+assert.match(
+  validateTaskManifest(incompleteMutationData, options).join("\n"),
+  /syntheticOwnedIdentity must record/,
+);
 const invalidBudget = fixture();
 invalidBudget.plan.executionBudget.maxRecordedToolResults = 101;
 assert.match(validateTaskManifest(invalidBudget, options).join("\n"), /hard ceiling/);
@@ -151,11 +187,19 @@ crossLayer.grounding.repositories.push({
   headSha: SHA,
   selectedPaths: ["tests/contracts", "api/contracts"],
 });
+crossLayer.plan.changeUnits[1].seam = {
+  endpoint: "GET /api/contracts/{contractId}",
+  correlationKey: "contractId",
+};
 crossLayer.plan.changeUnits.push({
   id: "backend-tests",
   repoId: "fhf-backend-automation",
   paths: ["tests/contracts", "api/contracts"],
   dependsOn: ["ui"],
+  seam: {
+    endpoint: "GET /api/contracts/{contractId}",
+    correlationKey: "contractId",
+  },
 });
 crossLayer.plan.tests.push({
   id: "backend-contracts",
@@ -175,6 +219,12 @@ crossLayer.plan.tests.push({
 });
 crossLayer.plan.capabilities.push({ id: "backend-api-oracle", subject: "qa backend", status: "ready", evidenceRef: "backend preflight" });
 assert.deepEqual(validateTaskManifest(crossLayer, options), []);
+const missingSeam = structuredClone(crossLayer);
+delete missingSeam.plan.changeUnits[1].seam;
+assert.match(validateTaskManifest(missingSeam, options).join("\n"), /e2e\.seam must bind/);
+const mismatchedSeam = structuredClone(crossLayer);
+mismatchedSeam.plan.changeUnits[2].seam.correlationKey = "loanNumber";
+assert.match(validateTaskManifest(mismatchedSeam, options).join("\n"), /must match e2e\.seam/);
 const invalidEnvironment = fixture();
 invalidEnvironment.plan.tests[1].environment = "production";
 assert.match(validateTaskManifest(invalidEnvironment, options).join("\n"), /outside runner frontend-e2e/);

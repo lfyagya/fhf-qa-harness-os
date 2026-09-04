@@ -192,8 +192,11 @@ export const SCENARIO_REGISTRIES = Object.freeze([
 // (canaries, baselines, latency measurements) that are deliberately not module business rules.
 // A manifest cites whichever one actually owns the scenario. Resolving the citation needs the
 // filesystem and lives in the CLI. Requirement linkage stays on acceptanceIds -> intentVsBuilt.
-function validateTestCaseBinding(manifest) {
+function validateTestCaseBinding(manifest, frontendTestData) {
   const issues = [];
+  const frontendRepositories = new Set(frontendTestData?.repositories ?? []);
+  const allowedDataSources = new Set(frontendTestData?.allowedSources ?? []);
+  const forbiddenDataSources = new Set(frontendTestData?.forbiddenSources ?? []);
   if (manifest.plan?.scenarios !== undefined) {
     issues.push("plan.scenarios is retired; cite a registry via plan.tests[].scenarioRef");
   }
@@ -233,10 +236,30 @@ function validateTestCaseBinding(manifest) {
       issues.push(`${label}.testData must reference a fixture key or record { none: "<reason>" }`);
     } else if (typeof data.none === "string") {
       if (!data.none.trim()) issues.push(`${label}.testData.none must give a reason`);
-    } else if (!isRelativeSafePath(data.fixture) || typeof data.key !== "string" || !data.key.trim()) {
+    } else if (data.fixture !== undefined
+        && (!isRelativeSafePath(data.fixture) || typeof data.key !== "string" || !data.key.trim())) {
       issues.push(`${label}.testData needs a repo-relative fixture path and a non-empty key`);
+    } else if (data.fixture === undefined
+        && !["synthetic-builder", "api-seed"].includes(data.source)) {
+      issues.push(`${label}.testData must reference a fixture key, synthetic builder, API seed, or record { none: "<reason>" }`);
     } else if (data.resolver !== undefined && (typeof data.resolver !== "string" || !data.resolver.trim())) {
       issues.push(`${label}.testData.resolver must be the command that reads the key`);
+    } else if (["synthetic-builder", "api-seed"].includes(data.source)
+        && (typeof data.resolver !== "string" || !data.resolver.trim())) {
+      issues.push(`${label}.testData.resolver must name the builder or seed command`);
+    }
+    if (frontendRepositories.has(test.repoId) && data && typeof data === "object") {
+      const source = data.source ?? (data.fixture ? "fixture-key" : data.none ? "hermetic-inline" : null);
+      if (!source || !allowedDataSources.has(source) || forbiddenDataSources.has(source)) {
+        issues.push(`${label}.testData.source must be allowed by qualityAssurance.frontendTestData`);
+      }
+      if (data.persistentMutation === true) {
+        for (const field of frontendTestData?.persistentMutationRequires ?? []) {
+          if (typeof data[field] !== "string" || !data[field].trim()) {
+            issues.push(`${label}.testData.${field} must record persistent-mutation evidence`);
+          }
+        }
+      }
     }
   }
   return issues;
@@ -385,7 +408,59 @@ function validateCapabilities(manifest, policy, runners) {
   return issues;
 }
 
-export function validateTaskManifest(manifest, { repoIds = [], runnerIds = [], runners = {}, executionBudget, capabilityControl } = {}) {
+function validateCrossRepositorySeams(changeUnits, policy) {
+  if (!policy || typeof policy !== "object") return [];
+  const frontend = new Set(policy.frontendRepositories ?? []);
+  const backend = new Set(policy.backendRepositories ?? []);
+  const selected = new Set(changeUnits.map((unit) => unit.repoId));
+  if (![...selected].some((repo) => frontend.has(repo))
+      || ![...selected].some((repo) => backend.has(repo))) return [];
+
+  const issues = [];
+  const concrete = [];
+  for (const unit of changeUnits.filter((item) => frontend.has(item.repoId) || backend.has(item.repoId))) {
+    const seam = unit.seam;
+    if (!seam || typeof seam !== "object") {
+      issues.push(`${unit.id ?? "change unit"}.seam must bind frontend and backend coverage`);
+      continue;
+    }
+    if (seam.status === policy.notApplicableStatus) {
+      const evidence = seam[policy.notApplicableEvidenceField];
+      if (typeof evidence !== "string" || !evidence.trim()) {
+        issues.push(`${unit.id}.seam ${policy.notApplicableStatus} requires evidence`);
+      }
+      continue;
+    }
+    const missing = (policy.requiredFields ?? []).filter(
+      (field) => typeof seam[field] !== "string" || !seam[field].trim(),
+    );
+    if (missing.length > 0) issues.push(`${unit.id}.seam is missing ${missing.join(", ")}`);
+    else concrete.push({ unit: unit.id, seam });
+  }
+
+  if (concrete.length > 1) {
+    const fields = policy.requiredFields ?? [];
+    const expected = concrete[0];
+    for (const item of concrete.slice(1)) {
+      if (fields.some((field) => item.seam[field] !== expected.seam[field])) {
+        issues.push(
+          `${item.unit}.seam must match ${expected.unit}.seam on ${fields.join(" and ")}`,
+        );
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateTaskManifest(manifest, {
+  repoIds = [],
+  runnerIds = [],
+  runners = {},
+  executionBudget,
+  capabilityControl,
+  crossRepositorySeam,
+  frontendTestData,
+} = {}) {
   const issues = [];
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
     return ["task manifest must be an object"];
@@ -424,6 +499,7 @@ export function validateTaskManifest(manifest, { repoIds = [], runnerIds = [], r
       }
     }
     for (const cycle of dependencyCycles(changeUnits)) issues.push(`change-unit dependency cycle: ${cycle.join(" -> ")}`);
+    issues.push(...validateCrossRepositorySeams(changeUnits, crossRepositorySeam));
   }
 
   issues.push(...validateExecutionBudget(manifest, executionBudget));
@@ -465,7 +541,7 @@ export function validateTaskManifest(manifest, { repoIds = [], runnerIds = [], r
   if (typeof manifest.approval?.required !== "boolean") issues.push("approval.required must be boolean");
   if (!Array.isArray(manifest.evidence?.artifacts)) issues.push("evidence.artifacts must be an array");
   issues.push(...validateTestHonesty(manifest));
-  issues.push(...validateTestCaseBinding(manifest));
+  issues.push(...validateTestCaseBinding(manifest, frontendTestData));
   issues.push(...validateCapabilities(manifest, capabilityControl, runners));
   return [...new Set(issues)];
 }

@@ -135,6 +135,8 @@ export function buildBackendRunPlan({
     runnerIds: Object.keys(runners),
     runners,
     executionBudget: config.engineering?.taskProtocol?.executionBudget,
+    crossRepositorySeam: config.engineering?.taskProtocol?.crossRepositorySeam,
+    frontendTestData: config.qualityAssurance?.frontendTestData,
     capabilityControl: config.engineering?.capabilityControl,
   });
   if (issues.length > 0) fail(`task manifest is invalid: ${issues.join("; ")}`);

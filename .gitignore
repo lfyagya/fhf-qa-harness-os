@@ -13,5 +13,21 @@
 # Runtime loop state and trace artifacts are workspace-local and regenerable.
 cypress/handoff/
 
+# Generated QA evidence: derived from repository state at frozen SHAs, so it is regenerable and
+# may carry internal Jira/source detail. Publish sanitized reports separately, never from here.
+docs/evidence/current-sprint.json
+docs/evidence/spec-delta-proposals.md
+docs/evidence/qa-workflow-state.json
+docs/evidence/qa-command-center.json
+docs/evidence/qa-command-center.md
+docs/evidence/qa-command-center.html
+docs/evidence/teamwork-graph-enrichment.json
+docs/evidence/confluence-enrichment.json
+docs/evidence/coverage-computed.json
+docs/evidence/traceability/
+docs/evidence/*.json.lock
+docs/evidence/*.*.tmp
+docs/evidence/*.*.bak
+
 # Rendered documentation projections written by publish-docs-confluence.mjs --out.
 build/

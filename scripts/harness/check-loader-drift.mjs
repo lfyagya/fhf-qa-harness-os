@@ -35,6 +35,8 @@ import {
   WORKSPACE_SETUP_TEXT,
   laneMarker,
   workspaceExample,
+  lanePackage,
+  npmrcExample,
 } from "./loader-templates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,10 +51,12 @@ const ONLY_E2E = process.argv.includes("--only-e2e");
 const ONLY_SMOKE = process.argv.includes("--only-smoke");
 const ONLY_ROOT = process.argv.includes("--only-root");
 const ONLY_BASELINE = process.argv.includes("--only-baseline");
+const ONLY_BACKEND = process.argv.includes("--only-backend");
 
 const SUB_REPOS = {
   e2e: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "e2e", { explicit: process.env.FHF_E2E_TARGET_ROOT }),
   smoke: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "smoke", { explicit: process.env.FHF_SMOKE_TARGET_ROOT }),
+  backend: resolveLaneRoot(HARNESS_ROOT, FHF_ROOT, "backend", { explicit: process.env.FHF_BACKEND_TARGET_ROOT }),
 };
 
 const CLAUDE_SUBFOLDERS = ["hooks", "agents", "rules", "skills"];
@@ -137,6 +141,13 @@ function checkConsumerVerifier(repoPath, lane) {
   checkExactText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
   checkExactText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
   checkExactText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
+  if (lane === "e2e" || lane === "smoke") {
+    const pkg = lanePackage(lane);
+    if (pkg) {
+      requireFile(path.join(repoPath, pkg, ".npmrc.example"));
+      checkExactText(path.join(repoPath, pkg, ".npmrc.example"), npmrcExample(lane));
+    }
+  }
 }
 
 function checkHarnessRoot() {
@@ -275,6 +286,20 @@ function checkHandMaintainedPointers() {
   }
 }
 
+// Backend is a full sync consumer, so it is checked by the same default run as
+// the Cypress lanes. syncBackend() writes exactly this surface; anything it
+// writes that is not verified here is a projection nobody would notice drifting.
+function checkBackend() {
+  const claudeDir = path.join(SUB_REPOS.backend, ".claude");
+  requireFile(path.join(claudeDir, "settings.json"));
+  requireFile(path.join(claudeDir, "harness.config.json"));
+  checkExactText(path.join(claudeDir, "settings.json"), portableSettings("backend"));
+  checkExactText(path.join(claudeDir, "harness.config.json"), HARNESS_CONFIG_TEXT);
+  for (const sub of CLAUDE_SUBFOLDERS) {
+    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
+  }
+}
+
 function checkBaseline() {
   if (!BASELINE_ROOT) throw new Error("--only-baseline requires FHF_BASELINE_TARGET.");
   const claudeDir = path.join(BASELINE_ROOT, ".claude");
@@ -307,8 +332,8 @@ function checkBaseline() {
 }
 
 if (
-  (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT || ONLY_BASELINE)) ||
-  [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT, ONLY_BASELINE].filter(Boolean).length > 1
+  (SKIP_E2E && (ONLY_E2E || ONLY_SMOKE || ONLY_ROOT || ONLY_BASELINE || ONLY_BACKEND)) ||
+  [ONLY_E2E, ONLY_SMOKE, ONLY_ROOT, ONLY_BASELINE, ONLY_BACKEND].filter(Boolean).length > 1
 ) {
   throw new Error("Use only one scoped drift-check mode.");
 }
@@ -319,6 +344,8 @@ if (ONLY_ROOT) {
   checkSubRepo(SUB_REPOS.e2e, "e2e");
 } else if (ONLY_SMOKE) {
   checkSubRepo(SUB_REPOS.smoke, "smoke");
+} else if (ONLY_BACKEND) {
+  checkBackend();
 } else if (ONLY_BASELINE) {
   checkBaseline();
 } else {
@@ -326,6 +353,7 @@ if (ONLY_ROOT) {
   checkFhfRoot();
   if (!SKIP_E2E) checkSubRepo(SUB_REPOS.e2e, "e2e");
   checkSubRepo(SUB_REPOS.smoke, "smoke");
+  checkBackend();
   checkAgentsRoster();
 }
 checkHandMaintainedPointers();
@@ -343,6 +371,8 @@ console.log(
     ? "E2E harness loader shims are clean and centralized."
     : ONLY_SMOKE
     ? "Smoke harness loader shims are clean and centralized."
+    : ONLY_BACKEND
+    ? "Backend harness loader shims are clean and centralized."
     : ONLY_BASELINE
     ? "Master baseline harness shims are clean and centralized."
     : ONLY_ROOT
