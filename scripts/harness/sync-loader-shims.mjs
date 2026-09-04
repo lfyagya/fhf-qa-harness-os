@@ -20,6 +20,7 @@ import {
   copilotInstructions,
   geminiInstructions,
   parentCopilotInstructions,
+  parentClaudeInstructions,
   parentGeminiInstructions,
   baselineClaude,
   baselineAgents,
@@ -393,6 +394,7 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(path.join(FHF_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
   writeText(path.join(FHF_ROOT, ".github", "copilot-instructions.md"), parentCopilotInstructions());
+  writeText(path.join(FHF_ROOT, "CLAUDE.md"), parentClaudeInstructions());
   writeText(path.join(FHF_ROOT, "GEMINI.md"), parentGeminiInstructions());
   writeText(path.join(FHF_ROOT, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
   writeText(path.join(FHF_ROOT, ".harness", "README.md"), consumerVerifierReadme("root"));
