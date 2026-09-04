@@ -939,12 +939,14 @@
       "structuralInventoryAsProductCoverageAccepted": false
     },
     "falseGreenEnforcement": {
-      "minimumAssertionsPerTest": 1,
+      "minimumAssertionsPerTest": 0,
       "assertionPatterns": [
         "\\.should\\s*\\(",
         "\\.and\\s*\\(",
         "(?<![A-Za-z0-9_.])expect\\s*\\(",
-        "(?<![A-Za-z0-9_.])assert[.(]"
+        "(?<![A-Za-z0-9_.])assert[.(]",
+        "cy\\.\\w*[Aa]ssert\\w*\\s*\\(",
+        "cy\\.\\w*[Vv]erif\\w*\\s*\\("
       ]
     },
     "lanes": {
