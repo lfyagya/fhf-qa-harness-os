@@ -1,0 +1,27 @@
+# Copy to .npmrc in this directory, then fill only the record keys you need.
+# .npmrc is gitignored: never commit it, never share a filled copy.
+#
+# Use Git Bash as the script shell - required for $npm_config_* expansion on Windows.
+# Must be Git\bin\bash.exe (the wrapper that puts /usr/bin on PATH), NOT Git\usr\bin\bash.exe.
+# usr\bin\bash.exe starts without coreutils, so the node_modules/.bin sh shims lose sed/dirname
+# and resolve $basedir to "C:\", producing "Cannot find module 'C:\cypress\bin\cypress'".
+script-shell=C:\Program Files\Git\bin\bash.exe
+
+# Suppress funding/audit messages on every install
+fund=false
+audit=false
+
+# Pin exact versions - prevents silent dependency drift in test runs
+save-exact=true
+
+# Warn level only - keeps npm output clean when running cy:* scripts
+loglevel=warn
+
+# Use local cache first - faster repeated installs
+prefer-offline=true
+
+# --- Cypress Cloud record keys (leave blank unless you record) ---------------
+# Get your own from Cypress Cloud -> [project] -> Project Settings -> Record Key.
+# Do not copy these values from a teammate.
+cypress_record_key_LANE=
+cypress_record_key_local=
