@@ -105,6 +105,15 @@ if (isConfig && !isReExportBarrel && !content.includes('Object.freeze('))
 const uiConfigRoot = findUiConfigRoot(filePath);
 const isCommonUi = /common\.ui\.(js|ts)$/.test(filePath);
 if (isConfig && uiConfigRoot && !isCommonUi) {
+        let duplicateBaseline = {};
+        try {
+          duplicateBaseline = JSON.parse(readFileSync(
+            join(dirname(fileURLToPath(import.meta.url)), "duplicate-selector-baseline.json"), "utf8",
+          )).selectors ?? {};
+        } catch {
+          // Missing baseline: grandfather nothing, report every duplicate as new.
+        }
+        const carriedDuplicates = duplicateBaseline[relative(uiConfigRoot, absPath).replace(/\\/g, "/")] ?? [];
   const dataCyValues = [...stripComments(content).matchAll(/data-cy=\\?"([^"\\]+)\\?"/g)].map((m) => m[1]);
   const seen = new Set();
   for (const value of dataCyValues) {
@@ -119,10 +128,22 @@ if (isConfig && uiConfigRoot && !isCommonUi) {
       let otherContent;
       try { otherContent = stripComments(readFileSync(other, 'utf8')); } catch { continue; }
       if (needleRe.test(otherContent)) {
-        violations.push(
-          `Selector data-cy="${value}" already declared in ${other} — move the shared literal to ` +
-          `common.ui.js and import it (ui-config-hierarchy.md rule 5) instead of redeclaring it here.`
-        );
+        // Tiered like the dead-selector check below, and for the same stated reason: enforced
+        // with no baseline this blocked 103 pre-existing duplicates across 22 of the 23 ui
+        // config files, making almost the whole config layer uneditable - and an unusable gate
+        // gets switched off. Baselined literals WARN; a duplicate that is not listed BLOCKS.
+        if (carriedDuplicates.includes(value)) {
+          warnings.push(
+            `Selector data-cy="${value}" is also declared in ${other} - carried, listed in ` +
+            `duplicate-selector-baseline.json. Not blocking. Retiring it means moving the literal ` +
+            `to common.ui.js, importing it in both, and deleting the baseline entry.`,
+          );
+        } else {
+          violations.push(
+            `Selector data-cy="${value}" already declared in ${other} — move the shared literal to ` +
+            `common.ui.js and import it (ui-config-hierarchy.md rule 5) instead of redeclaring it here.`
+          );
+        }
         break;
       }
     }

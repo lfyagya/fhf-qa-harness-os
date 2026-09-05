@@ -689,6 +689,22 @@ writeFileSync(notBaselined, fgHead + " it(" + JSON.stringify("a") + ", () => { c
 expect("validate-cypress-rules still blocks a false green that is not baselined",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: notBaselined } }), 2);
 
+// -- duplicate-selector baseline is a ratchet -------------------------------------------
+// Enforced with no baseline this blocked 103 carried duplicates across 22 of 23 ui config
+// files, i.e. almost the whole config layer uneditable. A regression re-breaks all of them,
+// so both directions are asserted: an unlisted duplicate must still block.
+const uiRoot = path.join(tmp, "cypress", "configs", "ui");
+mkdirSync(path.join(uiRoot, "modules", "alpha"), { recursive: true });
+mkdirSync(path.join(uiRoot, "modules", "beta"), { recursive: true });
+const alphaCfg = path.join(uiRoot, "modules", "alpha", "alpha.ui.js");
+const betaCfg = path.join(uiRoot, "modules", "beta", "beta.ui.js");
+const dupLiteral = "export const A = Object.freeze({ F: '[data-cy=\"shared-widget\"]' });";
+writeFileSync(alphaCfg, dupLiteral);
+writeFileSync(betaCfg, dupLiteral.replace("const A", "const B"));
+expect("validate-cypress-rules blocks a duplicate selector that is not baselined",
+  run("validate-cypress-rules.mjs", { tool_input: { file_path: betaCfg } }), 2);
+
+
 expect("validate-cypress-rules passes clean spec",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: goodSpec } }), 0);
 expect("validate-cypress-rules enforces the configured tag taxonomy",

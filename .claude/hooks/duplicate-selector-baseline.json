@@ -1,0 +1,154 @@
+{
+  "schema": "fhf-harness/duplicate-selector-baseline/v1",
+  "why": "ui-config-hierarchy rule 5 says a data-cy literal shared by two module configs belongs in common.ui.js, imported rather than redeclared. The rule was enforced with no baseline, so every config that already carried a duplicate was uneditable: measured 2026-09-05 at 103 duplicates across 22 of the ui config files. That is the same failure the dead-selector check next to it already avoids with a baseline, and an unusable gate gets switched off. Listed entries WARN; a duplicate that is not listed BLOCKS. One-directional: remove an entry when the literal moves to common.ui.js, never add one to silence a new duplicate.",
+  "recorded": "2026-09-05",
+  "selectors": {
+    "doc-repository/doc-repository.ui.js": [
+      "browse-files",
+      "download-btn",
+      "modal-cancel-btn",
+      "modal-close-btn",
+      "modal-ok-btn",
+      "remove-file",
+      "save-btn",
+      "table-row-select",
+      "upload-file-btn"
+    ],
+    "modules/checks/checksFilter.config.js": [
+      "input-field-client",
+      "input-field-loan-number",
+      "input-field-vin"
+    ],
+    "modules/custodian/custodian.ui.js": [
+      "browse-files",
+      "modal-ok-btn"
+    ],
+    "modules/filterPanel.config.js": [
+      "btn-apply",
+      "btn-cancel",
+      "btn-close-filter",
+      "btn-filter-menu"
+    ],
+    "modules/letters/lettersFilter.config.js": [
+      "btn-apply",
+      "btn-cancel",
+      "btn-close-filter",
+      "btn-filter-menu",
+      "input-field-application-id",
+      "input-field-loan-number"
+    ],
+    "modules/loss-mitigation/loss-mitigation.ui.js": [
+      "add-note-action",
+      "add-note-textarea",
+      "add-note-with-history-modal",
+      "dropdown-toggle",
+      "file-input",
+      "filter-transport-status",
+      "input-field-customer-name",
+      "input-field-invoice-number",
+      "input-field-loan-number",
+      "input-field-vendor-name",
+      "modal",
+      "modal-close-btn",
+      "multi-select-toggle",
+      "remove-file",
+      "table-column-make",
+      "table-column-model",
+      "table-column-year",
+      "table-row-select",
+      "upload-file-btn"
+    ],
+    "modules/lossMitigation/lossMitigationFilter.config.js": [
+      "dropdown-toggle",
+      "filter-transport-status",
+      "input-field-application-id",
+      "input-field-customer-name",
+      "input-field-invoice-number",
+      "input-field-loan-number",
+      "input-field-vendor-name",
+      "input-field-vin",
+      "multi-select-toggle"
+    ],
+    "modules/titles/titles.ui.js": [
+      "browse-files",
+      "data-field-vin",
+      "text-area"
+    ],
+    "modules/titles/titlesGeneral.ui.js": [
+      "cancel-btn",
+      "data-field-vin",
+      "save-btn"
+    ],
+    "modules/unifi/collections/financialSnapshot.ui.js": [
+      "dropdown-toggle",
+      "table-body",
+      "table-header"
+    ],
+    "modules/unifi/collections/payment.ui.js": [
+      "modal",
+      "payment-method-toggle-dropdown"
+    ],
+    "modules/unifi/collections/scheduledPayments.ui.js": [
+      "btn-cancel",
+      "cancel-btn",
+      "modal",
+      "payment-method-toggle-dropdown"
+    ],
+    "modules/unifi/collections/skipToDetailModal.ui.js": [
+      "btn-cancel",
+      "btn-continue",
+      "dropdown-input",
+      "dropdown-toggle",
+      "modal"
+    ],
+    "modules/unifi/servicing/servicing.ui.js": [
+      "btn-apply",
+      "btn-cancel",
+      "btn-close-filter",
+      "btn-continue",
+      "btn-filter-menu",
+      "input-field-application-id",
+      "input-field-client",
+      "input-field-vin",
+      "table-column-make",
+      "table-column-model",
+      "table-column-year"
+    ],
+    "shared/dropdown.ui.js": [
+      "dropdown-input",
+      "dropdown-toggle"
+    ],
+    "shared/file-upload.ui.js": [
+      "browse-files",
+      "file-input",
+      "remove-file",
+      "upload-file-btn"
+    ],
+    "shared/flyover.ui.js": [
+      "download-btn"
+    ],
+    "shared/form-fields.ui.js": [
+      "text-area"
+    ],
+    "shared/modal.ui.js": [
+      "modal",
+      "modal-cancel-btn",
+      "modal-close-btn",
+      "modal-ok-btn"
+    ],
+    "shared/navigation.ui.js": [
+      "btn-close-filter",
+      "btn-filter-menu"
+    ],
+    "shared/notes.ui.js": [
+      "add-note-action",
+      "add-note-textarea",
+      "add-note-with-history-modal"
+    ],
+    "shared/table.ui.js": [
+      "table-body",
+      "table-header",
+      "table-row-select"
+    ]
+  }
+}
