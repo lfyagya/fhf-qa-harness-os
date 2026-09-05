@@ -1,0 +1,49 @@
+# Payload branch (fhf-docs) — allowlist, not a blocklist.
+#
+# This branch carries the FHF documentation payload and nothing else. It is checked out at the
+# workspace root, where it sits beside the lane repositories, the application-spec checkout, the
+# generated harness projection and a dozen unrelated sibling checkouts — none of which belong here.
+#
+# Why an allowlist: with a blocklist, every new sibling repository someone clones into the
+# workspace shows up as untracked, and a single "commit all" sweeps it in. That is not
+# hypothetical. Commit 7454da2, "checkpoint before checking out main", added twelve sibling
+# repositories to this branch as accidental gitlinks and had to be reverted; at the time of
+# writing the workspace held 1.7M lines of untracked content sitting one click away from the same
+# mistake. An allowlist makes the safe thing automatic: a new sibling is ignored by default, and
+# adding real payload takes a deliberate un-ignore line.
+#
+# ADR-0018 recorded that .gitignore "stays excluded — it is harness-managed local scaffolding".
+# That held while the workspace had no remote and nothing here was versioned. This branch now has
+# one, so the protection belongs in the branch rather than in one machine's .git/info/exclude,
+# which no clone inherits.
+
+# Ignore everything by default.
+/*
+
+# Un-ignore the payload itself.
+!/docs/
+!/.gitattributes
+!/.gitignore
+
+# Generated and runtime evidence inside docs/ stays out: it is regenerated, not authored.
+/docs/evidence/*.json
+/docs/evidence/*.html
+/docs/evidence/app-structure.md
+/docs/evidence/knowledge-index.md
+/docs/evidence/traceability/
+/docs/evidence/current-sprint.json
+/docs/evidence/spec-delta-proposals.md
+/docs/evidence/qa-workflow-state.json
+/docs/evidence/qa-command-center.*
+/docs/evidence/teamwork-graph-enrichment.json
+/docs/evidence/confluence-enrichment.json
+/docs/evidence/*.json.lock
+/docs/evidence/*.*.tmp
+/docs/evidence/*.*.bak
+
+# These two are engine-owned ADRs, versioned in the harness repository. Byte-identical copies were
+# left at the workspace root by a branch switch. Named individually on purpose: docs/adr/ also
+# holds real payload (0005-per-module-command-wrappers.md), so ignoring the directory would hide
+# any future payload ADR.
+/docs/adr/0024-module-chain-coverage-mode.md
+/docs/adr/0025-agent-loop-instrumentation-and-memory.md
