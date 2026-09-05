@@ -30,10 +30,26 @@
 - Use `filelock` when reading/writing shared files like `data_files/responses.json` — never write to shared files without a lock
 
 ## TestRail Integration
-- Include `[C<id>]` in each test's docstring to link results to TestRail cases: `"""[C1234] Verify invoice creation."""`
-- Tests without a `[C<id>]` are uploaded as new cases — always add an ID for existing test cases
-- Run `./scripts/testrail_integration.sh all -n auto` to run tests AND upload results in one step
-- **Exception — `tests/unifi/e2e/`**: tests generated via the `e2e-tests-generator` skill use `allure.dynamic.title()` instead of a `[C<id>]` docstring; TestRail sync is not wired up for this module yet. Every other module still requires `[C<id>]`.
+
+Two separate mechanisms, neither of which reads a docstring:
+
+- **Results** upload from `reports/junit-report.xml` through `trcli`
+  (`./scripts/testrail_integration.sh all -n auto` runs the tests and uploads in one step).
+  The JUnit `name` pytest emits is the test function name, so nothing in a docstring reaches it.
+- **Titles** sync from `allure.dynamic.title` via `scripts/testrail_sync_titles.py`, which parses
+  `allure-results/*.json` and updates case titles through the API. This is non-destructive.
+
+Use `@allure.title` / `allure.dynamic.title` to give a test the name it should carry in TestRail,
+and `@allure.feature` / `@allure.story` for grouping.
+
+Do **not** add `[C<id>]` markers to docstrings. This rule previously required them, describing them
+as the link between a test and its TestRail case. Verified 2026-09-05: no code in this repository
+parses that marker, `trcli` never sees a docstring, and zero committed tests carry one - the
+requirement had never been executable. The `tests/unifi/e2e/` carve-out that pointed at
+`allure.dynamic.title` was not an exception; it was how the whole repository already works.
+
+If a stable test-to-case identifier is wanted, it needs a real mechanism - a `trcli` case-matching
+strategy or an Allure label the sync script reads - not a convention in prose.
 
 ## Setup Test Module Skill Rules
 

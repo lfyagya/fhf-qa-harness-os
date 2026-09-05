@@ -7,7 +7,7 @@
     "This file may only shrink. Removing an entry means the selector was retired or the",
     "data-cy was backfilled upstream; adding one requires the same review as a guardrail",
     "exception (see .claude/rules/ai-pilot.md, Guardrail findings).",
-    "Generated 2026-08-28 from Cloud run 754 triage against app dev@545f15c5a — 3 entries."
+    "Generated 2026-08-28 from Cloud run 754 triage against app dev@545f15c5a \u2014 3 entries."
   ],
   "generated": "2026-08-28",
   "appRef": "dev",
@@ -20,6 +20,21 @@
     "modules/unifi/collections/questionFlow.ui.js": [
       "continue-button",
       "next-step-button"
+    ],
+    "complaints/complaints.ui.js": [
+      "asyncSelect-assign_to",
+      "asyncSelect-dealer",
+      "creatableAsyncSelect-involves_user_id",
+      "select-complaint_sub_type",
+      "select-complaint_type",
+      "select-current_status",
+      "select-is_escalation"
+    ],
+    "modules/ancillary/ancillaryDetails.ui.js": [
+      "datePicker-contract_date",
+      "select-gap_status"
     ]
-  }
+  },
+  "why": "Selectors declared by the automation that the application does not emit. Verified against application source, not inferred: the app hooks input-* form fields but renders selects, async selects and date pickers through generic components that carry no field-name hook - every component rendering complaint_type emits zero data-cy, and no literal containing contract_date, gap_status, complaint_type, assign_to or current_status exists in any naming convention. These are upstream testability gaps under source-map.md, not selectors to guess at, and they are already tracked: SH-02 (Dropdown/FormDropdown/EnhancedDropdown/FormAsyncDropdown field-derived hooks) and SH-06/SH-07 (date picker field-keyed hooks) in docs/planning/data-cy-hook-backlog.md, both Proposed. Entries WARN so the configs stay editable; retire an entry when the corresponding backlog item ships, never add one to silence a new finding.",
+  "recorded": "2026-09-05"
 }
