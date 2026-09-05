@@ -2105,6 +2105,12 @@
           ]
         }
       },
+      "selectorInventory": {
+        "path": ".claude/hooks/selector-inventory.json",
+        "maxAgeDays": 14,
+        "refreshCommand": "node scripts/harness/check-selector-drift.mjs --update",
+        "note": "The inventory can prove a selector dead, never alive, so a stale one under-reports rather than false-positives. That makes staleness invisible unless it is stated. Enforced as a warning at the point of use rather than a scheduled job, because the engine has no CI and no application checkout: a nightly nobody watches is how the file went a lane-local and unnoticed in the first place."
+      },
       "governance": {
         "ownerOverrideEnv": "FHF_ALLOW_HARNESS_EDIT",
         "protectedPaths": [

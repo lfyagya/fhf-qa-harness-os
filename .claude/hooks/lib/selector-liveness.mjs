@@ -232,6 +232,9 @@ export function loadSelectorInventory(inventoryPath) {
       suffixes: data.suffixes ?? [],
       appRef: data.appRef ?? 'unknown',
       appSha: data.appSha ?? 'unknown',
+      // Carried through so callers can report staleness: the inventory can prove a selector
+      // dead but never alive, so an out-of-date one under-reports and reads as a clean run.
+      generatedAt: data.generatedAt ?? null,
     };
   } catch {
     return null;

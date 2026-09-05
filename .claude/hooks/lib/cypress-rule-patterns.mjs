@@ -106,6 +106,10 @@ export function isConfigPath(filePath) {
   return /[\\/]configs[\\/]/.test(filePath);
 }
 
+export function selectorInventoryPolicy(config = loadHarnessConfig()) {
+  return config.engineering?.harness?.selectorInventory ?? {};
+}
+
 export function falseGreenPolicy(config = loadHarnessConfig()) {
   const qa = config.qualityAssurance ?? {};
   return { ...(qa.falseGreen ?? {}), ...(qa.falseGreenEnforcement ?? {}) };

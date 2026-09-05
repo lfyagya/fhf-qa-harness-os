@@ -704,6 +704,29 @@ writeFileSync(betaCfg, dupLiteral.replace("const A", "const B"));
 expect("validate-cypress-rules blocks a duplicate selector that is not baselined",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: betaCfg } }), 2);
 
+// -- selector inventory: absence and staleness are stated, never silent ------------------
+// The bridge that asks whether the APPLICATION emits a selector was inert in every lane but
+// E2E, and inert silently. Both signals are asserted so it cannot go quiet again.
+const invHook = path.join(HOOKS, "selector-inventory.json");
+const invSaved = path.join(tmp, "inv-saved.json");
+const invText = readFileSync(invHook, "utf8");
+  const invRaw = JSON.parse(invText);
+writeFileSync(invSaved, JSON.stringify(invRaw));
+const someConfig = path.join(tmp, "cypress", "configs", "ui", "modules", "alpha", "alpha.ui.js");
+try {
+  writeFileSync(invHook, JSON.stringify({ ...invRaw, generatedAt: "2020-01-01" }));
+  expect("validate-cypress-rules reports a stale selector inventory",
+    run("validate-cypress-rules.mjs", { tool_input: { file_path: someConfig } }),
+    (r) => /Selector inventory is \d+ days old/.test(r.stderr));
+  rmSync(invHook);
+  expect("validate-cypress-rules reports UNKNOWN when the inventory is absent",
+    run("validate-cypress-rules.mjs", { tool_input: { file_path: someConfig } }),
+    (r) => /Selector liveness UNKNOWN/.test(r.stderr));
+} finally {
+  writeFileSync(invHook, invText);   // verbatim: re-serialising trips check-loader-drift
+}
+
+
 
 expect("validate-cypress-rules passes clean spec",
   run("validate-cypress-rules.mjs", { tool_input: { file_path: goodSpec } }), 0);
