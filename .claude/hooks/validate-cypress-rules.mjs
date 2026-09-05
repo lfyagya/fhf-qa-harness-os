@@ -175,8 +175,19 @@ if (isConfig && uiConfigRoot) {
   // loadSelectorInventory() for why. Missing inventory (fresh clone before the first
   // nightly) skips the check rather than failing: it can prove a selector dead, never alive.
   const inventory = loadSelectorInventory(
-    join(hooksDir, '..', '..', 'scripts', 'harness', 'selector-inventory.json')
+    join(hooksDir, 'selector-inventory.json')
   );
+  // An absent inventory used to skip in silence, so the one gate that asks whether the
+  // APPLICATION actually emits a selector was inert wherever the file was missing - which
+  // was every lane but E2E. Silence reads as 'no gap'. State it instead, the same way
+  // ADR-0024 requires an unproven chain row to read UNKNOWN rather than be omitted.
+  if (!inventory) {
+    warnings.push(
+      'Selector liveness UNKNOWN - .claude/hooks/selector-inventory.json is missing, so no ' +
+      'selector in this file was checked against application source. This is not a pass. ' +
+      'Refresh it with: node scripts/harness/check-selector-drift.mjs --update',
+    );
+  }
   if (inventory) {
     const deadNow = findDeadSelectors(stripComments(content), inventory);
 
@@ -198,7 +209,7 @@ if (isConfig && uiConfigRoot) {
         violations.push(
           `Selector data-cy="${value}" is not emitted anywhere in the application ` +
           `(${inventory.appRef}@${String(inventory.appSha).slice(0, 9)}, per ` +
-          `scripts/harness/selector-inventory.json). Confirm the hook exists in app source before ` +
+          `.claude/hooks/selector-inventory.json). Confirm the hook exists in app source before ` +
           `declaring it — if the element has no data-cy yet, that is an upstream testability gap ` +
           `(source-map.md), not a selector to guess at. Assert against the intercepted response ` +
           `instead. If the app added it after that revision, refresh the inventory: ` +
