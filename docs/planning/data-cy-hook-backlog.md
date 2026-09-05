@@ -1,7 +1,7 @@
 # `data-cy` Product Hook Ledger
 
 **Owner:** frontend instrumentation gaps that block or weaken Cypress  
-**Last consolidated:** 2026-08-21  
+**Last consolidated:** 2026-08-21 (re-verified 2026-09-05)  
 **Not owned here:** test coverage, product behavior, priorities, delivery dates, or Jira status
 
 This is the only maintained selector backlog. Re-verify the cited frontend source before filing or
@@ -19,11 +19,40 @@ closing an item; line numbers and branch state age faster than the requested con
 | PO/security review | Product or access decision is required before selector work |
 | Close | Hook landed and Cypress consumers were migrated |
 
+## Re-verification 2026-09-05
+
+Required by this ledger before filing. Checked against the local `fhf-dashboards` checkout on
+`master` at `1b44f0c38`. Note the selector inventory that drives the automated dead-selector check
+was built from `dev@545f15c5a`, so the two are different branches; nothing below depends on that
+difference, but a filing that cites line numbers should state which branch it read.
+
+| Item | Verified state on `master` | Change to the row |
+|---|---|---|
+| SH-02 | `Dropdown.tsx` emits `dropdown-toggle` plus `option-${label}`; `FormDropdown.tsx` and `FormAsyncDropdown.tsx` the same shape. `EnhancedDropdown.tsx`, `AsyncDropdown.tsx` and `CreatableAsyncDropdown.tsx` emit **zero** `data-cy`. `MultiSelect.jsx` emits zero. | Confirmed and **widened**: `AsyncDropdown` and `CreatableAsyncDropdown` were not listed and are exactly what the `asyncSelect-*` / `creatableAsyncSelect-*` consumers need. |
+| SH-06 | `components/common/datePicker/DatePicker.jsx` emits **zero** `data-cy`. | Confirmed, path prefixed with `components/`. |
+| SH-07 | `DatePickerTs.tsx` emits **zero** `data-cy`. `DateRangePickerTs.tsx` **does not exist** on `master`, and no `*RangePicker*` file matches. | Confirmed for `DatePickerTs.tsx`; the `DateRangePickerTs.tsx` citation needs re-confirming against `dev` or removing. |
+
+### What is blocked today
+
+Nine selectors declared by the automation are not emitted anywhere in the application, and are
+recorded in `.claude/hooks/dead-selector-baseline.json` so the configs stay editable:
+
+| Consumer | Selectors | Blocked by |
+|---|---|---|
+| Smoke `configs/ui/complaints/complaints.ui.js` | `select-complaint_type`, `select-complaint_sub_type`, `select-current_status`, `select-is_escalation`, `asyncSelect-assign_to`, `asyncSelect-dealer`, `creatableAsyncSelect-involves_user_id` | SH-02 |
+| E2E `configs/ui/modules/ancillary/ancillaryDetails.ui.js` | `select-gap_status` | SH-02 |
+| E2E `configs/ui/modules/ancillary/ancillaryDetails.ui.js` | `datePicker-contract_date` | SH-06 / SH-07 |
+
+Every component that renders `complaint_type` emits zero `data-cy`, and no literal containing
+`contract_date`, `gap_status`, `complaint_type`, `assign_to` or `current_status` exists in any
+naming convention. These are not renames and not selectors to guess at (`source-map.md`); the
+complaint form fields cannot be addressed by field name until SH-02 ships.
+
 ## Shared component contracts
 
 | ID | Component / source | Requested stable contract | Why | Status |
 |---|---|---|---|---|
-| SH-02 | `common/dropdown/{Dropdown,FormDropdown,EnhancedDropdown,FormAsyncDropdown}.tsx` and filter `MultiSelect.jsx` | A caller-supplied or `id`/`name`-derived field wrapper, control, and searchable-input hook; retain existing FilterController `multi-select-*` hooks | `dropdown-input` and `dropdown-toggle` are shared across form fields, while `EnhancedDropdown` has no control hook; the generic identities cannot be reliably scoped when multiple fields coexist | Proposed |
+| SH-02 | `components/common/dropdown/{Dropdown,FormDropdown,EnhancedDropdown,FormAsyncDropdown,AsyncDropdown,CreatableAsyncDropdown}.tsx` and filter `MultiSelect.jsx` | A caller-supplied or `id`/`name`-derived field wrapper, control, and searchable-input hook; retain existing FilterController `multi-select-*` hooks | `dropdown-input` and `dropdown-toggle` are shared across form fields, while `EnhancedDropdown` has no control hook; the generic identities cannot be reliably scoped when multiple fields coexist | Proposed |
 | SH-05 | `common/dashboard/DashboardHeader.jsx` and Titles export controls | Product-specific export-action hooks | Six remaining export buttons expose only the shared `.export-btn` class; the Titles General button has only the generic `export-csv-btn`. Neither identifies the intended export action without CSS or text | Proposed |
 | SH-06 | `common/datePicker/DatePicker.jsx` and seven equivalent month renderers | Field- and calendar-instance-keyed month/year select hooks | The same month/year hook pair repeats in all eight renderers, so a range picker or multiple date fields produces duplicate identities | Proposed |
 | SH-07 | `DatePickerTs.tsx`, `DateRangePickerTs.tsx` | Previous/next/day hooks plus field-keyed start/end input hooks | `react-dates` classes and server-field IDs are implementation detail | Proposed |
