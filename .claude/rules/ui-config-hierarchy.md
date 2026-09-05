@@ -23,20 +23,44 @@ New or deliberately migrated domains use this shape:
 ```text
 cypress/
   configs/
-    app/routes.js                         # application-published route contract
-    ui/{module}/{surface}.ui.js           # data-cy contract only
-    api/{module}/{surface}.api.js          # request contract only
-    scenarios/{module}/{surface}.scenarios.js
-  fixtures/{module}/{surface}/             # deterministic response/request data
+    app/routes.js                          # application-published route contract
+    ui/.../{surface}.ui.js                  # data-cy contract only
+    api/.../{surface}.api.js                # request contract only
+    tags/                                   # tag taxonomy constants
+  fixtures/{module}/{surface}/              # deterministic response/request data
   support/commands/
-    common/                                # proven cross-domain behaviour only
-    modules/{module}/
-      {surface}.setup.commands.js          # intercept/stub ownership
-      {surface}.navigate.commands.js
-      {surface}.interact.commands.js
-      {surface}.assert.commands.js
+    common/                                 # proven cross-domain behaviour only
+    .../{surface}.setup.commands.js         # intercept/stub ownership
+    .../{surface}.navigate.commands.js
+    .../{surface}.interact.commands.js
+    .../{surface}.assert.commands.js
   tests/fhf-dashboard/{e2e|smoke}/{module}/ # thin orchestration only
 ```
+
+**The module level differs by lane and is not yet converged.** Measured 2026-09-05. The `...` above
+is deliberate: no single module path is true in both lanes.
+
+| | E2E | Smoke |
+|---|---|---|
+| `configs/` subdirs | `api app scenarios shared tags ui` | `api app tags ui` |
+| module level under `configs/ui/` | `modules/{module}/` (9) | flat `{module}/` (14), plus a stray `modules/unifi/` |
+| module level under `support/commands/` | `modules/{module}/` | flat `{module}/` (18) |
+| top-level exception | `doc-repository/` in both trees | `doc-repository/` in both trees |
+
+Do not "fix" a path to match this document. Follow the layout of the lane you are editing and put a
+new module where that lane's siblings already are. Converging the two is a real refactor across both
+repositories and needs its own decision - it is not drift to be silently corrected file by file.
+
+Known deviations, recorded rather than hidden:
+
+- `configs/ui/modules/lossMitigation/` (E2E) is the only camelCase directory in either lane and
+  breaks the kebab-case rule below. It is also the cause of 19 duplicate-selector collisions: one
+  module with two spellings declares the same literals in `loss-mitigation.ui.js` and
+  `lossMitigationFilter.config.js`. Renaming it to `loss-mitigation/` and updating its two importers
+  (`dashboardFilterRegistry.config.js`, `loss-mitigation.commands.js`) removes the cause; the
+  duplicates are carried in `duplicate-selector-baseline.json` until then.
+- `doc-repository/` sits beside `modules/` rather than inside it, in both lanes and both trees.
+- `configs/scenarios/` and `configs/shared/` exist only in E2E.
 
 The application publishes route and selector contracts; Cypress consumes a checked-in generated
 or validated representation. Cypress must never import application source directly, duplicate
