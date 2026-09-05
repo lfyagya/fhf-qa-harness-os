@@ -41,16 +41,13 @@
       "add-note-action",
       "add-note-textarea",
       "add-note-with-history-modal",
-      "dropdown-toggle",
       "file-input",
       "filter-transport-status",
       "input-field-customer-name",
       "input-field-invoice-number",
-      "input-field-loan-number",
       "input-field-vendor-name",
       "modal",
       "modal-close-btn",
-      "multi-select-toggle",
       "remove-file",
       "table-column-make",
       "table-column-model",
@@ -66,8 +63,7 @@
       "input-field-invoice-number",
       "input-field-loan-number",
       "input-field-vendor-name",
-      "input-field-vin",
-      "multi-select-toggle"
+      "input-field-vin"
     ],
     "modules/lossMitigation/lossMitigationFilter.config.js": [
       "dropdown-toggle",
@@ -77,8 +73,7 @@
       "input-field-invoice-number",
       "input-field-loan-number",
       "input-field-vendor-name",
-      "input-field-vin",
-      "multi-select-toggle"
+      "input-field-vin"
     ],
     "modules/titles/titles.ui.js": [
       "browse-files",
