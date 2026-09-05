@@ -1,6 +1,6 @@
 {
   "schema": "fhf-harness/duplicate-selector-baseline/v1",
-  "why": "ui-config-hierarchy rule 5 says a data-cy literal shared by two module configs belongs in common.ui.js, imported rather than redeclared. The rule was enforced with no baseline, so every config that already carried a duplicate was uneditable: measured 2026-09-05 at 103 duplicates across 22 of the ui config files. That is the same failure the dead-selector check next to it already avoids with a baseline, and an unusable gate gets switched off. Listed entries WARN; a duplicate that is not listed BLOCKS. One-directional: remove an entry when the literal moves to common.ui.js, never add one to silence a new duplicate.",
+  "why": "ui-config-hierarchy rule 5 says a data-cy literal shared by two module configs belongs in common.ui.js, imported rather than redeclared. The rule was enforced with no baseline, so every config that already carried a duplicate was uneditable: measured 2026-09-05 at 103 duplicates across 22 of the ui config files. That is the same failure the dead-selector check next to it already avoids with a baseline, and an unusable gate gets switched off. Listed entries WARN; a duplicate that is not listed BLOCKS. One-directional: remove an entry when the literal moves to common.ui.js, never add one to silence a new duplicate. The lossMitigation/ and loss-mitigation/ keys for lossMitigationFilter.config.js are intentionally duplicated while the directory rename is in review - remove the lossMitigation/ key once front-end-automation has merged it.",
   "recorded": "2026-09-05",
   "selectors": {
     "doc-repository/doc-repository.ui.js": [
@@ -57,6 +57,17 @@
       "table-column-year",
       "table-row-select",
       "upload-file-btn"
+    ],
+    "modules/loss-mitigation/lossMitigationFilter.config.js": [
+      "dropdown-toggle",
+      "filter-transport-status",
+      "input-field-application-id",
+      "input-field-customer-name",
+      "input-field-invoice-number",
+      "input-field-loan-number",
+      "input-field-vendor-name",
+      "input-field-vin",
+      "multi-select-toggle"
     ],
     "modules/lossMitigation/lossMitigationFilter.config.js": [
       "dropdown-toggle",
