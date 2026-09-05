@@ -18,6 +18,7 @@ import {
   HARDCODED_CREDENTIAL_RE,
   checkTagTaxonomy,
   tagTaxonomy,
+  selectorInventoryPolicy,
   checkFalseGreen,
   isSpecFile,
   isConfigPath,
@@ -189,6 +190,25 @@ if (isConfig && uiConfigRoot) {
     );
   }
   if (inventory) {
+    // Staleness is stated for the same reason absence is: this check can prove a selector
+    // dead but never alive, so an out-of-date inventory quietly under-reports and looks
+    // identical to a clean run. Warn, never block - a stale inventory still beats none, and
+    // blocking on age would just push someone to delete the file.
+    const invPolicy = selectorInventoryPolicy();
+    const maxAgeDays = Number.isFinite(invPolicy.maxAgeDays) ? invPolicy.maxAgeDays : 14;
+    const generatedAt = Date.parse(inventory.generatedAt ?? '');
+    if (Number.isFinite(generatedAt)) {
+      const ageDays = Math.floor((Date.now() - generatedAt) / 86400000);
+      if (ageDays > maxAgeDays) {
+        warnings.push(
+          `Selector inventory is ${ageDays} days old (limit ${maxAgeDays}), captured at ` +
+          `${inventory.appRef}@${String(inventory.appSha).slice(0, 9)}. It can prove a selector ` +
+          `dead but never alive, so anything the application added since then reads as dead ` +
+          `and anything removed still reads as live. Refresh: ` +
+          `${invPolicy.refreshCommand ?? 'node scripts/harness/check-selector-drift.mjs --update'}`,
+        );
+      }
+    }
     const deadNow = findDeadSelectors(stripComments(content), inventory);
 
     if (deadNow.length > 0) {
