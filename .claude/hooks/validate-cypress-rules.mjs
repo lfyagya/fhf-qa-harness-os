@@ -440,7 +440,7 @@ function runCiMode(baseRef) {
   try {
     changed = execFileSync(
       'git',
-      ['diff', '--name-only', '--diff-filter=ACMR', `${baseRef}...HEAD`],
+      ['diff', '--name-status', '-M', '--diff-filter=ACMR', `${baseRef}...HEAD`],
       { cwd: repoRoot, encoding: 'utf8' }
     ).split('\n').map(line => line.trim()).filter(Boolean);
   } catch (error) {
@@ -451,6 +451,20 @@ function runCiMode(baseRef) {
     process.exit(2);
   }
 
+  // --name-status -M yields "M\tpath", "A\tpath" or "R100\told\tnew". Without -M a rename looks
+  // like an addition, `git show base:<new path>` fails, the base version is treated as empty, and
+  // every pre-existing violation in a file that only MOVED is reported as introduced. That failed
+  // a pure directory rename with 9 carried duplicates and zero content change.
+  const renamedFrom = new Map();
+  changed = changed.map((line) => {
+    const parts = line.split('\t');
+    const status = parts[0];
+    if (status.startsWith('R') && parts.length >= 3) {
+      renamedFrom.set(parts[2], parts[1]);
+      return parts[2];
+    }
+    return parts[parts.length - 1];
+  });
   const targets = changed.filter(isRelevant);
   console.log(
     `Cypress rules: ${targets.length} relevant file(s) of ${changed.length} changed vs ${baseRef}`
@@ -478,7 +492,8 @@ function runCiMode(baseRef) {
     // Absent at base (new file) => every violation is introduced.
     let before = { violations: [], warnings: [] };
     try {
-      const baseContent = execFileSync('git', ['show', `${baseRef}:${relPath}`], {
+      const basePath = renamedFrom.get(relPath) ?? relPath;
+      const baseContent = execFileSync('git', ['show', `${baseRef}:${basePath}`], {
         cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
       });
       before = analyze(scanPath, absPath, baseContent);
