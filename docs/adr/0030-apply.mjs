@@ -138,7 +138,7 @@ function patchFile(file, { already, needle, replacement, label }) {
 }
 
 if (process.env.FHF_ALLOW_HARNESS_EDIT !== "1") {
-  throw new Error("Set FHF_ALLOW_HARNESS_EDIT=1 to apply ADR-0029 (writes control plane and hooks).");
+  throw new Error("Set FHF_ALLOW_HARNESS_EDIT=1 to apply ADR-0030 (writes control plane and hooks).");
 }
 
 const config = JSON.parse(fs.readFileSync(CONFIG, "utf8"));

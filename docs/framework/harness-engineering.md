@@ -112,8 +112,9 @@ change -> regenerated projection -> canary verification.
 
 The runtime sequence is: classify prompt → select the highest-priority route → honour that
 route's `invoke` → read the minimum owner/contract → perform the job. Prompt keywords are
-advisory; task intent remains authoritative. A skill or plugin that is not on the matched
-`invoke` is not loaded for that turn.
+advisory; task intent remains authoritative. The router prints `invoke` for the parent to
+follow. The skill hook blocks names off the allow-list and `skillLanes` misses; it does not
+re-score the prompt. `spawnBudget` and `modelTiers` are parent policy, not hook gates.
 
 ### Product topology and Jira grounding
 

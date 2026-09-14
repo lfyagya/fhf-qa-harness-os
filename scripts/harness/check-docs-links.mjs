@@ -449,8 +449,8 @@ if (engineering) {
     if (!engineering.harness?.skills?.includes(skill)) {
       issues.push(`engineering.harness.skillLanes.${skill} is not on the skill allow-list`);
     }
-    if (!Array.isArray(lanes) || lanes.some((name) => !["root", "e2e", "smoke"].includes(name))) {
-      issues.push(`engineering.harness.skillLanes.${skill} lanes must be root|e2e|smoke`);
+    if (!Array.isArray(lanes) || lanes.some((name) => !["root", "e2e", "smoke", "backend"].includes(name))) {
+      issues.push(`engineering.harness.skillLanes.${skill} lanes must be root|e2e|smoke|backend`);
     }
   }
 

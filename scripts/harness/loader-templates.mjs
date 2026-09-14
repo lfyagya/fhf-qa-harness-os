@@ -332,7 +332,9 @@ and only when the matched route \`invoke.kind\` is \`agent\`. Otherwise stay in 
 \`engineering.harness.spawnBudget\` and \`engineering.harness.modelTiers\` are authoritative.
 Default model tier is \`${tiers.default ?? "standard"}\`. Frontier only on cloud-failure,
 test-failure, and test-flake after an explicit request or a recorded insufficient standard
-diagnosis. Skill invocation is \`${invocation.mode}\`: do not load an unmapped marketplace plugin.
+diagnosis. Those tiers are parent policy, not hook gates. Skill invocation mode is
+\`${invocation.mode}\`: follow the matched route \`invoke\`; do not load an unmapped
+marketplace plugin. The skill hook enforces the allow-list and \`skillLanes\` only.
 Backend writes and pytest runs require a validated active manifest selected by \`FHF_ACTIVE_TASK\`;
 application source remains read-only.
 Root \`.claude/\`, Cursor, Copilot, and Gemini loaders are generated from \`fhf-harness-os\`; never
