@@ -137,29 +137,96 @@ function patchFile(file, { already, needle, replacement, label }) {
   console.log(`${label}: patched`);
 }
 
+function matchingPair(text, openIdx, openCh, closeCh) {
+  let depth = 0;
+  for (let i = openIdx; i < text.length; i += 1) {
+    if (text[i] === openCh) depth += 1;
+    else if (text[i] === closeCh) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  throw new Error(`unbalanced ${openCh}${closeCh} at ${openIdx}`);
+}
+
+function formatProperty(name, value, indent) {
+  return JSON.stringify({ [name]: value }, null, 2)
+    .split("\n")
+    .slice(1, -1)
+    .map((line) => `${indent}${line.slice(2)}`)
+    .join("\n");
+}
+
+function insertPropertyBeforeClose(text, closeIdx, propertyText) {
+  let last = closeIdx;
+  while (last > 0 && /\s/.test(text[last - 1])) last -= 1;
+  return `${text.slice(0, last)},\n${propertyText}${text.slice(last)}`;
+}
+
+function applyControlPlane(text) {
+  let next = text;
+  for (const [id, invoke] of Object.entries(ROUTE_INVOKE)) {
+    const idAt = next.indexOf(`"id": "${id}"`);
+    if (idAt === -1) throw new Error(`Route missing from control plane: ${id}`);
+    const open = next.lastIndexOf("{", idAt);
+    const close = matchingPair(next, open, "{", "}");
+    if (next.slice(open, close).includes('"invoke"')) continue;
+    next = insertPropertyBeforeClose(next, close, formatProperty("invoke", invoke, "          "));
+  }
+  if (!next.includes('"id": "ralph-loop"')) {
+    const lastId = next.lastIndexOf(`"id": "regression-sprint-records"`);
+    const open = next.lastIndexOf("{", lastId);
+    const close = matchingPair(next, open, "{", "}");
+    const routesJson = NEW_ROUTES.map((route) => {
+      const raw = JSON.stringify(route, null, 2).split("\n");
+      return raw.map((line, index) => (index === 0 ? `        ${line}` : `        ${line}`)).join("\n");
+    }).join(",\n");
+    next = `${next.slice(0, close + 1)},\n${routesJson}${next.slice(close + 1)}`;
+  }
+  const skillsKey = next.indexOf(`      "skills": [\n        "cypress-explain"`);
+  if (skillsKey === -1) throw new Error("engineering.harness.skills not found");
+  const skillsOpen = next.indexOf("[", skillsKey);
+  const skillsClose = matchingPair(next, skillsOpen, "[", "]");
+  const missingSkills = ROUTED_SKILLS.filter((skill) => !next.slice(skillsOpen, skillsClose).includes(`"${skill}"`));
+  if (missingSkills.length) {
+    next = insertPropertyBeforeClose(
+      next,
+      skillsClose,
+      missingSkills.map((skill) => `        "${skill}"`).join(",\n"),
+    );
+  }
+  if (!next.includes('"spawnBudget"')) {
+    const verifyKey = next.indexOf(`      "verify": {\n          "canonical"`);
+    if (verifyKey === -1) throw new Error("engineering.harness.verify not found");
+    const verifyOpen = next.indexOf("{", verifyKey);
+    const verifyClose = matchingPair(next, verifyOpen, "{", "}");
+    const extras = [
+      formatProperty("spawnBudget", SPAWN_BUDGET, "      "),
+      formatProperty("modelTiers", MODEL_TIERS, "      "),
+      formatProperty("skillInvocation", SKILL_INVOCATION, "      "),
+      formatProperty("skillLanes", SKILL_LANES, "      "),
+    ].join(",\n");
+    next = `${next.slice(0, verifyClose + 1)},\n${extras}${next.slice(verifyClose + 1)}`;
+  }
+  return next;
+}
+
 if (process.env.FHF_ALLOW_HARNESS_EDIT !== "1") {
   throw new Error("Set FHF_ALLOW_HARNESS_EDIT=1 to apply ADR-0030 (writes control plane and hooks).");
 }
 
-const config = JSON.parse(fs.readFileSync(CONFIG, "utf8"));
+const { text: configText, eol: configEol } = readNormalized(CONFIG);
+const patchedConfig = applyControlPlane(configText);
+const config = JSON.parse(patchedConfig);
 const harness = config.engineering.harness;
 const routes = config.engineering.context.routes;
-harness.spawnBudget = SPAWN_BUDGET;
-harness.modelTiers = MODEL_TIERS;
-harness.skillInvocation = SKILL_INVOCATION;
-harness.skillLanes = SKILL_LANES;
-harness.skills = [...new Set([...harness.skills, ...ROUTED_SKILLS])];
-for (const route of routes) {
-  if (ROUTE_INVOKE[route.id]) route.invoke = ROUTE_INVOKE[route.id];
-}
-for (const route of NEW_ROUTES) {
-  const index = routes.findIndex((entry) => entry.id === route.id);
-  if (index === -1) routes.push(route);
-  else routes[index] = { ...routes[index], ...route };
-}
 const missing = routes.filter((route) => !route.invoke).map((route) => route.id);
 if (missing.length) throw new Error(`Routes missing invoke: ${missing.join(", ")}`);
-fs.writeFileSync(CONFIG, `${JSON.stringify(config, null, 2)}\n`);
+for (const skill of ROUTED_SKILLS) {
+  if (!harness.skills.includes(skill)) throw new Error(`Skill not allow-listed: ${skill}`);
+}
+if (!harness.spawnBudget || !harness.skillLanes) throw new Error("Control plane missing spawnBudget or skillLanes");
+writeNormalized(CONFIG, patchedConfig.endsWith("\n") ? patchedConfig : `${patchedConfig}\n`, configEol);
 
 patchFile(ROUTER, {
   label: "prompt-router.mjs",
