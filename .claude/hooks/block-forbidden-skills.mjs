@@ -17,10 +17,21 @@ if (!skill) process.exit(0);
 
 enforceWorkspaceReady({ root: payload.cwd ?? process.cwd() });
 
-const allowed = new Set(engineeringConfig().harness.skills.map((s) => s.toLowerCase()));
-if (allowed.has(skill)) process.exit(0);
-
-console.error(`BLOCKED: skill "${skill}" is not in the FHF allowlist.`);
-console.error(`Allowed: ${[...allowed].join(", ")}`);
-console.error("See .claude/rules/agent-spawning-gate.md for the routing roster.");
-process.exit(2);
+const harness = engineeringConfig().harness;
+const allowed = new Set(harness.skills.map((s) => s.toLowerCase()));
+if (!allowed.has(skill)) {
+  console.error(`BLOCKED: skill "${skill}" is not in the FHF allowlist.`);
+  console.error(`Allowed: ${[...allowed].join(", ")}`);
+  console.error("See .claude/rules/agent-spawning-gate.md for the routing roster.");
+  process.exit(2);
+}
+const { detectLane } = await import("./lib/harness-config.mjs");
+const lanes = harness.skillLanes?.[skill] ?? harness.skillLanes?.[payload.tool_input?.skill];
+if (Array.isArray(lanes) && lanes.length > 0) {
+  const lane = detectLane(payload.cwd ?? process.cwd());
+  if (!lanes.includes(lane)) {
+    console.error(`BLOCKED: skill "${skill}" is routed only for lanes: ${lanes.join(", ")} (current: ${lane}).`);
+    process.exit(2);
+  }
+}
+process.exit(0);

@@ -414,7 +414,44 @@ if (engineering) {
           issues.push(`engineering.context.routes[${index}] lanes must be a non-empty subset of root|e2e|smoke`);
         }
       }
+      const invoke = route.invoke;
+      if (!invoke || typeof invoke !== "object" || !["agent", "skill", "parent"].includes(invoke.kind)) {
+        issues.push(`engineering.context.routes[${index}] needs invoke.kind agent|skill|parent`);
+      } else if (invoke.kind === "agent" && !engineering.harness?.agents?.includes(invoke.name)) {
+        issues.push(`engineering.context.routes[${index}] invoke agent ${invoke.name} is not on the roster`);
+      } else if (invoke.kind === "skill" && !engineering.harness?.skills?.includes(invoke.name)) {
+        issues.push(`engineering.context.routes[${index}] invoke skill ${invoke.name} is not allow-listed`);
+      }
+      if (invoke?.prefer?.kind === "skill" && !engineering.harness?.skills?.includes(invoke.prefer.name)) {
+        issues.push(`engineering.context.routes[${index}] invoke.prefer skill is not allow-listed`);
+      }
     });
+  }
+
+  const spawnBudget = engineering.harness?.spawnBudget;
+  if (spawnBudget?.maxSpecialists !== 1 || spawnBudget?.maxDepth !== 1 || spawnBudget?.concurrent !== 1) {
+    issues.push("engineering.harness.spawnBudget must be one specialist, depth one, concurrent one");
+  }
+  const modelTiers = engineering.harness?.modelTiers;
+  if (modelTiers?.default !== "standard" || modelTiers?.unnamedSpecialist !== "standard") {
+    issues.push("engineering.harness.modelTiers must default to standard");
+  }
+  const frontierRoutes = modelTiers?.frontier?.allowedRouteIds ?? [];
+  for (const id of ["cloud-failure", "test-failure", "test-flake"]) {
+    if (!frontierRoutes.includes(id)) {
+      issues.push(`engineering.harness.modelTiers.frontier.allowedRouteIds must include ${id}`);
+    }
+  }
+  if (engineering.harness?.skillInvocation?.mode !== "route-or-explicit") {
+    issues.push("engineering.harness.skillInvocation.mode must be route-or-explicit");
+  }
+  for (const [skill, lanes] of Object.entries(engineering.harness?.skillLanes ?? {})) {
+    if (!engineering.harness?.skills?.includes(skill)) {
+      issues.push(`engineering.harness.skillLanes.${skill} is not on the skill allow-list`);
+    }
+    if (!Array.isArray(lanes) || lanes.some((name) => !["root", "e2e", "smoke"].includes(name))) {
+      issues.push(`engineering.harness.skillLanes.${skill} lanes must be root|e2e|smoke`);
+    }
   }
 
   const taskProtocol = engineering.taskProtocol;

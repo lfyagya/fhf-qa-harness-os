@@ -8,8 +8,11 @@ validated `FHF_ACTIVE_TASK` manifest and remain within its selected paths — se
 
 Read `.claude/harness.config.json`:
 
-- `engineering.context.routes` owns task routing hints.
+- `engineering.context.routes` owns task routing hints and each route's `invoke`.
 - `engineering.harness.skills` owns allowed FHF skills.
+- `engineering.harness.skillLanes` owns which lanes may invoke a routed skill.
+- `engineering.harness.spawnBudget` and `engineering.harness.modelTiers` own spawn and model policy.
+- `engineering.harness.skillInvocation` is `route-or-explicit`: a plugin loads only when the matched route names it.
 - engineering.harness.agents owns the Cypress and cross-layer agent roster.
 - `engineering.harness.forbiddenAgents` owns blocked and retired agent types.
 

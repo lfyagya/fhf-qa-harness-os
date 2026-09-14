@@ -17,6 +17,7 @@ import {
   contributingOverlay,
   copilotInstructions,
   geminiInstructions,
+  parentAgents,
   parentCopilotInstructions,
   parentGeminiInstructions,
   baselineClaude,
@@ -184,6 +185,7 @@ function checkFhfRoot() {
     dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
   }
   checkExactText(cursorHooksPath, `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  checkExactText(path.join(FHF_ROOT, "AGENTS.md"), parentAgents());
   checkExactText(copilotPath, parentCopilotInstructions());
   checkExactText(geminiPath, parentGeminiInstructions());
   checkConsumerVerifier(FHF_ROOT, "root");
