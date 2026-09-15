@@ -299,6 +299,79 @@ reads cannot be measured.
 `repairOutcomesFromTrace` derives convergence from those two types — labelling first-pass work as
 repair would corrupt the metric.
 
+### Conformance with the published loop pattern
+
+Lulla et al., *Loop Engineering: Building Blocks, Adoption, and Impact* (August 2026), studied 36,710
+repositories and found 217 running autonomous agent loops in production. They name six building
+blocks. Audited against this harness on 2026-09-16:
+
+| Building block | Here |
+|---|---|
+| Triggered runs | 15 wired hook phases — the loop starts on an event, not a send |
+| Machine-checkable stop conditions | `engineering.loops` limits; terminal states `completed`/`blocked`/`escalated` |
+| Persistent state files | `engineering.context.runtime.stateFile` + `traceFile`, `runId`-scoped |
+| Verifier sub-agents | `cypress-gate`, `qa-automation-gate`, `verify-subagent-citations`, plus code verifiers |
+| Budgets | `executionBudget` hard ceilings, recorder-enforced, `budget_exceeded` on breach |
+| Escalation points | owner-action stop; `escalated` is a terminal state, not a failure mode |
+
+All six are present. The paper's central finding is that *"almost none of the repositories commit the
+state files the discourse prescribes"* — the block this harness has had since ADR-0025, and the one
+that makes a loop resumable rather than merely repetitive.
+
+One dimension was genuinely missing and is now added: `executionBudget.hardCeilings.maxTokens`.
+Wall-clock time and recorded tool results bound a run's *shape*, not its *spend*. It is an optional
+field rather than a required one — adding it to `requiredFields` would invalidate every manifest
+written before today — and `tokenEnforcement` is `advisory-until-a-runtime-reports-usage`, because a
+ceiling nothing measures is decoration.
+
+## Graph engineering
+
+Feng et al., *Graph Engineering in the Era of LLM Agents* (August 2026), argues that individual agent
+capability hits an architectural ceiling when work needs "heterogeneous expertise, interdependent
+subtasks, parallel execution, independent verification, and persistent state". It names three
+primitives, and this harness already has all three:
+
+| Primitive | Here |
+|---|---|
+| **Node** — an agent or task | the roster in `engineering.harness.agents` |
+| **Edge** — execution flow | `engineering.context.routes`, every one carrying `invoke` |
+| **State** — shared, evolving context | `cypress/handoff/loop-state.json`, schema `fhf-harness/loop-state/v1` |
+
+The distinction that matters: in a loop, state is buried implicitly in a growing message history; in
+a graph it is an explicit object every node reads and writes. The agent loop contract above — read
+the state file before planning, record throughout — is that property already stated as a rule.
+
+**A loop is a graph with one dominant path.** Loop engineering does not stop applying when graph
+engineering starts; it becomes the behaviour of a single node. The harness's bounded retries run
+*inside* a node, and the routing table is the graph between them.
+
+### Two different graphs — do not conflate them
+
+`build-knowledge-index.mjs` emits a **knowledge graph**: specs, business rules, tests, endpoints and
+Oracle objects joined by declared references. It improves what the model *knows*, and belongs to
+context engineering.
+
+An **agent graph** coordinates workers — who runs, in what order, sharing what state. It improves how
+agents *cooperate*.
+
+They share a word and nothing else. "We already have a graph" is true of the first and says nothing
+about the second.
+
+### When a graph is warranted
+
+Start at the simplest layer that solves the problem and add structure only on hitting that layer's
+failure mode:
+
+- an agent retrying the same failing call needs a **verifier**, not a better prompt;
+- an agent that has forgotten the original goal needs **state**, not a larger context window;
+- an agent that cannot hold the breadth of a task needs a **graph**, not a stronger model.
+
+`backfill-traces.mjs` is the worked example. 617 business rules across 14 modules exceed one agent's
+span — tunnel vision, the third failure mode — so the work fans out per module and converges into
+patches. It does not hit the other two, which is why it stays a script with a code verifier rather
+than becoming a framework. Its verifier is `resolveTraces()`: a checker that is code cannot agree
+with a worker's mistake, which is strictly stronger than a second model reviewing the first.
+
 A `phase_completed`, `repair_completed`, or `loop_completed` event is also a **memory checkpoint**:
 the recorder merges the event's `findings` and `artifacts` through the configured `factExtractors`
 into `engineering.memory.handoffFile`. Compaction discards the within-session channel before the

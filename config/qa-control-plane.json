@@ -1680,11 +1680,16 @@
         "hardCeilings": {
           "maxWallClockMinutes": 180,
           "maxRecordedToolResults": 100,
-          "maxRetryableFailures": 3
+          "maxRetryableFailures": 3,
+          "maxTokens": 400000
         },
         "approvalBinding": "plan-is-digest-bound",
         "recorderEnforcement": "elapsed-time-recorded-tool-results-and-retryable-failures",
-        "onExceeded": "block-and-record-budget-exceeded"
+        "onExceeded": "block-and-record-budget-exceeded",
+        "optionalFields": [
+          "maxTokens"
+        ],
+        "tokenEnforcement": "advisory-until-a-runtime-reports-usage"
       },
       "crossRepositorySeam": {
         "manifestPath": "plan.changeUnits[].seam",

@@ -130,6 +130,31 @@ if (targets.length === 0) {
 
 fs.mkdirSync(outDir, { recursive: true });
 
+// Persistent run state. The Loop Engineering study of 36,710 repositories found that almost
+// none commit the state files the pattern prescribes, and the cost is exactly this: a crashed
+// or interrupted run restarts from zero. The harness already does this for agent loops
+// (engineering.context.runtime.stateFile); this is the same idea scoped to a backfill run, so
+// a resumed run skips specs whose patch was already produced.
+const STATE_FILE = path.join(outDir, `${moduleName}.backfill-state.json`);
+function loadState() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    if (parsed.schema === "fhf-harness/backfill-state/v1") return parsed;
+  } catch {}
+  return {
+    schema: "fhf-harness/backfill-state/v1",
+    module: moduleName,
+    startedAt: new Date().toISOString(),
+    specs: {},
+    totals: { proposed: 0, kept: 0, dropped: 0 },
+  };
+}
+function saveState(state) {
+  state.updatedAt = new Date().toISOString();
+  fs.writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
+}
+const runState = loadState();
+
 // ---- without proposals: emit the bundles an adapter consumes -------------------------------------
 if (!proposalsFile) {
   const adapters = CONFIG.engineering?.harness?.backfill?.adapters ?? {};
@@ -242,6 +267,19 @@ function diff(rel, before, after) {
 const patchFile = path.join(outDir, `${moduleName}${onlySpec ? `.${path.basename(onlySpec, ".yaml")}` : ""}.patch`);
 fs.writeFileSync(patchFile, `${patches.map((p) => diff(p.rel, p.before, p.after)).join("\n")}\n`);
 
+for (const p of patches) {
+  runState.specs[p.rel] = {
+    rules: p.count,
+    patchedAt: new Date().toISOString(),
+  };
+}
+runState.totals = {
+  proposed: runState.totals.proposed + proposals.length,
+  kept: runState.totals.kept + kept,
+  dropped: runState.totals.dropped + dropped,
+};
+saveState(runState);
+
 const reportFile = path.join(outDir, `${moduleName}.report.json`);
 fs.writeFileSync(reportFile, `${JSON.stringify({
   module: moduleName,
@@ -259,4 +297,7 @@ console.log(`proposed ${proposals.length}, kept ${kept}, dropped ${dropped} `
 for (const reason of dropReasons.slice(0, 10)) console.log(`  dropped ${reason}`);
 console.log(`\npatch : ${path.relative(FHF_ROOT, patchFile)}`);
 console.log(`report: ${path.relative(FHF_ROOT, reportFile)}`);
+console.log(`state : ${path.relative(FHF_ROOT, STATE_FILE)}`);
+const done = Object.keys(runState.specs);
+if (done.length > 1) console.log(`specs with a patch so far: ${done.length}`);
 console.log("Review the patch before applying. Nothing was written to a spec.");
