@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-09-16 |
 | **Extends** | ADR-0022 (allow-listing a skill is an ADR decision) |
 

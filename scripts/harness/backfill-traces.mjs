@@ -191,6 +191,12 @@ if (!proposalsFile) {
 const proposals = JSON.parse(fs.readFileSync(path.resolve(proposalsFile), "utf8")).proposals ?? [];
 const byId = new Map(proposals.map((p) => [p.id, p.traces ?? {}]));
 
+// Keep rate is the metric that decides whether the worker is worth running, so its denominator
+// must be proposals for THIS spec. One combined proposals file across several specs otherwise
+// counts the other specs' rules as misses and reports a false 45%.
+const targetIds = new Set(targets.flatMap((t) => t.untraced.map((r) => r.id)));
+const relevant = proposals.filter((p) => targetIds.has(p.id));
+
 let kept = 0;
 let dropped = 0;
 const dropReasons = [];
@@ -284,16 +290,16 @@ const reportFile = path.join(outDir, `${moduleName}.report.json`);
 fs.writeFileSync(reportFile, `${JSON.stringify({
   module: moduleName,
   spec: onlySpec ?? null,
-  proposed: proposals.length,
+  proposed: relevant.length,
   kept,
   dropped,
-  keepRate: proposals.length ? Math.round((kept / proposals.length) * 100) : 0,
+  keepRate: relevant.length ? Math.round((kept / relevant.length) * 100) : 0,
   dropReasons,
   specs: patches.map((p) => ({ spec: p.rel, rules: p.count })),
 }, null, 2)}\n`);
 
-console.log(`proposed ${proposals.length}, kept ${kept}, dropped ${dropped} `
-  + `(keep rate ${proposals.length ? Math.round((kept / proposals.length) * 100) : 0}%)`);
+console.log(`proposed ${relevant.length}, kept ${kept}, dropped ${dropped} `
+  + `(keep rate ${relevant.length ? Math.round((kept / relevant.length) * 100) : 0}%)`);
 for (const reason of dropReasons.slice(0, 10)) console.log(`  dropped ${reason}`);
 console.log(`\npatch : ${path.relative(FHF_ROOT, patchFile)}`);
 console.log(`report: ${path.relative(FHF_ROOT, reportFile)}`);

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-09-16 |
 | **Amends** | ADR-0028 (lane-scoped agent and skill projection) |
 

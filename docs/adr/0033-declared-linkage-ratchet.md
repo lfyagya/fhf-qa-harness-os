@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-09-16 |
 | **Extends** | ADR-0027 decision 4 (a hook must record the assumption it encodes) |
 
