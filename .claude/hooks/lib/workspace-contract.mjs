@@ -123,7 +123,7 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
       ready: false,
       lane,
       issues: [
-        "Harness lane configuration is missing or invalid: .harness/lane.json must declare root, e2e, or smoke.",
+        "Harness lane configuration is missing or invalid: .harness/lane.json must declare root, e2e, smoke, or backend.",
         "Set FHF_LANE explicitly only for the current session, then regenerate the consumer projection.",
       ],
       warnings: [],
@@ -133,8 +133,8 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
   }
   const workspaceContract = config.workspaceContract;
   const contract = workspaceContract?.lanes?.[lane];
-  const laneLabel = lane === "e2e" ? "E2E" : lane === "smoke" ? "Smoke" : lane;
-  if ((lane === "e2e" || lane === "smoke") && (!workspaceContract || !contract)) {
+  const laneLabel = lane === "e2e" ? "E2E" : lane === "smoke" ? "Smoke" : lane === "backend" ? "Backend" : lane;
+  if ((lane === "e2e" || lane === "smoke" || lane === "backend") && (!workspaceContract || !contract)) {
     return {
       ready: false,
       lane,
@@ -229,9 +229,9 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
 
   const backendRoot = resolveInput(projectRoot, values?.backendRoot);
   if (values?.backendRoot !== undefined && values.backendRoot !== "" && typeof values.backendRoot !== "string") {
-    issues.push("Configured optional backend repository must be a path string");
+    issues.push("Configured backend repository must be a path string");
   } else if (typeof values?.backendRoot === "string" && values.backendRoot.trim() !== "" && !pathMatches(backendRoot, "directory")) {
-    issues.push(`Configured optional backend repository is not a directory: ${values.backendRoot}`);
+    issues.push(`Configured backend repository is not a directory: ${values.backendRoot}`);
   }
 
   if (contract.requireBranch !== false) {

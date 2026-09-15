@@ -91,11 +91,14 @@ export function workspaceExample(lane) {
     lane,
     consumerRoot: "",
     moduleSpecsRoot: "",
+    // Not optional: a QA task spans frontend and backend, so the backend checkout is part of
+    // every workspace. loadSetup() still reads a legacy optional.backendRoot, so a setup file
+    // written before this stays valid.
+    backendRoot: "",
   };
   if (lane === "e2e") example.e2eRoot = "";
   if (lane === "smoke") example.smokeRoot = "";
   example.optional = {
-    backendRoot: "",
     jiraMcp: false,
     confluenceMcp: false,
     cypressCloud: false,
@@ -366,6 +369,11 @@ Read this file, then the selected repository's own \`CLAUDE.md\`. Do not preload
 
 Application source is read-only. Production smoke must never mutate, submit, export, download, or
 send. Backend writes and pytest runs require an active, validated \`FHF_ACTIVE_TASK\` manifest.
+
+Two unrelated repositories are named \`fhf-dashboards\`, and both declare \`"name": "fhf-dashboards"\`
+in \`package.json\`: \`fhf-dashboards/\` at the workspace root is the React application and is
+read-only, while \`<lane>/CypressFHF/fhf-dashboards/\` is that lane's Cypress suite and is writable.
+Resolve which one by full path, never by folder name.
 
 The harness engine lives in a separate checkout; edit policy there and re-run sync rather than
 hand-editing anything generated here.

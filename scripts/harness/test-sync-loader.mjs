@@ -5,6 +5,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+// The drift check compares the projection against parentAgents(). Hand-writing the expected
+// roster here made the fixture rot the moment the real roster changed - which it did when the
+// route-mapped skills landed. Generate it from the same source the check uses.
+import { parentAgents } from "./loader-templates.mjs";
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), "sync-loader-shims.mjs");
 const driftScript = path.join(path.dirname(fileURLToPath(import.meta.url)), "check-loader-drift.mjs");
@@ -57,19 +61,7 @@ try {
   const beforeTarget = fs.readFileSync(guarded, "utf8");
   const beforeManifest = fs.readFileSync(manifest, "utf8");
 
-  const roster = [
-    "# FHF Fixture",
-    "| Cypress work | Agent |",
-    "| --- | --- |",
-    "| Build tests | `cypress-generator` |",
-    "| Review before merge | `cypress-gate` |",
-    "| Debug failures/flakiness | `cypress-debugger` |",
-    "| Open PR or report coverage | `cypress-shipper` |",
-    "| Build backend/cross-layer tests | `qa-automation-generator` |",
-    "| Review backend/cross-layer tests | `qa-automation-gate` |",
-    "| Debug backend/cross-layer tests | `qa-automation-debugger` |",
-    "",
-  ].join("\n");
+  const roster = parentAgents();
   fs.writeFileSync(path.join(root, "AGENTS.md"), roster, "utf8");
   for (const lane of [
     path.join(root, "front-end-automation-e2e"),
@@ -91,7 +83,7 @@ try {
   // unflagged drift check must catch it drifting. Before this pairing existed,
   // backend was synced by default but never verified, so a stale backend
   // projection stayed green and needed a separate --only-backend run to notice.
-  const backendProjection = path.join(root, "fhf-backend-automation", ".claude", "harness.config.json");
+  const backendProjection = path.join(root, "fhf-backend-automation", ".harness", "lane.json");
   const backendBefore = fs.readFileSync(backendProjection, "utf8");
   fs.writeFileSync(backendProjection, `${backendBefore}\n// drift\n`, "utf8");
   const backendDrift = spawnSync(process.execPath, [driftScript], {
@@ -122,9 +114,11 @@ try {
   assert.equal(fs.existsSync(path.join(root, ".harness", "record-loop-event.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "portable-runtime-state.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "backend-task-runner.mjs")), true);
-  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "verify.mjs")), true);
+  // ADR-0032: the generic runtime CLIs live only at the workspace root; a lane keeps its
+  // identity marker and (for the Cypress lanes) its own execution tooling.
+  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "verify.mjs")), false);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "prepare-execution.mjs")), true);
-  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "record-loop-event.mjs")), true);
+  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "record-loop-event.mjs")), false);
   // The lane .npmrc is gitignored, so the key-less template is the only committed carrier of the
   // Windows script-shell line. Assert it ships per lane with that lane's record-key field.
   for (const [lane, laneKey] of [["e2e", "cypress_record_key_e2e"], ["smoke", "cypress_record_key_smoke"]]) {
@@ -203,12 +197,14 @@ try {
     },
   });
   assert.equal(linked.status, 0, linked.stderr);
-  assert.equal(fs.existsSync(path.join(linkedE2e, ".claude", "harness.config.json")), true);
-  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "verify.mjs")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "lane.json")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "verify.mjs")), false);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "prepare-execution.mjs")), true);
-  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "record-loop-event.mjs")), true);
-  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "portable-runtime-state.mjs")), true);
-  assert.equal(fs.existsSync(path.join(linkedE2e, ".cursor", "hooks.json")), true);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "record-loop-event.mjs")), false);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "portable-runtime-state.mjs")), false);
+  // ADR-0032: the Cursor adapter loads the vendored hooks, which now live only at the
+  // workspace root, so the lane must NOT receive a hooks.json pointing at absent files.
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".cursor", "hooks.json")), false);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".github", "copilot-instructions.md")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, "GEMINI.md")), true);
   const e2eArchitecture = fs.readFileSync(path.join(linkedE2e, "ARCHITECTURE.md"), "utf8");
@@ -229,7 +225,7 @@ try {
     },
   });
   assert.equal(smoke.status, 0, smoke.stderr);
-  assert.equal(fs.existsSync(path.join(linkedSmoke, ".claude", "harness.config.json")), true);
+  assert.equal(fs.existsSync(path.join(linkedSmoke, ".harness", "lane.json")), true);
   const smokeArchitecture = fs.readFileSync(path.join(linkedSmoke, "ARCHITECTURE.md"), "utf8");
   assert.match(smokeArchitecture, /harness\.config\.json#policyGovernance/);
   assert.match(smokeArchitecture, /credentials only in environment\/secret stores/);

@@ -178,8 +178,23 @@ export function checkFalseGreen(content, config = loadHarnessConfig()) {
     if (/cy\.on\s*\(\s*['"]fail['"]/.test(content)) {
       v.push("cy.on('fail') — converts a real failure into a pass");
     }
-    if (/this\.skip\s*\(\s*\)/.test(content)) {
-      v.push('this.skip() — a conditional skip turns missing behavior into a pass');
+    // this.skip() is the one fallback marker with a legitimate use: a guard on absent
+    // *configuration* — a credential an environment may not have — rather than absent
+    // behavior, where there is nothing to seed. Exempt only an occurrence carrying a
+    // reason on its own line or the line above, so the justification is visible in the
+    // spec's own diff. The lookback is exactly one line, so the marker must be the last
+    // comment line before the call. See ADR-0031.
+    // ponytail: comment marker, not a config path list — an exemption that lives next to
+    // the code it excuses cannot drift away from it.
+    const EXEMPT_RE = /\/\/\s*harness-allow\s+this\.skip:\s*\S/;
+    const lines = content.split(String.fromCharCode(10));
+    const unexcused = lines.some((line, i) => (
+      /this\.skip\s*\(\s*\)/.test(line)
+      && !EXEMPT_RE.test(line)
+      && !(i > 0 && EXEMPT_RE.test(lines[i - 1]))
+    ));
+    if (unexcused) {
+      v.push('this.skip() — a conditional skip turns missing behavior into a pass (annotate with "// harness-allow this.skip: <reason>" when it guards absent configuration)');
     }
   }
 

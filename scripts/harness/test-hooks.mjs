@@ -107,8 +107,16 @@ const skillLaneConfigPath = path.join(tmp, "skill-lane-harness.config.json");
 const skillLaneConfig = structuredClone(customConfig);
 if (skillLaneConfig.workspaceContract?.lanes?.e2e) {
   skillLaneConfig.workspaceContract.lanes.e2e.required = false;
+  // required:false does not bypass the preflight - the gate runs on lane, not on this flag.
+  skillLaneConfig.workspaceContract.lanes.e2e.requiredLocalPaths = [];
+  skillLaneConfig.workspaceContract.lanes.e2e.requiredWorkspacePaths = [];
+  skillLaneConfig.workspaceContract.lanes.e2e.requireBranch = false;
 }
+skillLaneConfig.moduleSpecPaths = {};
 writeFileSync(skillLaneConfigPath, JSON.stringify(skillLaneConfig));
+const e2eLaneRoot = path.join(tmp, "e2e-consumer");
+mkdirSync(path.join(e2eLaneRoot, ".harness"), { recursive: true });
+writeFileSync(path.join(e2eLaneRoot, ".harness", "lane.json"), JSON.stringify({ lane: "e2e" }));
 const smokeRoot = path.join(tmp, "smoke-consumer");
 mkdirSync(path.join(smokeRoot, ".harness"), { recursive: true });
 writeFileSync(path.join(smokeRoot, ".harness", "lane.json"), JSON.stringify({ lane: "smoke" }));
@@ -210,12 +218,33 @@ activeTask.approval.approvedDigest = approvalDigest(
   customConfig.engineering.taskProtocol.approval.boundFields,
 );
 writeFileSync(activeTaskPath, JSON.stringify(activeTask));
-const activeTaskEnv = { FHF_ACTIVE_TASK: activeTaskPath };
+// The backend lane gained a workspaceContract entry, so its guards now run the workspace
+// preflight like e2e and smoke do. Neutralise it in a fixture config the same way the smoke
+// fixture above does, so these tests assert their own condition rather than the workspace gate.
+const backendConfigPath = path.join(tmp, "backend-harness.config.json");
+// built from the real policy, not customConfig: that fixture replaces every route with a
+// single test route, so a router assertion against it would match nothing.
+const backendConfig = JSON.parse(
+  readFileSync(path.join(HARNESS_ROOT, "config", "qa-control-plane.json"), "utf8"),
+);
+if (backendConfig.workspaceContract?.lanes?.backend) {
+  backendConfig.workspaceContract.lanes.backend.requiredLocalPaths = [];
+  backendConfig.workspaceContract.lanes.backend.requiredWorkspacePaths = [];
+}
+backendConfig.moduleSpecPaths = {};
+writeFileSync(backendConfigPath, JSON.stringify(backendConfig));
+const workspaceEnv = {
+  FHF_HARNESS_CONFIG: backendConfigPath,
+  FHF_CONSUMER_ROOT: tmp,
+  FHF_MODULE_SPECS_ROOT: tmp,
+  FHF_BACKEND_ROOT: backendRoot,
+};
+const activeTaskEnv = { ...workspaceEnv, FHF_ACTIVE_TASK: activeTaskPath };
 const staleTaskPath = path.join(tmp, "stale-task.json");
 const staleTask = structuredClone(activeTask);
 staleTask.plan.impact.regression.push("changed after approval");
 writeFileSync(staleTaskPath, JSON.stringify(staleTask));
-const staleTaskEnv = { FHF_ACTIVE_TASK: staleTaskPath };
+const staleTaskEnv = { ...workspaceEnv, FHF_ACTIVE_TASK: staleTaskPath };
 const wrongRevisionTaskPath = path.join(tmp, "wrong-revision-task.json");
 const wrongRevisionTask = structuredClone(activeTask);
 wrongRevisionTask.grounding.repositories[0].headSha = "d".repeat(40);
@@ -224,7 +253,7 @@ wrongRevisionTask.approval.approvedDigest = approvalDigest(
   customConfig.engineering.taskProtocol.approval.boundFields,
 );
 writeFileSync(wrongRevisionTaskPath, JSON.stringify(wrongRevisionTask));
-const wrongRevisionTaskEnv = { FHF_ACTIVE_TASK: wrongRevisionTaskPath };
+const wrongRevisionTaskEnv = { ...workspaceEnv, FHF_ACTIVE_TASK: wrongRevisionTaskPath };
 const validOverlay = JSON.stringify({
   version: customConfig.engineering.context.runtimeOverlay.version,
   session: {
@@ -642,9 +671,13 @@ expect("block-forbidden-skills allows a skillLanes skill on the root lane",
     FHF_LANE: "root",
   }), 0);
 expect("block-forbidden-skills blocks a skillLanes skill off the root lane",
-  run("block-forbidden-skills.mjs", { tool_input: { skill: "hookify" } }, {
+  run("block-forbidden-skills.mjs", { cwd: e2eLaneRoot, tool_input: { skill: "hookify" } }, {
     FHF_HARNESS_CONFIG: skillLaneConfigPath,
     FHF_LANE: "e2e",
+    FHF_CONSUMER_ROOT: tmp,
+    FHF_MODULE_SPECS_ROOT: tmp,
+    FHF_E2E_ROOT: tmp,
+    FHF_BACKEND_ROOT: tmp,
   }),
   (r) => r.code === 2 && r.stderr.includes("routed only for lanes: root"));
 expect("block-forbidden-skills still allows an unmapped allowlisted skill off root",
@@ -808,7 +841,7 @@ expect("prompt-router routes backend automation generation to the cross-layer sp
   run("prompt-router.mjs", {
     cwd: backendRoot,
     prompt: "write a new test for the backend API",
-  }),
+  }, workspaceEnv),
   (r) => r.code === 0 && r.stdout.includes("[router:backend-test]") && r.stdout.includes("qa-automation-generator"));
 expect("prompt-router routes combined frontend and backend generation to one specialist",
   run("prompt-router.mjs", {
@@ -820,7 +853,7 @@ expect("prompt-router does not write a handoff in the external backend",
   run("prompt-router.mjs", {
     cwd: path.join(tmp, "fhf-backend-automation"),
     prompt: "Work the selected API using /api/backend",
-  }),
+  }, workspaceEnv),
   (r) => r.code === 0 && !existsSync(externalBackendHandoff));
 expect("prompt-router routes planning to one ledger",
   run("prompt-router.mjs", { prompt: "what is the current capacity and priority?" }),

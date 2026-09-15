@@ -367,24 +367,38 @@ function syncHarnessRoot() {
 }
 
 function syncRuntimeEvidence(repoPath, lane) {
-  writeText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
-  writeText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
-  writeText(path.join(repoPath, ".harness", "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT);
-  writeText(path.join(repoPath, ".harness", "task-protocol.mjs"), TASK_PROTOCOL_CLI_TEXT);
-  if (lane === "root") {
-    writeText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
-  }
-  writeText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
-  writeText(path.join(repoPath, ".harness", "jira-access-doctor.mjs"), JIRA_ACCESS_DOCTOR_TEXT);
-  writeText(path.join(repoPath, ".harness", "capability-doctor.mjs"), CAPABILITY_DOCTOR_TEXT);
+  // ADR-0032: a lane keeps only its identity marker plus its own execution tooling.
+  //
+  // lane.json cannot move to the root and is the one exception to centralisation:
+  // markerLane() walks UPWARD, so a lane without its own marker inherits the root marker and
+  // reports lane "root" instead of itself. Verified 2026-09-16 - removing it made all three
+  // lanes resolve as root.
+  //
+  // The generic runtime CLIs are not projected. Nothing resolves them lane-relative: every hook
+  // resolves against the project root and qa-command-center reads the setup file from
+  // consumerRoot, so the root copy is the one that runs.
   writeText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
-  writeText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
+
   if (lane === "e2e" || lane === "smoke") {
+    // Execution tooling is genuinely per-lane (ADR-0014) and the root never receives it,
+    // so dropping it here would delete it rather than centralise it.
     writeText(path.join(repoPath, ".harness", "prepare-execution.mjs"), EXECUTION_SETUP_TEXT);
     writeText(path.join(repoPath, ".harness", "execution.example.json"), executionProfileExample(lane));
     const pkg = lanePackage(lane);
     if (pkg) writeText(path.join(repoPath, pkg, ".npmrc.example"), npmrcExample(lane));
   }
+
+  if (lane !== "root") return;
+
+  writeText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
+  writeText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
+  writeText(path.join(repoPath, ".harness", "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT);
+  writeText(path.join(repoPath, ".harness", "task-protocol.mjs"), TASK_PROTOCOL_CLI_TEXT);
+  writeText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
+  writeText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
+  writeText(path.join(repoPath, ".harness", "jira-access-doctor.mjs"), JIRA_ACCESS_DOCTOR_TEXT);
+  writeText(path.join(repoPath, ".harness", "capability-doctor.mjs"), CAPABILITY_DOCTOR_TEXT);
+  writeText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
 }
 
 function syncFhfRoot() {
@@ -433,19 +447,18 @@ function syncSubRepo(repoPath, lane) {
   writeText(path.join(repoPath, "README.md"), rootReadme(lane));
   writeText(path.join(repoPath, "ARCHITECTURE.md"), architectureOverlay(lane));
   writeText(path.join(repoPath, "CONTRIBUTING.md"), contributingOverlay(lane));
-  for (const sub of CLAUDE_SUBFOLDERS) {
-    copySubfolderSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(repoPath, ".claude", sub), sub, lane);
-  }
-  writeText(path.join(repoPath, ".claude", "settings.json"), portableSettings(lane));
-  writeText(path.join(repoPath, ".claude", "harness.config.json"), harnessConfigTextForLane(lane));
-  writeText(
-    path.join(repoPath, ".cursor", "hooks.json"),
-    `${JSON.stringify(cursorHooks(VENDORED_HOOKS, lane), null, 2)}\n`,
-  );
+  // ADR-0032: agents, rules, skills and hooks are NOT projected into a lane. One central set
+  // lives at the workspace root and is selected per task, so a Cypress agent never ships to a
+  // pytest repo and a pytest generator never ships to a Cypress lane - which is what laneScope
+  // trimming existed to prevent, and what made cross-layer work impossible in either lane.
+  // Sessions open at the workspace root; the smoke read-only rule is path-based (isSmokePath),
+  // so it still applies to a lane file edited from the root.
+  // ADR-0032: the lane no longer carries its own harness.config.json. loadHarnessConfig()
+  // walks up and resolves the workspace projection, so there is one config and nothing to
+  // drift. The lane keeps .harness/lane.json, which is what detectLane() needs for identity.
+  // ADR-0032: the Cursor adapter loads the same vendored hooks, so it moves to the root too.
   writeText(path.join(repoPath, ".github", "copilot-instructions.md"), copilotInstructions(lane));
   writeText(path.join(repoPath, "GEMINI.md"), geminiInstructions(lane));
-  writeText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
-  writeText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme(lane));
   syncRuntimeEvidence(repoPath, lane);
 }
 
@@ -470,11 +483,21 @@ function scopeBackendGitignore(repoPath) {
 // rules, and skills live in the harness and are generated here; nothing is backend-authoritative.
 function syncBackend() {
   scopeBackendGitignore(SUB_REPOS.backend);
-  for (const sub of CLAUDE_SUBFOLDERS) {
-    copySubfolderSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(SUB_REPOS.backend, ".claude", sub), sub, "backend");
-  }
-  writeText(path.join(SUB_REPOS.backend, ".claude", "harness.config.json"), harnessConfigTextForLane("backend"));
-  writeText(path.join(SUB_REPOS.backend, ".claude", "settings.json"), portableSettings("backend"));
+  // ADR-0032: agents, rules, skills and hooks are NOT projected into a lane. One central set
+  // lives at the workspace root and is selected per task, so a Cypress agent never ships to a
+  // pytest repo and a pytest generator never ships to a Cypress lane - which is what laneScope
+  // trimming existed to prevent, and what made cross-layer work impossible in either lane.
+  // Sessions open at the workspace root; the smoke read-only rule is path-based (isSmokePath),
+  // so it still applies to a lane file edited from the root.
+  // ADR-0032: the lane no longer carries its own harness.config.json. loadHarnessConfig()
+  // walks up and resolves the workspace projection, so there is one config and nothing to
+  // drift. The lane keeps .harness/lane.json, which is what detectLane() needs for identity.
+
+  // Without this the backend repo received .claude/ but no .harness/lane.json, so detectLane()
+  // fell through to "root" and the backend lane did not operationally exist. Verified 2026-09-16.
+  syncRuntimeEvidence(SUB_REPOS.backend, "backend");
+  // The consumer verifier travels with the runtime files; syncSubRepo writes these for the
+  // Cypress lanes and backend needs them for the same reason - the drift check verifies them.
 }
 
 function removeEmptyLegacyCodexDirectory(repoPath) {

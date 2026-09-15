@@ -120,7 +120,10 @@ function applyOverlay(base, overlay) {
 }
 
 export function loadHarnessConfig() {
-  const file = CANDIDATES.find((candidate) => fs.existsSync(candidate));
+  // HERE-relative candidates win, so an existing local projection keeps its current behaviour;
+  // the upward search is the fallback that makes a config-less lane resolve the workspace root.
+  const file = CANDIDATES.find((candidate) => fs.existsSync(candidate))
+    ?? findConsumerProjection(process.env.CLAUDE_PROJECT_DIR ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd());
   if (!file) {
     throw new Error(
       `Harness config not found. Checked: ${CANDIDATES.join(", ")}. `
@@ -163,14 +166,22 @@ function markerLane(cwd) {
   }
 }
 
-function hasConsumerProjection(cwd) {
+// Walks up for the workspace projection. This search already existed as a boolean-only helper
+// used by detectLane(); ADR-0032 reuses it so a lane that carries no config of its own resolves
+// the one at the workspace root instead of failing. Returns the path so both callers share it.
+function findConsumerProjection(cwd) {
   let current = path.resolve(cwd || process.cwd());
   while (true) {
-    if (fs.existsSync(path.join(current, ".claude", "harness.config.json"))) return true;
+    const candidate = path.join(current, ".claude", "harness.config.json");
+    if (fs.existsSync(candidate)) return candidate;
     const parent = path.dirname(current);
-    if (parent === current) return false;
+    if (parent === current) return null;
     current = parent;
   }
+}
+
+function hasConsumerProjection(cwd) {
+  return findConsumerProjection(cwd) !== null;
 }
 
 export function detectLane(cwd, config = loadHarnessConfig()) {

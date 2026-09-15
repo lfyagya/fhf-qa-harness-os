@@ -127,28 +127,13 @@ function dirsMatch(srcDir, destDir, prefix, lane) {
 }
 
 function checkConsumerVerifier(repoPath, lane) {
-  requireFile(path.join(repoPath, ".harness", "verify.mjs"));
-  requireFile(path.join(repoPath, ".harness", "README.md"));
-  requireFile(path.join(repoPath, ".harness", "portable-runtime-state.mjs"));
-  requireFile(path.join(repoPath, ".harness", "record-loop-event.mjs"));
-  requireFile(path.join(repoPath, ".harness", "task-protocol-lib.mjs"));
-  requireFile(path.join(repoPath, ".harness", "task-protocol.mjs"));
-  if (lane === "root") requireFile(path.join(repoPath, ".harness", "backend-task-runner.mjs"));
-  requireFile(path.join(repoPath, ".harness", "setup.mjs"));
+  // ADR-0032: verify what the consumer actually receives. A lane receives its identity marker
+  // and (for the Cypress lanes) its execution tooling; the generic runtime CLIs live only at
+  // the workspace root, so requiring them per lane would report drift against files that are
+  // deliberately absent.
   requireFile(path.join(repoPath, ".harness", "lane.json"));
-  requireFile(path.join(repoPath, ".harness", "workspace.example.json"));
-  checkExactText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
-  checkExactText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme(lane));
-  checkExactText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
-  checkExactText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
-  checkExactText(path.join(repoPath, ".harness", "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT);
-  checkExactText(path.join(repoPath, ".harness", "task-protocol.mjs"), TASK_PROTOCOL_CLI_TEXT);
-  if (lane === "root") {
-    checkExactText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
-  }
-  checkExactText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
   checkExactText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
-  checkExactText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
+
   if (lane === "e2e" || lane === "smoke") {
     const pkg = lanePackage(lane);
     if (pkg) {
@@ -156,6 +141,27 @@ function checkConsumerVerifier(repoPath, lane) {
       checkExactText(path.join(repoPath, pkg, ".npmrc.example"), npmrcExample(lane));
     }
   }
+
+  if (lane !== "root") return;
+
+  requireFile(path.join(repoPath, ".harness", "verify.mjs"));
+  requireFile(path.join(repoPath, ".harness", "README.md"));
+  requireFile(path.join(repoPath, ".harness", "portable-runtime-state.mjs"));
+  requireFile(path.join(repoPath, ".harness", "record-loop-event.mjs"));
+  requireFile(path.join(repoPath, ".harness", "task-protocol-lib.mjs"));
+  requireFile(path.join(repoPath, ".harness", "task-protocol.mjs"));
+  requireFile(path.join(repoPath, ".harness", "backend-task-runner.mjs"));
+  requireFile(path.join(repoPath, ".harness", "setup.mjs"));
+  requireFile(path.join(repoPath, ".harness", "workspace.example.json"));
+  checkExactText(path.join(repoPath, ".harness", "verify.mjs"), CONSUMER_VERIFIER_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "README.md"), consumerVerifierReadme(lane));
+  checkExactText(path.join(repoPath, ".harness", "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "task-protocol.mjs"), TASK_PROTOCOL_CLI_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
+  checkExactText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
 }
 
 function checkHarnessRoot() {
@@ -204,9 +210,7 @@ function checkSubRepo(repoPath, lane) {
   const contributingPath = path.join(repoPath, "CONTRIBUTING.md");
   const geminiPath = path.join(repoPath, "GEMINI.md");
   requireFile(path.join(docsDir, "README.md"));
-  requireFile(path.join(claudeDir, "settings.json"));
-  requireFile(path.join(claudeDir, "harness.config.json"));
-  requireFile(path.join(cursorDir, "hooks.json"));
+  // ADR-0032: a lane receives no .claude/ at all - one central set lives at the workspace root.
   requireFile(path.join(githubDir, "copilot-instructions.md"));
   requireFile(geminiPath);
   requireFile(readmePath);
@@ -215,7 +219,6 @@ function checkSubRepo(repoPath, lane) {
 
   const settingsPath = path.join(claudeDir, "settings.json");
   checkExactText(settingsPath, portableSettings(lane));
-  checkExactText(path.join(claudeDir, "harness.config.json"), harnessConfigTextForLane(lane));
   if (fs.existsSync(settingsPath)) {
     const actual = fs.readFileSync(settingsPath, "utf8");
     if (/[A-Za-z]:[/\\]Users[/\\]/.test(actual)) {
@@ -223,9 +226,7 @@ function checkSubRepo(repoPath, lane) {
     }
   }
 
-  for (const sub of CLAUDE_SUBFOLDERS) {
-    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`, lane);
-  }
+
 
   checkExactText(path.join(docsDir, "README.md"), docsReadme(lane));
   checkExactText(readmePath, rootReadme(lane));
@@ -299,14 +300,10 @@ function checkHandMaintainedPointers() {
 // the Cypress lanes. syncBackend() writes exactly this surface; anything it
 // writes that is not verified here is a projection nobody would notice drifting.
 function checkBackend() {
-  const claudeDir = path.join(SUB_REPOS.backend, ".claude");
-  requireFile(path.join(claudeDir, "settings.json"));
-  requireFile(path.join(claudeDir, "harness.config.json"));
-  checkExactText(path.join(claudeDir, "settings.json"), portableSettings("backend"));
-  checkExactText(path.join(claudeDir, "harness.config.json"), harnessConfigTextForLane("backend"));
-  for (const sub of CLAUDE_SUBFOLDERS) {
-    dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`, "backend");
-  }
+  // ADR-0032: a lane receives no .claude/ at all - one central set lives at the workspace root.
+  // Backend keeps only .harness/*, which syncRuntimeEvidence writes. It must still be
+  // verified by the unflagged run: backend was previously synced by default and never checked.
+  checkConsumerVerifier(SUB_REPOS.backend, "backend");
 }
 
 function checkBaseline() {

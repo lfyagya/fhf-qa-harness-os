@@ -908,12 +908,18 @@ if (!cloudCli) {
       const lanePath = config.paths?.lanes?.[lane];
       const configuredRoot = lanePath?.root ?? (lanePath?.rootEnv ? process.env[lanePath.rootEnv] : null);
       if (!configuredRoot) continue;
-      const projectConfig = path.resolve(
-        FHF_ROOT,
-        repoPath(configuredRoot),
-        repoPath(lanePath.package),
-        repoPath(cloudCli.projectIdSource),
-      );
+      // The Cypress config is being migrated from .js to .cjs (Cypress 15.17+ resolves the
+      // module kind by extension before loading). The two lanes are branches of one repository,
+      // so they cross over separately and one configured filename cannot describe both. Accept
+      // whichever extension is present; when the migration is finished on every lane this can
+      // go back to the single configured name.
+      const laneBase = path.resolve(FHF_ROOT, repoPath(configuredRoot), repoPath(lanePath.package));
+      const configured = repoPath(cloudCli.projectIdSource);
+      const candidates = [configured, configured.replace(/\.cjs$/, ".js"), configured.replace(/\.js$/, ".cjs")];
+      const projectConfig = candidates
+        .map((name) => path.resolve(laneBase, name))
+        .find((candidate) => fs.existsSync(candidate))
+        ?? path.resolve(laneBase, configured);
       if (!projectConfig || !fs.existsSync(projectConfig)) {
         issues.push(`Cloud CLI ${lane} projectIdSource is missing: ${projectConfig ?? "unconfigured"}`);
       } else if (!/\bprojectId\s*:/.test(fs.readFileSync(projectConfig, "utf8"))) {
