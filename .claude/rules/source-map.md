@@ -1,8 +1,12 @@
 ---
 paths:
-  - "CypressFHF/fhf-dashboards/cypress/**"
+  - "**/CypressFHF/fhf-dashboards/cypress/**"
+  - "**/fhf-backend-automation/**"
 ---
 # Source Map — App Evidence
+
+The same principle governs both layers: read the application source for *intended* behavior, then
+let the test prove *actual* behavior. The frontend map is below; the backend map follows it.
 
 ## fhf-dashboards (App Source)
 
@@ -39,6 +43,40 @@ Verify planning/Jira/Confluence names against live source before citing them.
 3. Gap-list what source cannot prove (conditional renders on live data, timing).
 4. Browser only for gaps — never to re-discover what grep already answered.
 5. Before creating a new spec file, check the naming/structure of sibling files in the same `cypress/tests/fhf-dashboard/smoke/{module}/` directory. One file per dashboard/route is the dominant convention across the smoke repo — don't bundle multiple distinct routes into one `describe`/file unless an existing sibling already establishes that exact pattern for a comparable case. Bundling routes into one file also collapses their feature tags into one, which blocks running any one dashboard's suite independently later.
+
+### Raw API response vs. client-side model — don't assert against the wrong shape
+
+## fhf-backend-automation (API + Oracle)
+
+The backend layer has its own application source in the same workspace, and the same read-only rule
+applies to all of it — the automation repo is yours, the services and the database are not.
+
+| What you need | Where | Notes |
+|---|---|---|
+| REST endpoint behavior | `fhf-rest-internal/`, `fhf-rest-external/` | Java/Maven Spring services; internal is the one the dashboards call through the `ordswrapper` proxy |
+| Oracle / ORDS definitions | `fhf_documents/oracle_firsthelp/`, `fhf_documents/tsp/` | read-only reference clone — never open a PR against it |
+| Typed API clients | `fhf-backend-automation/api/*_client.py` | one class per module, all extending `BaseAPIClient`; every HTTP call in a test goes through these |
+| DB access | `fhf-backend-automation/dao/oracle_dao.py`, `db/oracle.py` | `BaseDB` owns the connection lifecycle; never open one in a test |
+| Shared assertions | `fhf-backend-automation/tests/commons/assertions.py` | the only place raw asserts are allowed to live |
+| Schema / table names | `fhf-backend-automation/tests/commons/db_schema.py` | never hardcode a schema or table string |
+| Production smoke suite | `fhf-backend-automation/tests/smoke/` | GET-only; see `prod-data-handling.md` |
+| Mutable functional suites | `tests/{ancillary,funding,loss_mitigation,unifi}/` | these create and modify records; dev only |
+
+### Cross-layer workflow
+
+A ticket that spans both layers is one task, not two. Trace it in the direction the request travels:
+
+1. **UI → endpoint.** Grep `src/constants/network.js` for the endpoint the dashboard calls.
+2. **Endpoint → client.** Find the matching method in `api/*_client.py`. If the path carries a
+   `:param`, the client needs a typed method for it — never build the URL in a test.
+3. **Client → data.** Confirm what the call writes, then assert it in Oracle through the DAO. An
+   API response alone does not prove a write landed.
+4. **Both sides or neither.** A test that asserts the UI changed without checking the row, or the
+   row without checking what the user sees, covers half the flow and will pass through a real break.
+
+Counts drift: `api-standards.md` records 25 client classes as of 2026-09-05 and there are **28**
+`*_client.py` files today (2026-09-16). Treat `api/` on disk as the list, that document as the
+pattern.
 
 ### Raw API response vs. client-side model — don't assert against the wrong shape
 

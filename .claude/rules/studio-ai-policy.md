@@ -1,6 +1,6 @@
 ---
 paths:
-  - "CypressFHF/fhf-dashboards/cypress/**"
+  - "**/CypressFHF/fhf-dashboards/cypress/**"
   - "**/cypress/tests/**"
 ---
 # Studio AI / cy.prompt — Constrained Discovery Only

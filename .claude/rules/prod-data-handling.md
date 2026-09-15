@@ -1,6 +1,7 @@
 ---
 paths:
-  - "CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/**"
+  - "**/CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke/**"
+  - "**/fhf-backend-automation/tests/smoke/**"
   - "docs/evidence/**"
 ---
 # Production Data Handling — Artifacts Are Layout Evidence, Not Data Sources
@@ -34,6 +35,22 @@ numbers, invoice numbers, dealer names, balances. The existing "no PII" line in 
    Reach for a screenshot only when the question is genuinely visual, and say why.
 6. **Asserting on data is already forbidden** — smoke asserts structure and availability,
    never specific values. A test that needs a customer's name to pass is the wrong test.
+7. **Backend smoke is production too.** `fhf-backend-automation/tests/smoke/` runs against the
+   production API and Oracle, so every rule above applies unchanged to its evidence: a query
+   result set, an API response body, and an Allure attachment are production data in exactly
+   the way a screenshot is. Assert row counts, status codes, schema shape and column presence —
+   never the values in a row. Do not paste a result set into a ticket, a docstring, a fixture,
+   or `data_files/`.
+
+   Two asymmetries to know about, because neither is enforced yet and both are easy to trip:
+   - There is **no mutation guard on backend smoke.** `validate-backend-automation.mjs` checks
+     raw asserts, `os.getenv` and direct HTTP, and says nothing about method. A `POST` written
+     into `tests/smoke/` passes every gate, while the Cypress equivalent is blocked by
+     `SMOKE_MUTATION_RE`. Verified 2026-09-16: all 110 files are clean, so the convention holds
+     by discipline. Keep it that way — GET only.
+   - `protect-prod-data.mjs` guards Cypress artifacts and Cloud CLI calls by path and command.
+     It does not recognise pytest or Allure output, so nothing stops a backend run from writing
+     production rows into `allure-results/`. Treat that directory as production data by hand.
 
 The same guard blocks Cloud CLI `replay info`, `replay timeline`, and `test get --screenshot` in
 smoke/root sessions. Replay downloads a local database containing DOM, network, and console data;

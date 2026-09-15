@@ -1,6 +1,6 @@
 ---
 paths:
-  - "CypressFHF/fhf-dashboards/cypress/**"
+  - "**/CypressFHF/fhf-dashboards/cypress/**"
 ---
 # Failure Classification — Actual vs False, and How to Actually Know
 

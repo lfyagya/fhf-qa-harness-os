@@ -1,6 +1,6 @@
 ---
 paths:
-  - "CypressFHF/fhf-dashboards/cypress/**"
+  - "**/CypressFHF/fhf-dashboards/cypress/**"
 ---
 # Assertion Precision — Scope Before You Assert
 
