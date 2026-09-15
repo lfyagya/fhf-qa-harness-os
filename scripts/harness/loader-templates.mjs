@@ -285,6 +285,63 @@ export function portableSettings(lane) {
   return claudeSettingsText(VENDORED_HOOKS, lane);
 }
 
+export function parentAgents() {
+  const spawn = ENGINEERING.harness.spawnBudget ?? { maxSpecialists: 1, maxDepth: 1, concurrent: 1 };
+  const tiers = ENGINEERING.harness.modelTiers ?? { default: "standard" };
+  const invocation = ENGINEERING.harness.skillInvocation ?? { mode: "route-or-explicit" };
+  const extraSkills = (ENGINEERING.harness.skills ?? []).filter((name) =>
+    !["cypress-explain", "cypress-docs", "cypress-tap", "cypress-author", "backend-test-author"].includes(name),
+  );
+  const extraLines = extraSkills.length
+    ? extraSkills.map((name) => `- \`${name}\` — root-lane only; invoke when the matched route names it`).join("\n")
+    : "";
+  return `# FHF Agent Entry
+
+Read \`CLAUDE.md\` first; it is the shared workspace router.
+
+Then read only:
+
+1. the selected repository's \`CLAUDE.md\` (pointer);
+2. that package's \`docs/*-STANDARDS.md\` or guide named by the pointer;
+3. the exact document selected by \`.claude/harness.config.json\` → \`engineering.context.routes\`.
+
+| Work | Agent |
+| --- | --- |
+| Build Cypress-only tests | \`cypress-generator\` |
+| Review Cypress-only changes | \`cypress-gate\` |
+| Debug Cypress-only failures/flakiness | \`cypress-debugger\` |
+| Open Cypress PR or report coverage | \`cypress-shipper\` |
+| Build backend-only or combined FE/BE automation | \`qa-automation-generator\` |
+| Review backend-only or combined FE/BE automation | \`qa-automation-gate\` |
+| Debug backend-only or combined FE/BE automation | \`qa-automation-debugger\` |
+
+Allowed Cypress AI Toolkit skills stay in the parent (do not spawn). Read
+\`.claude/skills/<name>/SKILL.md\` when the matched route's \`invoke\` names the skill:
+
+- \`cypress-explain\` — explain or review tests with no edits
+- \`cypress-docs\` — official Cypress documentation lookup
+- \`cypress-tap\` — drive a live \`cypress open\` session (Cypress 15.21+, Chromium; not headless \`cypress run\`)
+- \`cypress-author\` — Cypress-native conventions only on FHF work; must not Write specs. Parent spawns \`cypress-generator\`
+- \`backend-test-author\` — backend pytest/API/Oracle work under the active task manifest
+${extraLines ? `${extraLines}\n` : ""}
+\`cypress-author\` may load; on FHF work it must not write specs. New Cypress specs spawn
+\`cypress-generator\`.
+
+Spawn at most ${spawn.maxSpecialists} specialist, depth ${spawn.maxDepth}, concurrent ${spawn.concurrent},
+and only when the matched route \`invoke.kind\` is \`agent\`. Otherwise stay in parent.
+\`engineering.harness.spawnBudget\` and \`engineering.harness.modelTiers\` are authoritative.
+Default model tier is \`${tiers.default ?? "standard"}\`. Frontier only on cloud-failure,
+test-failure, and test-flake after an explicit request or a recorded insufficient standard
+diagnosis. Those tiers are parent policy, not hook gates. Skill invocation mode is
+\`${invocation.mode}\`: follow the matched route \`invoke\`; do not load an unmapped
+marketplace plugin. The skill hook enforces the allow-list and \`skillLanes\` only.
+Backend writes and pytest runs require a validated active manifest selected by \`FHF_ACTIVE_TASK\`;
+application source remains read-only.
+Root \`.claude/\`, Cursor, Copilot, and Gemini loaders are generated from \`fhf-harness-os\`; never
+hand-edit generated copies. Agent changes stay uncommitted for owner review.
+`;
+}
+
 // The FHF workspace root needs its own CLAUDE.md: workspaceContract.lanes.<lane>.requiredWorkspacePaths
 // declares consumerRoot/CLAUDE.md, and every lane hook goes WORKSPACE BLOCKED without it. It was
 // never generated because the engine used to be checked out AT the workspace root, so the engine's

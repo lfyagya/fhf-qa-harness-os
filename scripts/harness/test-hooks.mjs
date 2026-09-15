@@ -103,6 +103,12 @@ customConfig.connectors.cypressCloud.cli.guard.productionSensitivePatterns = [
 ];
 writeFileSync(customConfigPath, JSON.stringify(customConfig));
 writeFileSync(invalidConfigPath, "{\n", "utf8");
+const skillLaneConfigPath = path.join(tmp, "skill-lane-harness.config.json");
+const skillLaneConfig = structuredClone(customConfig);
+if (skillLaneConfig.workspaceContract?.lanes?.e2e) {
+  skillLaneConfig.workspaceContract.lanes.e2e.required = false;
+}
+writeFileSync(skillLaneConfigPath, JSON.stringify(skillLaneConfig));
 const smokeRoot = path.join(tmp, "smoke-consumer");
 mkdirSync(path.join(smokeRoot, ".harness"), { recursive: true });
 writeFileSync(path.join(smokeRoot, ".harness", "lane.json"), JSON.stringify({ lane: "smoke" }));
@@ -631,6 +637,21 @@ expect("block-forbidden-skills consumes the central skill roster",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "custom-skill" } }, {
     FHF_HARNESS_CONFIG: customConfigPath,
   }), 0);
+expect("block-forbidden-skills allows a skillLanes skill on the root lane",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "hookify" } }, {
+    FHF_LANE: "root",
+  }), 0);
+expect("block-forbidden-skills blocks a skillLanes skill off the root lane",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "hookify" } }, {
+    FHF_HARNESS_CONFIG: skillLaneConfigPath,
+    FHF_LANE: "e2e",
+  }),
+  (r) => r.code === 2 && r.stderr.includes("routed only for lanes: root"));
+expect("block-forbidden-skills still allows an unmapped allowlisted skill off root",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-explain" } }, {
+    FHF_HARNESS_CONFIG: skillLaneConfigPath,
+    FHF_LANE: "e2e",
+  }), 0);
 
 // PostToolUse — validators must exit 2 (exit 1 would be invisible to Claude)
 expect("validate-cypress-rules flags bad spec with exit 2",
@@ -774,6 +795,15 @@ expect("prompt-router injects one owner for documentation work",
 expect("prompt-router prioritizes test creation over generic documentation",
   run("prompt-router.mjs", { prompt: "write a new test and document the scenario" }),
   (r) => r.code === 0 && r.stdout.includes("[router:new-test]") && !r.stdout.includes("[router:documentation]"));
+expect("prompt-router emits invoke for new-test",
+  run("prompt-router.mjs", { prompt: "write a new cypress test" }),
+  (r) => r.code === 0 && r.stdout.includes("[router] invoke: spawn agent cypress-generator"));
+expect("prompt-router emits invoke for hookify on the root lane",
+  run("prompt-router.mjs", { prompt: "write a hook rule" }),
+  (r) => r.code === 0 && r.stdout.includes("[router:hookify]") && r.stdout.includes("[router] invoke: stay in parent; read skill hookify"));
+expect("prompt-router keeps generate above hookify",
+  run("prompt-router.mjs", { prompt: "write a test and also hookify a rule" }),
+  (r) => r.code === 0 && r.stdout.includes("[router:new-test]") && !r.stdout.includes("[router:hookify]"));
 expect("prompt-router routes backend automation generation to the cross-layer specialist",
   run("prompt-router.mjs", {
     cwd: backendRoot,

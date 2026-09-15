@@ -110,8 +110,11 @@ change -> regenerated projection -> canary verification.
 - Cursor receives the same routing contract at session start because its prompt hook cannot inject
   arbitrary context per prompt.
 
-The runtime sequence is: classify prompt → select the highest-priority route → read the minimum owner/contract →
-perform the job. Prompt keywords are advisory; task intent remains authoritative.
+The runtime sequence is: classify prompt → select the highest-priority route → honour that
+route's `invoke` → read the minimum owner/contract → perform the job. Prompt keywords are
+advisory; task intent remains authoritative. The router prints `invoke` for the parent to
+follow. The skill hook blocks names off the allow-list and `skillLanes` misses; it does not
+re-score the prompt. `spawnBudget` and `modelTiers` are parent policy, not hook gates.
 
 ### Product topology and Jira grounding
 

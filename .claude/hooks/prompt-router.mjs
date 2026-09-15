@@ -67,8 +67,21 @@ function routeApplies(route) {
   return true;
 }
 
+function formatInvoke(invoke) {
+  if (!invoke || typeof invoke !== "object") return "stay in parent";
+  const parts = [];
+  if (invoke.kind === "agent" && invoke.name) parts.push(`spawn agent ${invoke.name}`);
+  else if (invoke.kind === "skill" && invoke.name) parts.push(`stay in parent; read skill ${invoke.name}`);
+  else parts.push("stay in parent");
+  if (invoke.prefer?.kind === "skill" && invoke.prefer.name) {
+    parts.push(`prefer skill ${invoke.prefer.name} when ${invoke.prefer.when ?? "applicable"}`);
+  }
+  return parts.join("; ");
+}
+
 function appendRoute(route) {
   lines.push(`[router:${route.id}] ${route.hint}`);
+  if (route.invoke) lines.push(`[router] invoke: ${formatInvoke(route.invoke)}`);
   if (Array.isArray(route.sourceBundles) && route.sourceBundles.length > 0) {
     lines.push(`[router] Source bundle seed: ${route.sourceBundles.join(", ")}. Expand only with a recorded topology reason.`);
   }
