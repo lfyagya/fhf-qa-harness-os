@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadWorkspacePathsConfig, resolveConsumerRoot, resolveLaneRoot } from "./workspace-paths.mjs";
+import { parseRuleTraces } from "../../.claude/hooks/lib/spec-linkage.mjs";
 
 const harnessRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const paths = loadWorkspacePathsConfig(harnessRoot);
@@ -44,45 +45,8 @@ const rel = (root, f) => path.relative(root, f).split(path.sep).join("/");
 const specsRoot = path.resolve(consumerRoot, paths.applicationIntelligence);
 const specFiles = walk(specsRoot, (n) => n.endsWith(".yaml"));
 
-// Per-rule `traces:` — the declared cross-layer edge. Shape (all lists optional,
-// at least one required for a rule to count as traced):
-//   business_rules:
-//     - id: BR-RMT-029
-//       traces:
-//         api: [GET_REMARKETING_TITLES_ENDPOINT]   # names from tests/example_env
-//         db: [TITLE_REMARKETING_TRACKER]          # constants from db_schema.py
-//         tests: [backend:tests/smoke/.../test_x.py]
-function parseRuleTraces(text) {
-  const start = text.indexOf("\nbusiness_rules:");
-  if (start < 0) return [];
-  const rest = text.slice(start + 1);
-  const end = rest.search(/\n[a-z_]+:/);
-  const body = end < 0 ? rest : rest.slice(0, end);
-  return body
-    .split(/\n(?=\s*-\s*id:\s*BR-)/)
-    .map((entry) => {
-      const id = entry.match(/\bBR-[A-Z]{2,}-\d+\b/)?.[0];
-      if (!id) return null;
-      const list = (key) => {
-        const inline = entry.match(new RegExp(`^\\s*${key}:\\s*\\[(.+)\\]\\s*$`, "m"));
-        if (inline) return inline[1].split(",").map((v) => v.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
-        const blockStart = entry.search(new RegExp(`^\\s*${key}:\\s*$`, "m"));
-        if (blockStart < 0) return [];
-        const after = entry.slice(blockStart).split("\n").slice(1);
-        const items = [];
-        for (const line of after) {
-          const item = line.match(/^\s*-\s*(.+?)\s*$/);
-          if (!item) break;
-          items.push(item[1].replace(/^["']|["']$/g, ""));
-        }
-        return items;
-      };
-      const traces = { ui: list("ui"), api: list("api"), db: list("db"), tests: list("tests") };
-      return { id, traces, traced: Object.values(traces).some((v) => v.length > 0) };
-    })
-    .filter(Boolean);
-}
-
+// Per-rule `traces:` parsing lives in .claude/hooks/lib/spec-linkage.mjs so this reporter and
+// validate-spec-linkage.mjs cannot disagree about what "traced" means. See that file for the shape.
 const specs = specFiles.map((file) => {
   const text = read(file);
   const field = (key) => text.match(new RegExp(`^${key}:\\s*(.+)$`, "m"))?.[1].trim() ?? null;

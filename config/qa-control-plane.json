@@ -3365,7 +3365,8 @@
           "scenario-content-guard.mjs",
           "artifact-duplication-guard.mjs",
           "coverage-strategy-guard.mjs",
-          "sync-reminder.mjs"
+          "sync-reminder.mjs",
+          "validate-spec-linkage.mjs"
         ],
         "postToolFailure": [
           "failure-loop-guard.mjs"

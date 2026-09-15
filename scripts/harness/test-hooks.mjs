@@ -809,6 +809,29 @@ expect("validate-backend-automation passes a selected helper-based pytest test",
     cwd: backendRoot,
     tool_input: { file_path: backendTestPath },
   }, activeTaskEnv), 0);
+// ---- validate-spec-linkage: the traces ratchet ----
+const linkageSpecPath = path.join(tmp, "specs", "modules", "demo", "thing.yaml");
+const linkageSpec = (rules) => [" module: Demo".trim(), "business_rules:", ...rules, "", "flows:", "  - step: one"].join("\n");
+const linkageRun = (content, file = linkageSpecPath) =>
+  run("validate-spec-linkage.mjs", { tool_input: { file_path: file, content } });
+
+expect("spec linkage blocks a new business rule with no traces",
+  linkageRun(linkageSpec(["  - id: BR-ZZZ-999", "    rule: brand new"])),
+  (r) => r.code === 2 && r.stderr.includes("BR-ZZZ-999"));
+expect("spec linkage allows a new rule that declares traces",
+  linkageRun(linkageSpec(["  - id: BR-ZZZ-999", "    rule: brand new", "    traces:", "      db: [SOME_TABLE]"])), 0);
+expect("spec linkage allows a baselined rule that is still untraced",
+  linkageRun(linkageSpec(["  - id: BR-ANC-001", "    rule: predates the gate"])), 0);
+expect("spec linkage warns when a baselined rule gains traces",
+  linkageRun(linkageSpec(["  - id: BR-ANC-001", "    rule: now traced", "    traces:", "      tests: [backend:tests/smoke/x/test_y.py]"])),
+  (r) => r.code === 0 && r.stderr.includes("linkage-baseline"));
+expect("spec linkage ignores a non-spec file",
+  linkageRun("business_rules:\n  - id: BR-ZZZ-999", path.join(tmp, "thing.cy.js")), 0);
+expect("spec linkage ignores a spec with no business rules",
+  linkageRun("module: Demo\nflows:\n  - step: one"), 0);
+expect("validate-spec-linkage.mjs allows a metadata-less Cursor probe",
+  runProbe("validate-spec-linkage.mjs"), 0);
+
 expect("validate-backend-automation blocks raw assert in backend tests",
   run("validate-backend-automation.mjs", {
     cwd: backendRoot,
