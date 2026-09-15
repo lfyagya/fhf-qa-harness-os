@@ -1,0 +1,338 @@
+{
+  "schema": "fhf-harness/backfill-bundle/v1",
+  "module": "loss-mitigation",
+  "spec": "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml",
+  "instruction": "For each rule below, declare where it is verified. Use ONLY names from `evidence`. Omit a rule entirely rather than guess - an unresolvable trace is worse than none, because it reports as covered while nothing verifies the rule. Return JSON: { \"proposals\": [ { \"id\": \"BR-...\", \"traces\": { \"ui\": [], \"api\": [], \"db\": [], \"tests\": [] } } ] }",
+  "evidence": {
+    "endpoints": [
+      "AUTOIMS_API_USERNAME",
+      "AUTOIMS_API_PASSWORD",
+      "AUTOIMS_ENDPOINT",
+      "AUTOIMS_BASE_PATH",
+      "AUTOIMS_EVENTS_IMPORT_SCRIPT",
+      "AUTOIMS_EVENTS_SUBSCRIBER_SCRIPT",
+      "REPO_INVOICE_TRACKER_ENDPOINT",
+      "APPROVE_REPO_INVOICE_ENDPOINT",
+      "REPO_INVOICE_STATUS_ENDPOINT",
+      "REPO_INVOICE_TRANSACTION_FAILED_ENDPOINT",
+      "AUCTION_INVOICE_TRACKER_ENDPOINT",
+      "AUCTION_INVOICE_STATUS_ENDPOINT",
+      "APPROVE_AUCTION_INVOICE_ENDPOINT",
+      "AUCTION_INVOICE_NLS_TXN_CODES_ENDPOINT",
+      "AUCTION_INVOICE_LINE_ITEMS_ENDPOINT",
+      "REPO_INVOICE_LINE_ITEMS_ENDPOINT",
+      "GET_REMARKETING_ACCOUNTS_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_PROFILE_ENDPOINT",
+      "GET_REMARKETING_TASK_LIST_ENDPOINT",
+      "GET_IMPOUND_DASHBOARD_ENDPOINT",
+      "GET_IMPOUND_STATUS_ENDPOINT",
+      "GET_IMPOUND_DOCS_NEEDED_ENDPOINT",
+      "GET_IMPOUND_DETAIL_ENDPOINT",
+      "GET_IMPOUND_ASSIGNED_HISTORY_ENDPOINT",
+      "GET_IMPOUND_NOTIFICATION_ENDPOINT",
+      "GET_TRANSPORT_DASHBOARD_ENDPOINT",
+      "GET_TRANSPORT_STATUS_ENDPOINT",
+      "GET_RECON_DASHBOARD_ENDPOINT",
+      "GET_RECON_ACTION_STATUS_ENDPOINT",
+      "GET_RECON_AUTOIMS_HOLD_TYPE_ENDPOINT",
+      "GET_TITLES_REMARKETING_TAB_ENDPOINT",
+      "GET_TITLES_REMARKETING_TITLES_TAB_ENDPOINT",
+      "GET_FHF_NOTIFICATION_REMARKETING_ENDPOINT",
+      "GET_FHF_NOTIFICATION_IMPOUND_ENDPOINT"
+    ],
+    "tables": [
+      "REMARKETING_TRACKER",
+      "REMARKETING_DSHBRD_VW",
+      "REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DASHBOARD_VW",
+      "PKG_IMPOUND_DASHBOARD",
+      "LM_TRANSPORT_USERS",
+      "PKG_TRANSPORT",
+      "PKG_RECON_DASHBOARD",
+      "REMARKETING_INSTANCE",
+      "REMARKETING_TAB_VW",
+      "REMARKETING_TITLE_TAB_VW",
+      "PKG_REMARKETING_DASHBOARD",
+      "REPO_INVOICE_TRACKER",
+      "REPO_INVOICE_INSTANCE",
+      "REPO_INVOICE_LINE_ITEMS",
+      "REPO_INVOICE_NLS_TXN_CODES",
+      "REPO_INVOICE_STATUS",
+      "REPO_INVOICE_TRACKER_VW",
+      "REPO_INVOICE_TRACKER_REPO_VW",
+      "REPO_INVOICE_STATUS_VW",
+      "REPO_INVOICE_NLS_TXN_CODES_VW",
+      "REPO_INVOICE_LINE_ITEMS_VW",
+      "REPO_INVOICE_TRACKER_ACCOUNTING_VW",
+      "REPO_INVOICE_TRANSACTION_FAILED_VW",
+      "RDN_EVENTS_STREAM",
+      "RDN_EVENTS_CHECKPOINT",
+      "RDN_PUBLISHER_EVENTS_MASTER",
+      "RDN_REPO_INSTANCE_VW",
+      "AUCTION_INVOICE_TRACKER",
+      "AUCTION_INVOICE_INSTANCE",
+      "AUCTION_INVOICE_LINE_ITEMS",
+      "AUCTION_INVOICE_STATUS",
+      "AUCTION_INVOICE_TRACKER_VW",
+      "AUCTION_INVOICE_STATUS_VW",
+      "AUCTION_INVOICE_NLS_TXN_CODES_VW",
+      "AUCTION_INVOICE_LINE_ITEMS_VW",
+      "AUCTION_INVOICE_TRANSACTION_FAILED_VW",
+      "LM_REMARKETING_TRACKER",
+      "LM_REMARKETING_DSHBRD_VW",
+      "LM_REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DSHBRD_TRACKER",
+      "IMPOUND_INSTANCE",
+      "IMPOUND_STATUS",
+      "IMPOUND_NOTIFICATION",
+      "IMPOUND_NOTIFICATION_DOC_MAN",
+      "IMPOUND_DOCS_NEEDED_VW",
+      "IMPOUND_DSHBRD_DETAIL_VW",
+      "IMPOUND_ASSIGNED_HISTORY_VW",
+      "IMPOUND_QUEUE_ASGN_VW",
+      "TRANSPORT_DSHBRD_TRACKER",
+      "TRANSPORT_INSTANCE",
+      "TRANSPORT_STATUS",
+      "TRANSPORT_NOTE_ATTRIBUTES",
+      "TRANSPORT_DSHBRD_VW",
+      "TRANSPORT_DSHBRD_VW_V2",
+      "TRANSPORT_STATUS_VW",
+      "RECON_DASHBOARD_TRACKER",
+      "RECON_ACTION_STATUS",
+      "RECON_DASHBOARD_VW",
+      "TITLE_REMARKETING_TRACKER",
+      "TITLE_REMARKETING_INSTANCE",
+      "TITLE_REMARKETING_TAB_VW",
+      "TITLES_REMARKETING_TITLE_TAB_VW",
+      "TITLE_REMARKETING_NOTIFICATION_VW",
+      "PKG_TITLES_REMARKETING_DASHBOARD"
+    ],
+    "tests": [
+      "backend:tests/loss_mitigation/assignment/test_assignment_filter_identity.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_accounting_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_status/test_repo_status_creation.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_api_health.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_master_data.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_api_health.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_master_data.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_api_health.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_master_data.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_api_health.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_api_health.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_master_data.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_api_health.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_master_data.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_api_health.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_db_connectivity.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_master_data.py"
+    ],
+    "ui": [
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/assignment-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/recon-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/remarketing-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-vendor-assignment.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoiceDashboardSorting.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoices.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardNoteAPIAssertion.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardSorting.cy.js",
+      "cypress/tests/scratch/_seed-repo-invoice-ready-to-pay.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/auction-invoice/auctionInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/impound/lossMitigationImpoundDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/recon/lossMitigationReconDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/remarketing/lossMitigationRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo-invoice/repoInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/transport/lossMitigationTransportDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing/titlesRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing-titles/titlesRemarketingTitlesDashboard.cy.js"
+    ]
+  },
+  "rules": [
+    {
+      "id": "BR-IMP-001",
+      "text": "- id: BR-IMP-001\r\n    statement: Impound Dashboard renders a work queue with row-level fields for tracking impounded vehicle accounts (see table_column_contract.required_headers for the full field list).\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-002",
+      "text": "- id: BR-IMP-002\r\n    statement: A header record-count display (\"Showing X of Y Records\") reflects the currently loaded/filtered result set size.\r\n    priority: Low"
+    },
+    {
+      "id": "BR-IMP-003",
+      "text": "- id: BR-IMP-003\r\n    statement: A \"Show Archived Accounts\" toggle controls whether archived accounts — accounts whose Impound Status is a final status (see table_column_contract Impound Status status_lifecycle) — are included in the result set; off by default, which excludes them.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-004",
+      "text": "- id: BR-IMP-004\r\n    statement: An \"Action Needed\" indicator (bell icon with a red dot) is shown in the dashboard header when one or more accounts require attention.\r\n    priority: Medium\r\n    note: Exact trigger criteria and click behavior are not yet confirmed."
+    },
+    {
+      "id": "BR-IMP-005",
+      "text": "- id: BR-IMP-005\r\n    statement: \"Loan # is styled as a hyperlink (blue text) on each row.\"\r\n    priority: Medium\r\n    note: Destination of the link is not yet confirmed (likely an account detail page, by analogy with sibling dashboards)."
+    },
+    {
+      "id": "BR-IMP-006",
+      "text": "- id: BR-IMP-006\r\n    statement: Impound Status is an editable per-row dropdown (single value per row) constrained to the supported status list (see table_column_contract Impound Status); the same status list is available as multi-select options in the Impound Status filter.\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-007",
+      "text": "- id: BR-IMP-007\r\n    statement: Impound State is an editable per-row dropdown (single value per row) constrained to the supported state/territory list (see table_column_contract Impound State), or \"Select...\" when unset.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-008",
+      "text": "- id: BR-IMP-008\r\n    statement: Claim Status is a read-only pass-through value that can be sourced from either the Insurance Dashboard's Lienholder Claim sub-module or its Total Loss sub-module (OR logic); Total Loss Status is a read-only pass-through value owned by the Total Loss sub-module. A value change made on the owning sub-module must be reflected on Impound (see data_population_rules.pass_through_fields).\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-018",
+      "text": "- id: BR-IMP-018\r\n    statement: Each Impound Status value is classified as final (terminal/closed) or non-final (in-progress), with a defined sort order for display grouping (see table_column_contract Impound Status status_lifecycle).\r\n    priority: Medium\r\n    note: Duplicate/Error and Fee Dispute are not yet classified as final or non-final."
+    },
+    {
+      "id": "BR-IMP-009",
+      "text": "- id: BR-IMP-009\r\n    statement: DPD (Days Past Due) is a read-only numeric column.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-010",
+      "text": "- id: BR-IMP-010\r\n    statement: Last Payment Date and Follow Up Date are date columns.\r\n    priority: Medium\r\n    note: Editability of these columns is not yet confirmed."
+    },
+    {
+      "id": "BR-IMP-011",
+      "text": "- id: BR-IMP-011\r\n    statement: Loan Number and VIN are copyable but not editable.\r\n    priority: Medium\r\n    note: Copyability is assumed by analogy with sibling dashboards and not yet directly confirmed for Impound."
+    },
+    {
+      "id": "BR-IMP-012",
+      "text": "- id: BR-IMP-012\r\n    statement: The left-hand-side filter panel exposes Loan Number, VIN, Impound Status, Impound State, Assigned To, PTP, Follow Up Date, Impound Completed Date, Days on Impound Dashboard, Date of Impound, Lien Sale Date, Notice Received Date, and Last Worked Date (see filter_inventory).\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-013",
+      "text": "- id: BR-IMP-013\r\n    statement: Filter selections in the left-hand-side filter panel are only applied to the result set when Apply is clicked; Cancel discards pending selections without applying them.\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-014",
+      "text": "- id: BR-IMP-014\r\n    statement: PTP renders as a \"Select...\" dropdown in the filter panel rather than a date-range control.\r\n    priority: Medium\r\n    note: Allowed option values are not yet confirmed."
+    },
+    {
+      "id": "BR-IMP-015",
+      "text": "- id: BR-IMP-015\r\n    statement: Days on Impound Dashboard is a numeric Min/Max range filter.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-016",
+      "text": "- id: BR-IMP-016\r\n    statement: Each filter in the panel has an adjacent overflow (⋮) control.\r\n    priority: Low\r\n    note: Exact behavior (e.g. pin, clear-single-filter, reorder) is not yet confirmed."
+    },
+    {
+      "id": "BR-IMP-017",
+      "text": "- id: BR-IMP-017\r\n    statement: The right-hand-side panel provides Notes, Loan Details, Loan Documents, Financial Snapshot, Events, and Email History tabs for the selected row (see right_hand_side_contract.enabled_tabs).\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-019",
+      "text": "- id: BR-IMP-019\r\n    statement: An account is populated onto the Impound dashboard when a Vehicle Impounded event is added for it via Unifi, which creates a new impound instance for the account (see data_population_rules.eligibility_rules, instance_contract).\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-IMP-020",
+      "text": "- id: BR-IMP-020\r\n    statement: If an account already has an active impound instance, a subsequent Vehicle Impounded event does not create a new/duplicate instance for that account.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-IMP-021",
+      "text": "- id: BR-IMP-021\r\n    statement: Each occurrence of an account being impounded is tracked as a distinct instance identified by an instance_id; an account may have multiple instances over its lifetime, but only one is active at a time (see instance_contract).\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-022",
+      "text": "- id: BR-IMP-022\r\n    statement: Repo Status is a read-only pass-through value reflecting the account's corresponding repossession status in Leapfrog (dev3) (see data_population_rules.pass_through_fields).\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-023",
+      "text": "- id: BR-IMP-023\r\n    statement: Assigned To is an editable per-row dropdown (single value per row) showing the person (e.g. agent) assigned to the account.\r\n    priority: Medium\r\n    note: Full allowed-value list not yet confirmed."
+    },
+    {
+      "id": "BR-IMP-024",
+      "text": "- id: BR-IMP-024\r\n    statement: Days on Impound Dashboard is a read-only computed numeric column reflecting how long the account's active instance has been on the dashboard.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-025",
+      "text": "- id: BR-IMP-025\r\n    statement: The table column and its corresponding left-hand-side filter use different labels for the same field in two cases — \"PTP Date\" (column) / \"PTP\" (filter) and \"Last Worked\" (column) / \"Last Worked Date\" (filter) — mirroring the Client/Client Name label pattern documented on sibling dashboards.\r\n    priority: Low"
+    },
+    {
+      "id": "BR-IMP-026",
+      "text": "- id: BR-IMP-026\r\n    statement: The Notes column displays a note icon together with a truncated text preview/link of the note content (e.g. \"Check Insurance\") when a note exists for the row.\r\n    priority: Medium\r\n    note: Whether Notes on Impound is private to this dashboard, by analogy with Remarketing Titles' Notes field, is not yet confirmed."
+    },
+    {
+      "id": "BR-IMP-027",
+      "text": "- id: BR-IMP-027\r\n    statement: The Assigned To widget on the Details Page records each prior assignment with a timestamp when the assignment changes, and displays the resulting Assignment History list in reverse chronological order (most recent first).\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-028",
+      "text": "- id: BR-IMP-028\r\n    statement: When the account's LF (Leapfrog) Securement/Repo Status becomes \"Secured - Impound\", the system automatically populates the Secured Date on the Impound Dashboard and sets the Impound Status to \"Vehicle Secured\", always overwriting the current Impound Status regardless of its prior value.\r\n    priority: Critical\r\n    note: '\"Impound Secured Date\" in the source ticket maps to the existing Secured Date column (confirmed with requester); no separate column is added.'"
+    },
+    {
+      "id": "BR-IMP-029",
+      "text": "- id: BR-IMP-029\r\n    statement: \"Impound Completed Date is populated with the current system date when the Impound Status changes to any final status (Vehicle Secured, Client Secured, Insurance Secured, Impound Cancelled, Lien loss, Not Impound).\"\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-030",
+      "text": "- id: BR-IMP-030\r\n    statement: Once the Impound Completed Date is populated it is not overwritten by any future status update.\r\n    priority: High"
+    },
+    {
+      "id": "BR-IMP-031",
+      "text": ""
+    },
+    {
+      "id": "BR-IMP-032",
+      "text": "- id: BR-IMP-032\r\n    statement: When Days on Impound Dashboard is greater than 5, its value is displayed in red on the dashboard list view.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-033",
+      "text": "- id: BR-IMP-033\r\n    statement: The Days on Impound Dashboard column is positioned immediately before the Date of Impound column on the main dashboard list view (already reflected in table_column_contract.required_headers ordering).\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-034",
+      "text": "- id: BR-IMP-034\r\n    statement: Exporting Impound Dashboard data produces a file that includes all dashboard columns, including the new/updated fields.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-IMP-035",
+      "text": "- id: BR-IMP-035\r\n    statement: The Basic Details widget on the Details Page includes a \"Titles Details Page\" link that navigates to the corresponding account's Details Page on the Titles module.\r\n    priority: Medium\r\n    note: Destination sub-module/tab and whether it opens in the same browser tab or a new one are not yet confirmed."
+    },
+    {
+      "id": "BR-IMP-036",
+      "text": "- id: BR-IMP-036\r\n    statement: A Notes section on the Details Page, positioned directly below the Email widget, provides a free-text field for internal reference (see account_detail_page_contract.sections Notes); distinct from the right-hand-side panel's Notes tab (see specs/components/account-details-page.component.yaml left_hand_side_contract.notes_section_contract).\r\n    priority: Medium\r\n    note: Exact save behavior (own Save control vs. page-bottom Save button) not yet confirmed for Impound specifically."
+    },
+    {
+      "id": "BR-IMP-037",
+      "text": "- id: BR-IMP-037\r\n    statement: When an account has no Notice Received Date, Days on Impound Dashboard renders blank (\"-\") rather than a numeric value, since the calculation has no baseline to measure from (see BR-IMP-031).\r\n    priority: High\r\n    note: 'Per SERV-12124: confirmed with requester that a missing baseline shows no value rather than falling back to Date of Impound or defaulting to 0.'"
+    },
+    {
+      "id": "BR-IMP-038",
+      "text": ""
+    }
+  ]
+}

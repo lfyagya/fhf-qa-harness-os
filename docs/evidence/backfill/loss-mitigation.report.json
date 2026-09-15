@@ -1,0 +1,15 @@
+{
+  "module": "loss-mitigation",
+  "spec": "assignment.yaml",
+  "proposed": 9,
+  "kept": 9,
+  "dropped": 0,
+  "keepRate": 100,
+  "dropReasons": [],
+  "specs": [
+    {
+      "spec": "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml",
+      "rules": 9
+    }
+  ]
+}

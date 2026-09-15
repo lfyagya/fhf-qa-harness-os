@@ -1,0 +1,81 @@
+--- a/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml
++++ b/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml
+@@ -87,21 +87,40 @@ business_rules:
+   - id: BR-REPO-001
+     statement: Repo Main tab displays a loan work queue with row-level detail fields for operational triage (Action, Contract State, DPD, Principal Bal., Past Due Bal., Last Pay, Repo Agent, Resident State, Date Assigned, Days with Agent, Last Worked, PTP Date, Region, Assigned To).
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js]
++      tests: [backend:tests/smoke/loss_mitigation/repo/test_repo_api_health.py]
++
+   - id: BR-REPO-002
+     statement: Each queue row displays the loan reference, customer name, vehicle description (year/make/model), VIN, GPS Installed status, and Serial Number.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js]
++
+   - id: BR-REPO-003
+     statement: Loan Number is a hyperlink that navigates to the corresponding loan record in the dev3 environment for that loan.
+     priority: Medium
++    traces:
++      tests: [backend:tests/smoke/loss_mitigation/repo/test_repo_db_connectivity.py]
++
+   - id: BR-REPO-004
+     statement: Each row displays a disposition label (e.g. No Status, Default Cured, Bankruptcy) reflecting the account's current stage.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js]
++
+   - id: BR-REPO-005
+     statement: Each row displays a Repo Type badge (Voluntary Repo or Involuntary Repo).
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js]
++
+   - id: BR-REPO-006
+     statement: Each row displays the Assigned To representative with assignment date.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js]
++
+   - id: BR-REPO-007
+     statement: Action is an editable per-row field constrained to the supported action list.
+     priority: High
+@@ -111,6 +130,9 @@ business_rules:
+   - id: BR-REPO-009
+     statement: Repo does not perform independent regional routing; an account arrives already assigned via the Assignment Dashboard's routing (assignment.yaml BR-ASGN-009 through BR-ASGN-011).
+     priority: Critical
++    traces:
++      tests: [backend:tests/smoke/loss_mitigation/repo/test_repo_master_data.py]
++
+   - id: BR-REPO-010
+     statement: Assignment and Repo share one combined queueing mechanism — a representative's active queue volume counts accounts on either dashboard as the same single count (assignment.yaml BR-ASGN-012).
+     priority: Critical
+@@ -126,15 +148,27 @@ business_rules:
+   - id: BR-REPO-014
+     statement: Existing Repo Dashboard prioritization, sorting, and workflow behavior are unchanged by this update; the only workflow change is that regional assignment routing now happens upstream, on the Assignment Dashboard, before an account appears here.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js]
++
+   - id: BR-REPO-015
+     statement: Assigned To, Region, Contract State, and Last Worked Date are visible table columns and filters on the Repo Main tab, and a Last Worked > 7 Days indicator is shown per row.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js]
++
+   - id: BR-REPO-016
+     statement: The Assigned To filter is pre-applied by default at screen load, scoped to the currently logged-in representative.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js]
++
+   - id: BR-REPO-017
+     statement: CSV exports from the Repo Dashboard include Assigned To, Region, Contract State, and Last Worked Date as columns.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js]
++
+   - id: BR-REPO-018
+     statement: When a note is created from the Repo Dashboard, the system automatically includes a "Repo:" dashboard-source identifier in the note text, visible in note history.
+     priority: High

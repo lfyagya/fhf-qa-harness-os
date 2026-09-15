@@ -11,11 +11,13 @@ Do not browse or preload this tree. Read the single owner matching the task.
 | Frontend implementation evidence | `../fhf-dashboards/src/` |
 | Automation implementation evidence | `../front-end-automation-e2e/CypressFHF/fhf-dashboards/`, `../front-end-automation-smoke/CypressFHF/fhf-dashboards/`, and `../fhf-backend-automation/` |
 | Backend API and Oracle authoring rules — how to write the tests | `../fhf-backend-automation/CLAUDE.md` and its `.claude/rules/`. **Federated owner**: authority is repository-local per ADR-0010, ADR-0017, ADR-0021. The lane *contract* — what counts as evidence — stays in `framework/testing-standards/TESTS.md` §Backend API/database |
+| Canonical requirement registry — intent as machine-readable ids, for the five blueprint-ready sub-modules | `evidence/requirements.json` (generated; run `node ../fhf-harness-os/scripts/harness/build-requirements.mjs`) |
 | Current repository test presence | `evidence/coverage-computed.json` |
 | Latest execution and failure evidence | `evidence/execution-history.md` |
 | Per-sprint regression pack — plan, checklist, release confidence | `../front-end-automation-e2e/docs/evidence/regression-effort/records/<sprint-id>/` (e.g. `sprint-26.3.5/`). Records moved out of this tree 2026-08-17; `evidence/regression-effort/` keeps only the workflow and templates. Content search skips that nested repository — resolve the path directly |
 | Accepted UI → API → DB evidence | `planning/coverage/fullstack-chain-risk-matrix.md` |
 | Smoke UI → API → DB chain coverage, per sub-module (2026-08-20) | `planning/smoke-ui-api-db-chain-coverage.md` — **temporary stand-in**: belongs in `planning/coverage/` and should be folded into the owner above; that directory is currently deny-blocked |
+| The QA AI workflow standard — which document governs test generation, coverage design, regression development, data setup, reviews, quality checks, and who answers for each | `adoption/qa-ai-adoption-strategy.md` §3 (ratification-ready; not the adopted standard until its status line names a date) |
 | Priority, scope, estimate, capacity, sequence, or impact | `planning/roadmap/effort-breakdown-by-module-and-subdashboard.md` |
 | When to run which lane, change-based selection, gates, on-demand triggers | `framework/execution-strategy.md` |
 | Cloud failure triage, night brief, failed-spec re-runs | `framework/triage-runbook.md` |

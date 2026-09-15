@@ -49,16 +49,26 @@ action available right now.
 **Targets are proposals until the next sync signs them off.** The objectives are agreed; the
 numbers are not. Do not report against a target this table marks as unset.
 
-## 3. Candidate standard workflow — for review
+## 3. Standard workflow
 
-**Status: proposed, not adopted.** Prachi owns workflow standardization; this is a starting draft to
-review against, not a decision. Adopt, amend, or replace it.
+**Status: ratification-ready — awaiting sign-off by Prachi at the bi-weekly sync (§9).** On sign-off,
+replace this line with `Ratified <date>. Owner: Prachi (workflow standardization).` Until that line
+changes, this section is still a draft and must not be cited as the adopted standard.
+
+**What ratification does and does not change.** It adds no rules. Every row below was already in
+force and, in most cases, hook-enforced before this section existed; ratification only gives "the
+standard" one address. What it does change is citation: after sign-off, a review may cite this
+section as the standard, and a workflow dispute resolves against the owning document in the third
+column rather than against custom.
+
+**Amendment rule.** A row changes only by changing its owning document. Editing this table without
+changing the owner is drift — this table is a pointer, and a pointer is not an authority.
 
 The team named six areas a standard has to cover. All six are already defined and, in most cases,
 hook-enforced — but across four documents, so nobody can point at "the standard". This table is that
-pointer. It proposes no new rules; each row states a rule that is already in force today and the
-document that owns it, so the review question is whether these are the right rules to standardize on
-— not whether they exist.
+pointer. Each row states a rule that is already in force today and the document that owns it, so
+the question this section puts to review is whether these are the right rules to standardize on —
+not whether they exist.
 
 | Area | Rule in force today | Owning document |
 |---|---|---|
@@ -82,10 +92,63 @@ What is *not* done is registration. Only one page — [`qa-harness.md`](./qa-har
 Confluence page ID, so it is published nowhere. Registering it is a small config change plus one
 approval-gated Confluence write.
 
-**Known gaps in this draft.** Performance and other non-functional validation is out of scope
-until the workflow above is routine — the phased position the team agreed. Effort reduction and the
-manual-to-automated shift (objectives 1 and 3 above) remain unreportable until one release supplies
-a manual baseline; that gap is a missing measurement, not a missing standard.
+### Roles and accountability
+
+The six rows above say what the rules are. This says who answers for each one. Two layers, because
+they fail differently: a *rule* owner decides what the standard says, a *compliance* owner is what
+stops a change that violates it. Where compliance is a hook or a gate, no person is named on purpose
+— an enforcement that depends on someone remembering is not an enforcement.
+
+| Area | Rule owner | Compliance | Named person needed |
+|---|---|---|---|
+| Test generation | Prachi (standard); harness for routing | Prompt router + agent-spawning gate, at runtime | — |
+| Coverage design | Product SME per module, for intent; Yagya for the ledger | `requirements.json` for intent, `coverage-computed.json` for test presence; an unverifiable link is labelled `UNKNOWN`, never inferred | **Yes** — SME per module, ask 1, Funding then Post Funding first |
+| Regression development | Whoever raises the change selects; the strategy constrains the selection | Trigger matrix; selection may only narrow, and a narrowed run is never a release verdict | — |
+| Data setup | **Unassigned** — see the standing decision below | `TESTS.md` §Lane contracts; the gate rejects an unowned shared-record mutation | **Yes** — a reviewed design decision plus whoever owns Dev/QA data, ask 1 |
+| Reviews | Prachi (standard) | One gate verdict per change, bound to a change digest so an unrelated edit cannot reuse an old PASS. BLOCK means fix, never override | — |
+| Quality checks | `TESTS.md` §False-green controls | Eight named conditions block acceptance outright | — |
+
+Three of the six need no person because the enforcement is already mechanical. The two marked **Yes**
+are the same two dependencies section 4 lists as blockers 1 and 3, and section 5 asks for as ask 1 —
+this table adds no new ask, it shows where the missing owner actually bites.
+
+Outside the six areas: Yagya owns adoption and this page, Prachi owns workflow standardization and
+the consolidated blocker list, Chintan owns asks 1 to 4, and the backend automation repository's
+owner co-owns ask 5. Frontend `data-cy` capacity is a developer, not a decision-maker — routing it
+as a decision is how it stalls.
+
+### Test-data lifecycle — the standing decision
+
+The Data setup row states the rule in force, which is deliberately strict: no generic seed or
+cleanup lifecycle exists, so a mutation scenario is accepted only with a source-verified,
+workflow-specific setup and cleanup path. That is a fail-closed default and it is correct as a
+default — but it is not a strategy, and it is the per-scenario cost driver named in blocker 3.
+
+Ratifying this section ratifies the default, not the absence of a strategy. The open decision, and
+its scope:
+
+- **Pilot:** one workflow in Loss Mitigation — its Recon, Skip Trace, Assignment, and Repo specs are
+  already blueprint-ready and the module is E2E PARTIAL, so a lifecycle can be designed against
+  approved intent rather than invented per scenario.
+- **What the pilot has to answer:** whether setup is a Cypress command, an API seed, or an Oracle
+  fixture; who owns teardown when a run dies mid-scenario; and whether any part of the lifecycle can
+  be shared across modules without creating the unowned shared-record mutation the gate rejects.
+- **What holds regardless of the answer:** each lane creates and cleans up its own synthetic
+  identity, and lanes correlate by the API request contract, never by sharing a row. A shared
+  lifecycle may not weaken either invariant — if a proposed design requires two lanes to read the
+  same record, that design is rejected, not the invariant.
+
+Until the pilot reports, every mutation scenario budgets bespoke setup and cleanup, and estimates in
+[`effort-breakdown-by-module-and-subdashboard.md`](../planning/roadmap/effort-breakdown-by-module-and-subdashboard.md)
+must carry that cost rather than assume it away.
+
+### What ratification does not settle
+
+Performance and other non-functional validation stays out of scope until the workflow above is
+routine — the phased position the team agreed. Effort reduction and the manual-to-automated shift
+(objectives 1 and 3) remain unreportable until one release supplies a manual baseline; that is a
+missing measurement, not a missing standard, and ratifying this section does not make those numbers
+reportable.
 
 ---
 

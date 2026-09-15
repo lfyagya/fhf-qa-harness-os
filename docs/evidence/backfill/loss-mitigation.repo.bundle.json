@@ -1,0 +1,286 @@
+{
+  "schema": "fhf-harness/backfill-bundle/v1",
+  "module": "loss-mitigation",
+  "spec": "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml",
+  "instruction": "For each rule below, declare where it is verified. Use ONLY names from `evidence`. Omit a rule entirely rather than guess - an unresolvable trace is worse than none, because it reports as covered while nothing verifies the rule. Return JSON: { \"proposals\": [ { \"id\": \"BR-...\", \"traces\": { \"ui\": [], \"api\": [], \"db\": [], \"tests\": [] } } ] }",
+  "evidence": {
+    "endpoints": [
+      "AUTOIMS_API_USERNAME",
+      "AUTOIMS_API_PASSWORD",
+      "AUTOIMS_ENDPOINT",
+      "AUTOIMS_BASE_PATH",
+      "AUTOIMS_EVENTS_IMPORT_SCRIPT",
+      "AUTOIMS_EVENTS_SUBSCRIBER_SCRIPT",
+      "REPO_INVOICE_TRACKER_ENDPOINT",
+      "APPROVE_REPO_INVOICE_ENDPOINT",
+      "REPO_INVOICE_STATUS_ENDPOINT",
+      "REPO_INVOICE_TRANSACTION_FAILED_ENDPOINT",
+      "AUCTION_INVOICE_TRACKER_ENDPOINT",
+      "AUCTION_INVOICE_STATUS_ENDPOINT",
+      "APPROVE_AUCTION_INVOICE_ENDPOINT",
+      "AUCTION_INVOICE_NLS_TXN_CODES_ENDPOINT",
+      "AUCTION_INVOICE_LINE_ITEMS_ENDPOINT",
+      "REPO_INVOICE_LINE_ITEMS_ENDPOINT",
+      "GET_REMARKETING_ACCOUNTS_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_PROFILE_ENDPOINT",
+      "GET_REMARKETING_TASK_LIST_ENDPOINT",
+      "GET_IMPOUND_DASHBOARD_ENDPOINT",
+      "GET_IMPOUND_STATUS_ENDPOINT",
+      "GET_IMPOUND_DOCS_NEEDED_ENDPOINT",
+      "GET_IMPOUND_DETAIL_ENDPOINT",
+      "GET_IMPOUND_ASSIGNED_HISTORY_ENDPOINT",
+      "GET_IMPOUND_NOTIFICATION_ENDPOINT",
+      "GET_TRANSPORT_DASHBOARD_ENDPOINT",
+      "GET_TRANSPORT_STATUS_ENDPOINT",
+      "GET_RECON_DASHBOARD_ENDPOINT",
+      "GET_RECON_ACTION_STATUS_ENDPOINT",
+      "GET_RECON_AUTOIMS_HOLD_TYPE_ENDPOINT",
+      "GET_TITLES_REMARKETING_TAB_ENDPOINT",
+      "GET_TITLES_REMARKETING_TITLES_TAB_ENDPOINT",
+      "GET_FHF_NOTIFICATION_REMARKETING_ENDPOINT",
+      "GET_FHF_NOTIFICATION_IMPOUND_ENDPOINT"
+    ],
+    "tables": [
+      "REMARKETING_TRACKER",
+      "REMARKETING_DSHBRD_VW",
+      "REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DASHBOARD_VW",
+      "PKG_IMPOUND_DASHBOARD",
+      "LM_TRANSPORT_USERS",
+      "PKG_TRANSPORT",
+      "PKG_RECON_DASHBOARD",
+      "REMARKETING_INSTANCE",
+      "REMARKETING_TAB_VW",
+      "REMARKETING_TITLE_TAB_VW",
+      "PKG_REMARKETING_DASHBOARD",
+      "REPO_INVOICE_TRACKER",
+      "REPO_INVOICE_INSTANCE",
+      "REPO_INVOICE_LINE_ITEMS",
+      "REPO_INVOICE_NLS_TXN_CODES",
+      "REPO_INVOICE_STATUS",
+      "REPO_INVOICE_TRACKER_VW",
+      "REPO_INVOICE_TRACKER_REPO_VW",
+      "REPO_INVOICE_STATUS_VW",
+      "REPO_INVOICE_NLS_TXN_CODES_VW",
+      "REPO_INVOICE_LINE_ITEMS_VW",
+      "REPO_INVOICE_TRACKER_ACCOUNTING_VW",
+      "REPO_INVOICE_TRANSACTION_FAILED_VW",
+      "RDN_EVENTS_STREAM",
+      "RDN_EVENTS_CHECKPOINT",
+      "RDN_PUBLISHER_EVENTS_MASTER",
+      "RDN_REPO_INSTANCE_VW",
+      "AUCTION_INVOICE_TRACKER",
+      "AUCTION_INVOICE_INSTANCE",
+      "AUCTION_INVOICE_LINE_ITEMS",
+      "AUCTION_INVOICE_STATUS",
+      "AUCTION_INVOICE_TRACKER_VW",
+      "AUCTION_INVOICE_STATUS_VW",
+      "AUCTION_INVOICE_NLS_TXN_CODES_VW",
+      "AUCTION_INVOICE_LINE_ITEMS_VW",
+      "AUCTION_INVOICE_TRANSACTION_FAILED_VW",
+      "LM_REMARKETING_TRACKER",
+      "LM_REMARKETING_DSHBRD_VW",
+      "LM_REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DSHBRD_TRACKER",
+      "IMPOUND_INSTANCE",
+      "IMPOUND_STATUS",
+      "IMPOUND_NOTIFICATION",
+      "IMPOUND_NOTIFICATION_DOC_MAN",
+      "IMPOUND_DOCS_NEEDED_VW",
+      "IMPOUND_DSHBRD_DETAIL_VW",
+      "IMPOUND_ASSIGNED_HISTORY_VW",
+      "IMPOUND_QUEUE_ASGN_VW",
+      "TRANSPORT_DSHBRD_TRACKER",
+      "TRANSPORT_INSTANCE",
+      "TRANSPORT_STATUS",
+      "TRANSPORT_NOTE_ATTRIBUTES",
+      "TRANSPORT_DSHBRD_VW",
+      "TRANSPORT_DSHBRD_VW_V2",
+      "TRANSPORT_STATUS_VW",
+      "RECON_DASHBOARD_TRACKER",
+      "RECON_ACTION_STATUS",
+      "RECON_DASHBOARD_VW",
+      "TITLE_REMARKETING_TRACKER",
+      "TITLE_REMARKETING_INSTANCE",
+      "TITLE_REMARKETING_TAB_VW",
+      "TITLES_REMARKETING_TITLE_TAB_VW",
+      "TITLE_REMARKETING_NOTIFICATION_VW",
+      "PKG_TITLES_REMARKETING_DASHBOARD"
+    ],
+    "tests": [
+      "backend:tests/loss_mitigation/assignment/test_assignment_filter_identity.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_accounting_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_status/test_repo_status_creation.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_api_health.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_master_data.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_api_health.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_master_data.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_api_health.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_master_data.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_api_health.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_api_health.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_master_data.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_api_health.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_master_data.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_api_health.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_db_connectivity.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_master_data.py"
+    ],
+    "ui": [
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/assignment-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/recon-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/remarketing-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-vendor-assignment.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoiceDashboardSorting.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoices.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardNoteAPIAssertion.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardSorting.cy.js",
+      "cypress/tests/scratch/_seed-repo-invoice-ready-to-pay.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/auction-invoice/auctionInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/impound/lossMitigationImpoundDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/recon/lossMitigationReconDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/remarketing/lossMitigationRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo-invoice/repoInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/transport/lossMitigationTransportDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing/titlesRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing-titles/titlesRemarketingTitlesDashboard.cy.js"
+    ]
+  },
+  "rules": [
+    {
+      "id": "BR-REPO-001",
+      "text": "- id: BR-REPO-001\r\n    statement: Repo Main tab displays a loan work queue with row-level detail fields for operational triage (Action, Contract State, DPD, Principal Bal., Past Due Bal., Last Pay, Repo Agent, Resident State, Date Assigned, Days with Agent, Last Worked, PTP Date, Region, Assigned To).\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-002",
+      "text": "- id: BR-REPO-002\r\n    statement: Each queue row displays the loan reference, customer name, vehicle description (year/make/model), VIN, GPS Installed status, and Serial Number.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-003",
+      "text": "- id: BR-REPO-003\r\n    statement: Loan Number is a hyperlink that navigates to the corresponding loan record in the dev3 environment for that loan.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-REPO-004",
+      "text": "- id: BR-REPO-004\r\n    statement: Each row displays a disposition label (e.g. No Status, Default Cured, Bankruptcy) reflecting the account's current stage.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-REPO-005",
+      "text": "- id: BR-REPO-005\r\n    statement: Each row displays a Repo Type badge (Voluntary Repo or Involuntary Repo).\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-006",
+      "text": "- id: BR-REPO-006\r\n    statement: Each row displays the Assigned To representative with assignment date.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-007",
+      "text": "- id: BR-REPO-007\r\n    statement: Action is an editable per-row field constrained to the supported action list.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-008",
+      "text": "- id: BR-REPO-008\r\n    statement: The Notes icon on a row opens a Notes popup scoped to that loan, showing an Add Note entry field and cross-dashboard Notes History.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-009",
+      "text": "- id: BR-REPO-009\r\n    statement: Repo does not perform independent regional routing; an account arrives already assigned via the Assignment Dashboard's routing (assignment.yaml BR-ASGN-009 through BR-ASGN-011).\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-REPO-010",
+      "text": "- id: BR-REPO-010\r\n    statement: Assignment and Repo share one combined queueing mechanism — a representative's active queue volume counts accounts on either dashboard as the same single count (assignment.yaml BR-ASGN-012).\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-REPO-011",
+      "text": "- id: BR-REPO-011\r\n    statement: Sticky ownership persists through the Repo lifecycle until the repo case is closed or the account reaches one of the final statuses (Secured – Involuntary, Secured – Voluntary, Secured – Impound, or an existing final status such as BK or Unable to Locate) — see assignment.yaml BR-ASGN-013/BR-ASGN-014.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-REPO-012",
+      "text": "- id: BR-REPO-012\r\n    statement: When an account reaches a final status and later re-enters the repo process, a new Assignment ID is generated and the account is treated as a new workflow instance, eligible for reassignment using the standard routing rules (assignment.yaml BR-ASGN-015).\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-REPO-013",
+      "text": "- id: BR-REPO-013\r\n    statement: Last Worked Date remains associated with the assigned representative; the transition from Assignment to Repo does not reset Last Worked Date, reassign ownership, or create a new Last Worked Date value; subsequent activity continues to update it for that same representative.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-014",
+      "text": "- id: BR-REPO-014\r\n    statement: Existing Repo Dashboard prioritization, sorting, and workflow behavior are unchanged by this update; the only workflow change is that regional assignment routing now happens upstream, on the Assignment Dashboard, before an account appears here.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-REPO-015",
+      "text": "- id: BR-REPO-015\r\n    statement: Assigned To, Region, Contract State, and Last Worked Date are visible table columns and filters on the Repo Main tab, and a Last Worked > 7 Days indicator is shown per row.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-016",
+      "text": "- id: BR-REPO-016\r\n    statement: The Assigned To filter is pre-applied by default at screen load, scoped to the currently logged-in representative.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-REPO-017",
+      "text": "- id: BR-REPO-017\r\n    statement: CSV exports from the Repo Dashboard include Assigned To, Region, Contract State, and Last Worked Date as columns.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-018",
+      "text": "- id: BR-REPO-018\r\n    statement: When a note is created from the Repo Dashboard, the system automatically includes a \"Repo:\" dashboard-source identifier in the note text, visible in note history.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-019",
+      "text": "- id: BR-REPO-019\r\n    statement: Queue-ineligible users (Managers, Associate Managers, Team Leads, designated Senior Associates — see specs/modules/common/loss-mitigation/queue-ineligible-users.yaml) retain view and update access to the Repo Dashboard but never receive account assignments.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REPO-020",
+      "text": ""
+    },
+    {
+      "id": "BR-REPO-021",
+      "text": "- id: BR-REPO-021\r\n    statement: |\r\n      The reinstatement limit (max two completed reinstatements) applies only when the account's\r\n      origination state is not a statutory reinstatement state. Statutory exempt states: California,\r\n      Connecticut, Illinois, Maryland, Mississippi, New York, Ohio, Rhode Island, Wisconsin — these\r\n      continue to allow reinstatement regardless of prior reinstatement count. All other origination\r\n      states are subject to the limit.\r\n    priority: Critical\r\n    note: \"Per SERV-12207. Illinois is treated the same as other statutory states (blanket exempt).\""
+    },
+    {
+      "id": "BR-REPO-022",
+      "text": "- id: BR-REPO-022\r\n    statement: |\r\n      When origination state is non-statutory, the account has two completed reinstatements, and a\r\n      third repossession is recorded, the system automatically creates a Level 1 \"Not Eligible for\r\n      Reinstatement\" blocker event.\r\n    priority: Critical\r\n    note: \"Per SERV-12207.\""
+    },
+    {
+      "id": "BR-REPO-023",
+      "text": "- id: BR-REPO-023\r\n    statement: |\r\n      The \"Not Eligible for Reinstatement\" event is Level 1, appears in Account Alerts and Overview\r\n      on UniFi Events (and on RHS Events wherever the shared event component is enabled), triggers\r\n      an automated system note (\"This account is not eligible for reinstatement. The maximum\r\n      allowable reinstatement limit has been reached. Full redemption is required per company\r\n      policy.\"), and cannot be removed from the UI (see event.component.yaml RL-008).\r\n    priority: Critical\r\n    note: \"Per SERV-12207.\""
+    },
+    {
+      "id": "BR-REPO-024",
+      "text": "- id: BR-REPO-024\r\n    statement: |\r\n      If an active \"Not Eligible for Reinstatement\" event already exists on the account, no duplicate\r\n      event is created; the existing event remains active.\r\n    priority: High\r\n    note: \"Per SERV-12207.\""
+    },
+    {
+      "id": "BR-REPO-025",
+      "text": "- id: BR-REPO-025\r\n    statement: |\r\n      A \"Not Eligible for Reinstatement\" event is not created when the origination state is a\r\n      statutory reinstatement state, or when the account has fewer than two completed reinstatements\r\n      at the time a repossession is recorded.\r\n    priority: Critical\r\n    note: \"Per SERV-12207.\""
+    }
+  ]
+}

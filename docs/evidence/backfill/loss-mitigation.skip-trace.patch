@@ -1,0 +1,99 @@
+--- a/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml
++++ b/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml
+@@ -81,18 +81,31 @@ business_rules:
+   - id: BR-SKIP-001
+     statement: Skip Main tab displays a loan work queue with row-level detail fields for operational triage (Action, Contract State, Skip Assign Date, Last Worked, DPD, Principal Bal., Past Due Bal., Last Pay, Repo Agent, Days with Agent, Cycle Count, PTP Date, Region, Assigned To).
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js]
++      tests: [backend:tests/smoke/loss_mitigation/skip/test_skip_api_health.py]
++
+   - id: BR-SKIP-002
+     statement: Each queue row displays the loan reference, customer name, vehicle description (year/make/model), VIN, GPS Installed status, and Serial Number.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js]
++
+   - id: BR-SKIP-003
+     statement: Loan Number is a hyperlink that navigates to the corresponding loan record in the dev3 environment for that loan.
+     priority: Medium
+   - id: BR-SKIP-004
+     statement: Each row displays a disposition label (e.g. Out to Skip, On Hold, Out to Repo) reflecting the account's current stage.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js]
++
+   - id: BR-SKIP-005
+     statement: Each row displays the Assigned To representative with assignment date, and a Repo Type badge (Voluntary Repo or Involuntary Repo).
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js]
++
+   - id: BR-SKIP-006
+     statement: Action is an editable per-row field constrained to the supported action list.
+     priority: High
+@@ -108,21 +121,39 @@ business_rules:
+   - id: BR-SKIP-010
+     statement: Skip filter panel supports Export to CSV of the current Skip result set.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js]
++
+   - id: BR-SKIP-011
+     statement: Left-side filters apply as a combined filter set to the Skip queue, spanning multi-select dropdowns, date ranges, numeric ranges, and keyword filters.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js]
++
+   - id: BR-SKIP-012
+     statement: The Last Worked > 7 days filter is an independent binary checkbox, distinct from the Last Worked date range control.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js]
++
+   - id: BR-SKIP-013
+     statement: Hold/Close Criteria supports an additional Strict checkbox modifier controlling exact-match filtering behavior.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js]
++
+   - id: BR-SKIP-014
+     statement: Skip Main tab displays only lm_skip_tracker records where is_Active = 1; for an account already sent to skip, a later transition to On Hold or Out to Repo keeps is_Active = 1, so this gate only hides a record once an account fully exits skip.
+     priority: Critical
++    traces:
++      tests: [backend:tests/smoke/loss_mitigation/skip/test_skip_db_connectivity.py]
++
+   - id: BR-SKIP-015
+     statement: Accounts are mapped to a region (East, Central, or West) based on Contract State using the approved state-to-region mapping in specs/modules/common/loss-mitigation/state-to-region-map.yaml.
+     priority: Critical
++    traces:
++      tests: [backend:tests/smoke/loss_mitigation/skip/test_skip_master_data.py]
++
+   - id: BR-SKIP-016
+     statement: When an account rolls to Skip Tracing, it exits the active Repo queue, enters the Skip assignment process, and remains within the same region as its original Repo assignment (per Contract State).
+     priority: Critical
+@@ -150,15 +181,24 @@ business_rules:
+   - id: BR-SKIP-022
+     statement: Assigned To, Region, and Contract State are visible table columns and filters on the Skip Main tab; Region and Contract State were already present, and Assigned To (renamed from Assigned Associate) is added as of this update.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js]
++
+   - id: BR-SKIP-023
+     statement: The Assigned To filter is pre-applied by default at screen load, scoped to the currently logged-in representative.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js]
++
+   - id: BR-SKIP-024
+     statement: When a note is created from the Skip Dashboard, the system automatically prepends the "Skip:" dashboard identifier to the note text.
+     priority: High
+   - id: BR-SKIP-025
+     statement: CSV exports from the Skip Dashboard include Assigned To, Region, and Last Worked Date as columns, in addition to the existing exported fields.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js]
++
+   - id: BR-SKIP-026
+     statement: On Hold and Out to Repo accounts remain assigned to their previously assigned representative and continue to count toward that representative's active Skip queue volume for routing purposes.
+     priority: High

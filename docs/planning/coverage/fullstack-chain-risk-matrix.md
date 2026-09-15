@@ -113,6 +113,85 @@ Loan-lifecycle order (from `.claude/rules/session-rules.md`) is the direction of
 Funding → Post Funding → Document Repository → Custodian → Titles → UniFi Servicing →
 UniFi Collections → Loss Mitigation → Insurance → Ancillary → Checks → Complaints → Call Reports.
 
+## Authenticated happy-path browser baseline — 2026-09-08
+
+This is a Dev/QA implementation baseline from the authenticated dashboard host and
+`apisdev.firsthelpfinancial.com`. It records what the logged-in Collection Manager role could
+open and what the current UI exposed. It does **not** promote any workflow to Accepted full chain:
+no browser action in this pass had both a controlled correlation identity and a proven cleanup
+path. Counts are volatile environment observations, not product contracts.
+
+### Manual lifecycle replay
+
+1. **Funding** — open `/funding/dashboard`; verify the month selector, Daily Box, Ready, Funded
+   Today, In Funding, To Audit, region cards, and FHF Performance. Continue through Coordinator or
+   My Queue only with an assigned record. A complete success ends when funding state is persisted
+   and the same identity becomes eligible in Post Funding.
+2. **Post Funding** — open `/post-funding/summary`; verify Infraction Type, Dealer ID, Dealer Name,
+   State, and Call Date filters. The observed role returned `No records found`, so dealer-detail
+   annotation and the Funding → Post Funding seam remain data-blocked.
+3. **Document Repository** — open `/doc-repository/loan-packages`; verify the populated queue,
+   filters, Loan Packages identity, Bulk Action, and Download List of Loans. A complete success is
+   a controlled merge/archive job reaching a terminal Download Job Queue state with file-integrity
+   and cleanup evidence. Download and bulk actions were not executed.
+4. **Custodian** — open `/custodian/dashboard`; verify All Loans, Not Sent, Sent, and Exceptions
+   Queue plus the disposition/stage columns. A complete success reconciles a controlled
+   Confirmed Disposition/Loan Stage mismatch and proves the same location/status in Titles, then
+   restores the original fixture. This pass re-observed the queue only; it did not repeat or claim
+   the earlier uncorrelated mutation.
+5. **Titles** — open `/titles/general`; select a row to reach `/titles/general/details/:id`, then
+   inspect Basic Details, Status, Custodian Management, Actions, Lien Release Letter, Notes, Loan
+   Documents, Loan Details, Events, and Email History. Continue to `/titles/release`, whose Release
+   and Release To tabs, aging legends, Release View selector, 19-column Release queue, same-tab row
+   navigation, payoff details, and document list were independently observed. Missing Titles,
+   Remarketing, Remarketing Titles, and Re-Registration remain separate branch scenarios defined
+   by their module contracts; their writes require reversible records.
+6. **UniFi Servicing** — open `/servicing`; verify the 22-column queue, shared filters, and
+   same-account detail navigation. The observed queue showed 35 of 25,425 records. A complete
+   success is the approved inbound/outbound call or payment transition with exact disposition,
+   persisted state, and cleanup; no call was placed or logged.
+7. **UniFi Collections** — open `/contact-log`; verify Main, the delinquency/payment filters, and
+   the account queue (40 of 6,979 observed). A complete success is a controlled contact and
+   Promise-to-Pay/payment lifecycle with amount/date/status oracles and cleanup; no customer
+   contact or payment action was executed.
+8. **Loss Mitigation** — open `/loss-mitigation/assignment`; verify Assign to Repo and Assignment
+   Exception modes and their filter inventory. The observed Main view had zero rows, so Assignment
+   mutation and the downstream Repo/Skip/Remarketing/Impound/Transport/Invoice/Recon cascade were
+   data-blocked for this role.
+9. **Insurance** — open `/insurance/total-loss`; verify Dates and Payoff views, aging legends, the
+   populated queue, and Add New Claim. A complete success creates or advances a controlled Total
+   Loss/Lienholder Claim record and verifies the Impound notification seam before restoring it.
+   Add New Claim was not executed.
+10. **Ancillary** — open `/ancillary/not-filed`; verify Main/Early Payoff/Repossession/Total Loss/
+    Customer Request, Needs Review, Show Non-Responsive Accounts, and the populated queue. A
+    complete success adds or updates a controlled product/cancellation record and proves the
+    refund/payoff and letter effects with cleanup. Add New Record/Add Product were not executed.
+11. **Checks** — open `/checks/insurance-repair-checks`; verify Main, Approval Queue, Failed
+    Uploads, Account Past Due, Expired Check, the populated queue, and Upload Check. A complete
+    success uses a controlled input through matching, decision, posting, and reconciliation.
+    Upload was not executed because file and posting cleanup were not established.
+12. **Complaints** — open `/complaints`; verify the queue/filter contract and Create Complaint.
+    A complete success creates a synthetic complaint, advances status/type/notes links, confirms
+    its UniFi account constraint, and deletes or restores it. Creation was not executed.
+13. **Call Reports** — open `/call-reports/agent-call-volume`; verify Agent Team, Agent Name, Role,
+    Date Range, report headers, and Download CSV. The default range returned `No Data Available`;
+    a complete success correlates a controlled UniFi call identity into volume and recording
+    reports. Download was not executed.
+
+### Execution boundaries discovered
+
+- **Browser-verified checkpoints:** all 13 lifecycle stages were reachable to this role; Funding,
+  Document Repository, Custodian, Titles, Servicing, Collections, Insurance, Ancillary, Checks,
+  and Complaints exposed their main queue or dashboard.
+- **Data-blocked checkpoints:** Post Funding returned no records; Loss Mitigation Assignment
+  returned zero records; Agent Call Volume returned no data for its default date range.
+- **Mutation-gated checkpoints:** export/download, email/send, upload, payment, call logging,
+  complaint/claim creation, and cross-system posting lacked a demonstrated non-egress sink or
+  reversible cleanup record.
+- **Navigation defect:** rapid SPA route changes sometimes reverted to a previously loading route.
+  Each recorded checkpoint above is based on a matching URL/title snapshot; later stale content
+  was not accepted as evidence for the requested route.
+
 | Upstream | Downstream | Seam | Observable in | Verified from | Seam evidence today |
 |---|---|---|---|---|---|
 | Funding | Post Funding | Funding completion is the precondition for dealer annotation | e2e | lifecycle order | None — no cross-module scenario exists |

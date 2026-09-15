@@ -19,6 +19,13 @@ behavior or test acceptance. Product intent remains in `Test-Case-Automation-Usi
 specs/`; acceptance and evidence rules remain in `docs/framework/testing-standards/TESTS.md`; actual
 accepted workflow status remains in `docs/planning/coverage/fullstack-chain-risk-matrix.md`.
 
+**This plan is not a requirement registry.** The canonical registry is
+`docs/evidence/requirements.json`, generated from the
+blueprint-ready specs by `fhf-harness-os/scripts/harness/build-requirements.mjs` and drift-checked by
+`check-docs-links.mjs`. This plan cites requirement ids; it never restates acceptance criteria. A
+criterion written here rather than cited from there is duplication, and the copy will be the stale
+one — the registry is regenerated from the specs, this document is not.
+
 ### Validated baseline
 
 The following facts were rechecked against the current worktree on 2026-08-04:
@@ -145,6 +152,49 @@ contracts, measured throughput, or data/environment readiness. Preserve them onl
 history as a historical proposal.
 
 ## Current position
+
+<!-- PLAN:STATUS:START -->
+<!-- Generated from docs/evidence/requirements.json + docs/evidence/coverage-computed.json — run `node ../fhf-harness-os/scripts/harness/plan-status.mjs`. Do not edit by hand. -->
+
+Measured, not asserted. Requirement registry generated `2026-09-09`; coverage ledger generated `2026-09-02T19:41:00.706Z`.
+
+**Approved intent, by sub-module.** Only the five sub-modules `specs/INDEX.md` lists as
+blueprint-ready are registered; the rest of the specs tree is scaffold-only and deliberately
+absent.
+
+| Sub-module                   | Reqs | P0 | `active` | Tier assigned | Layer assigned |
+| ---------------------------- | ---- | -- | -------- | ------------- | -------------- |
+| Titles > Remarketing Titles  | 109  | 5  | 0        | 0             | 0              |
+| Loss Mitigation > Skip Trace | 69   | 8  | 0        | 0             | 0              |
+| Loss Mitigation > Recon      | 64   | 4  | 0        | 0             | 0              |
+| Loss Mitigation > Repo       | 45   | 9  | 0        | 0             | 0              |
+| Loss Mitigation > Assignment | 44   | 9  | 0        | 0             | 0              |
+| **Total**                    | 331  | 35 | **0**    | **0**         | **0**          |
+
+**Lane coverage for the modules those requirements belong to.**
+
+| Module          | Slug              | E2E     | Smoke   | Backend |
+| --------------- | ----------------- | ------- | ------- | ------- |
+| Loss Mitigation | `loss-mitigation` | PARTIAL | PARTIAL | PARTIAL |
+| Titles          | `titles`          | FULL    | PARTIAL | NONE    |
+
+**Intent-to-test traceability, whole portfolio.**
+
+| Measure                                            | Count |
+| -------------------------------------------------- | ----- |
+| Spec requirements discovered, whole specs tree     | 1273  |
+| …of those, with no test at all                     | 1271  |
+| Requirements registered from blueprint-ready specs | 331   |
+| Automated tests inventoried across three lanes     | 2334  |
+| …aligned to a spec requirement                     | 5     |
+| …with no spec requirement                          | 2163  |
+| …unresolved because the name is built dynamically  | 166   |
+
+**Bottom line.** 0 of 331 registered requirements can be reported as covered: every one is `draft` (D2), with `tier` and `layer` unassigned (D1, D6). Portfolio-wide, 5 of 2334 inventoried tests align to a spec requirement. Structural test presence is not intent coverage — that gap is the plan, not a reporting artifact.
+<!-- PLAN:STATUS:END -->
+
+The hand-audited table below carries the analysis the generated block above cannot: what each
+measured position means for planning. Facts belong above; consequences belong here.
 
 | Dimension | Source-audited position | Planning consequence |
 |---|---|---|
@@ -318,6 +368,119 @@ for an effort commitment.
 Read-only/filter/sort coverage can continue where it protects a changed surface, but it does not
 promote a mutation row.
 
+## Filtering scenario inventory and expansion — 2026-09-08
+
+Scope: E2E Dev/QA filtering across modules. After browser login, the requested
+[Cypress Cloud run 782](https://cloud.cypress.io/projects/nptdoe/runs/782/overview) was inspected:
+52 specs completed (42 failed, eight passed, two errored), 496 tests listed, and 26% overall
+UI coverage displayed. That percentage is not filtering-specific. CLI authentication still failed.
+The module inventory below is **local source presence**, not a claim that those tests passed.
+There are 32 registered dashboard configurations across eight module keys and 14
+filtering-named specs; additional filtering assertions live in the Titles feature specs.
+Registration does not establish that a dashboard's filtering behavior is tested.
+
+Run 782's review list reports failures in Skip (15), Assignment (13), Repo (12), Recon (6),
+Remarketing (5), Transport (5), Impound (3), Auction Invoice (2), Repo Invoice (1),
+Ancillary Followup (3), Contact Log new filters (1), and Contact Log persistence (1).
+These counts prioritize investigation; they do not establish a common root cause.
+The [Ancillary dealer replay](https://cloud.cypress.io/projects/nptdoe/runs/782/overview/c843fe54-9880-4e3d-8c46-e71e12a8ace0/replay)
+shows the grouped dealer GET returning 200, followed by failure to find
+`[data-cy="btn-filter-menu"]` in `filterOpenPanel` after 12 seconds. Filter controls are
+visible in the replay, but the test fails before applying its criterion. This is evidence
+of a selector/deployed-UI mismatch, not evidence that dealer filtering is functionally broken.
+
+On 2026-09-09, [Assignment spec output](https://cloud.cypress.io/projects/nptdoe/runs/782/test-results/instance/5e577d7e-dc76-41a1-9afd-fa33ee10e1fc/stdout)
+confirmed 13 failures: eight baseline `assignmentAccounts` reads had empty `items`, four
+tests could not find `.card-list .card-link`, and the default-state test found no `total_rows`.
+These are baseline data/control prerequisites; the output does not prove a filtering defect.
+
+Paths below are relative to `front-end-automation-e2e/CypressFHF/fhf-dashboards/cypress/`.
+The existing `configs/ui/modules/dashboardFilterRegistry.config.js` owns module/dashboard
+resolution; module filter configs own fields; `support/commands/common/filter-generic.commands.js`
+owns interactions. Extend these owners instead of creating another filter registry or runner.
+
+### Module matrix
+
+| Module | Registered dashboards | Existing scenario families / source | Expansion to track |
+|---|---|---|---|
+| Ancillary | Not Filed, Followup, Products, Verification, Export Activity | `tests/fhf-dashboard/e2e/dashboards/ancillary/followup-filtering.cy.js`: provider and dealer request mapping plus group rendering; provider persistence across dashboard switch | Combined criteria, replacement, clear/reset, no-match response; other four dashboards need field-to-request-to-result mapping before reuse |
+| Loss Mitigation | Assignment, Repo, Skip, Remarketing, Impound, Transport, Repo Invoice, Repo Invoice Accounting, Repo Invoice Transaction Failed, Auction Invoice, Recon | Nine `*-filtering.cy.js` specs under `tests/fhf-dashboard/e2e/dashboards/loss-mitigation/`: text IDs/names, dates, numeric ranges, statuses, assignees, PTP, field visibility; Remarketing persistence. Invoice specs include sub-tabs, including Auction transaction errors | Combined loan/VIN or invoice/status criteria, replacement, cancel/reset, no-match, exact option selection, range boundaries, filter retention through pagination; replace empty-result success paths with explicit scenario outcomes |
+| Call Center | Contact Log, Servicing | `uni-fi/collection/contact-log/{contact-log-filtering,contact-log-new-filters,filter-persistence}.cy.js`: identifiers, borrower/co-borrower fields, dates, balances/DPD/priority, collector/language/state/status/events, Loan Program/NSF/First Missed Payment, clear/count/persistence. `uni-fi/servicing/servicing-filtering.cy.js`: positive, no-match and partial text, language/events/dates, panel controls and page-row count | Multi-select exactness, combined criteria, zero/boundary ranges, cancel after editing an applied filter, pagination offset reset, isolation between modules |
+| Titles | General, Missing Titles | `titles/general.cy.js`: applicant/co-applicant and perfected-date filtering. `titles/missing-titles.cy.js`: removed filters absent from UI/request and Funded Date request/result mapping | Combined text/date filters, empty results, replacement/reset, stale removed filters after navigation; positive cases must not silently omit row assertions |
+| Checks | Insurance Repair, Insurance Repair Upload, Lockbox, Lockbox Upload | `configs/ui/modules/checks/checksFilter.config.js` registers text, dates and applicable status fields; no dedicated filtering spec found in this E2E inventory | Loan plus claim/status or VIN/client combinations; date boundaries; upload-date filtering; clear/cancel/no-match. Confirm each endpoint and rendered result contract first |
+| Insurance | Total Loss, Lienholder Claim | `configs/ui/modules/insurance/insuranceFilter.config.js`; no dedicated filtering spec found in this E2E inventory | Map configured field values to exact request parameters and visible result fields, then apply shared positive/combined/reset/no-match scenarios |
+| Custodian | Exception Queue, Request, Portfolio, Dashboard, Contracts | `configs/ui/modules/custodian/custodianFilter.config.js`; no dedicated filtering spec found in this E2E inventory | Verify each dashboard's filter capabilities and endpoint first; test isolation, combination and reset without creating cross-spec data dependencies |
+| Letters Tracking | Listing | `configs/ui/modules/letters/lettersFilter.config.js`: loan/application, type/state/status/carrier, generated/decision/delivery dates, last-six-months toggle; no dedicated filtering spec found | Identifier plus status, date boundaries, toggle with dates, cancel/reset/no-match after source contract confirmation |
+
+“No dedicated filtering spec found” is a filename/source inventory observation, not a claim
+that Smoke or every other feature spec lacks filtering interactions. Unregistered module
+surfaces also require separate discovery; 32 is the registry scope, not the entire product.
+
+### Reusable use-case checklist
+
+These are proposed test obligations wherever the verified dashboard supports them, not
+assumed universal product rules. Reuse scenario data and commands while keeping each
+module's request names, response shape, defaults and result assertions explicit.
+
+1. **Single value:** Given controlled matching and nonmatching records, when a filter is
+   applied, then the request contains the exact mapped value and every rendered result matches.
+2. **Combined fields:** Given records that match both, one, or neither criterion, when both
+   filters are applied, then the request contains both values and results obey the verified
+   combination rule. Do not assume AND/OR semantics from a field label.
+3. **Replacement:** Given an applied value, when it is replaced and reapplied, then the
+   request and UI contain the new value without retaining or appending the old text.
+4. **Clear/reset:** Given applied criteria, when cleared and applied, then removed parameters
+   are absent (or restored to the documented default), controls reset, and baseline results return.
+5. **Cancel/close:** Given an applied filter and unsaved edits, when cancelled/closed, then
+   results and stored criteria follow the actual save/discard contract; verify no unintended apply.
+6. **No match:** Given a valid unmatched criterion, when applied, then assert the request,
+   empty response, empty UI and absence of stale rows. Zero rows must not bypass the assertion.
+7. **Selection:** Given similarly named options and delayed option loading, when selecting
+   an exact label, then choose only that option; a missing option fails instead of selecting the first.
+8. **Ranges:** Given boundary records, when a date/numeric range is applied, then assert
+   exact serialization and boundary inclusion/exclusion. Cover zero and equal endpoints where
+   supported; invalid or reversed ranges require a confirmed validation contract.
+9. **Persistence/isolation:** Given applied filters, when reloading or switching dashboards,
+   then assert the documented persistence and ensure unrelated modules do not inherit criteria.
+10. **Pagination/sorting:** Given filtered results beyond one page, when paging/sorting or
+    changing criteria, then retain filters, reset offsets when required, and exclude stale results.
+
+For deterministic stubbed cases, assert the outbound request independently of the response
+fixture and label results **UI/request contract proof**. Such cases do not prove that the
+real backend filters correctly. Live data assertions require suitable non-production data
+and authenticated access; missing prerequisites remain unverified, never passing evidence.
+
+### Refactor priorities
+
+- Fix shared interaction false positives before multiplying callers: multi-select currently
+  falls back to the first unrelated option and snapshots the option list without retrying.
+- Keep existing module suites and use the current registry/commands; move repeated behavior
+  into a shared command only when multiple concrete callers need it.
+- Separate intentional empty-result tests from positive tests. The existing
+  `lmApplyFilterAndAssertCard` early return and some Titles row guards can leave positive
+  assertions unexecuted; their test presence is not complete behavioral proof.
+- Record the implemented slice and actual check results separately from this broader backlog.
+  Do not advertise all 32 dashboards as newly covered merely because they share a helper.
+
+### Implemented slice in this worktree
+
+- `filter-generic.commands.js` now chooses visible text controls, preserves literal input,
+  requires one exact visible multi-select label, and fails on missing/partial/ambiguous options
+  instead of selecting the first option. `filterAssertRequest` validates exact decoded query
+  values, duplicate values, required absence, wrapped ORDS URLs, and expected HTTP status.
+- Ancillary Follow Up reuses a shared scenario contract for Provider + Dealership criteria and
+  upgrades provider/dealer checks from substring presence to exact query assertions.
+- Impound adds a controlled empty-result/clear-one-criterion contract. Its response is synthetic
+  UI/request evidence; it does not prove backend filtering.
+- `configs/scenarios/filtering-contract.scenarios.js` now owns the shared use cases and control
+  cases for text, radio, dropdown, checkbox/toggle, multi-select, react-select, date/date-range,
+  numeric ranges, sorting, pagination, and combinations, plus a
+  32-dashboard matrix. `scripts/filter-coverage.test.js` fails if a registered dashboard is
+  missing or duplicated in that matrix. This centralizes obligations; it does not pretend that
+  one generic spec proves every module's API and UI behavior.
+- `scripts/filter-commands.test.js` passes 6/6. Targeted ESLint passes. No Cypress browser run
+  of the new cases has been completed in this worktree. Run 782 remains historical evidence.
+
 ## Product-quality matrix design
 
 For each approved scenario, plan the smallest evidence set that closes the risk:
@@ -336,6 +499,182 @@ For each approved scenario, plan the smallest evidence set that closes the risk:
 The blueprint's 70 scenarios enter this matrix only after FHF applicability and implementation are
 confirmed. Unimplemented or out-of-scope controls remain labelled, not silently converted into test
 backlog.
+
+## Verification layers
+
+Lane is the environment-and-ownership axis — Production Smoke, E2E, Backend API/database,
+Application unit/component, defined in `docs/framework/testing-standards/TESTS.md` §Lane contracts.
+**Layer is the stack-depth axis, and it is a separate decision.** A smoke check can assert at any
+layer, and "end to end" names how deep an assertion reaches, not how long the test is or which lane
+runs it.
+
+| Layer | What it asserts | Owned by | Reachable |
+|---|---|---|---|
+| L1 UI | What the user sees and can act on | `fhf-dashboards` rendering, asserted from either Cypress lane | Yes |
+| L2 Edge API | The contract the dashboard consumes | The `/firsthelp_coll/**` request identity, payload, and response the UI originates | Yes |
+| L3 Service API | Service-to-service behaviour, authorization, validation, idempotency | The typed clients in `fhf-backend-automation/api/`, one per service surface | Yes |
+| L4 Oracle | What was actually persisted, or verifiably not | `fhf-backend-automation/dao/oracle_dao.py` | Yes |
+
+**All four layers are reachable here, and that is the whole point of this portfolio.** A plan for a
+third-party target has to descope L3 and L4 because no internal endpoint or database credential
+exists. FHF is first-party: internal services and Oracle are both addressable, which is why
+`TESTS.md` §Full-chain acceptance can require exact database state or a verified no-write as
+condition 5 of 7. The risk here is therefore the opposite one — not claiming evidence that cannot
+exist, but claiming a chain that was never correlated. `TESTS.md` §Cross-lane validation split and
+§Correlation is by contract, not by record already govern that; this section only names the axis.
+
+**Layer coverage is not computable today.** `docs/evidence/requirements.json` carries a `layer` field
+on all 331 requirements and every one of them is `UNKNOWN`, because no spec declares a layer and no
+owner has assigned one. Until D6 is answered, a run can report which tests exist and which pass, but
+not at what depth intent has actually been proven.
+
+**Principles, proposed for adoption.** These follow from `TESTS.md` §Assertion depth and §Cross-lane
+validation split rather than adding to them; they are stated here because sequencing needs them.
+
+1. **Assert at the lowest layer that can prove the behaviour.** A payload shape is an L2 fact.
+   Driving the UI to check it buys nothing and makes a data assertion depend on rendering.
+2. **Use a higher layer only for what only it can prove** — that the value reached the user, in the
+   right place, under the right authorization.
+3. **Seed low, assert at the target layer.** Arrange through the lowest available layer; act and
+   assert at the layer the requirement is about. Blocked by D3 wherever setup must persist state.
+4. **Cross-layer disagreement is the defect class that justifies a chain.** One layer agreeing with
+   itself proves little. Layers disagreeing is what no single-layer suite can see, and it is the
+   exposure the risk ledger exists to track.
+
+## Cross-module flow contracts
+
+Verified product knowledge has exactly three tiers today, and `specs/mappings/source-of-truth-map.md`
+is explicit that all three are bounded:
+
+| Tier | Artifact | Scope |
+|---|---|---|
+| Shared component | `specs/components/<name>.component.yaml` | One reusable control, across every module that mounts it |
+| Module | `specs/modules/<module>/<sub-module>.yaml` | One sub-module |
+| Common / shared data | `specs/modules/common/<module>/*.yaml` | Reference data shared inside one module group — "scoped to a module group, not global across the whole specs tree" |
+
+**There is no tier for a journey that crosses modules.** Verified 2026-09-09 by filename search
+(`*flow*`, `*journey*`, `*lifecycle*`, `*end-to-end*` — no matches anywhere under `specs/`) and by
+content search for `cross_module`, `journey`, `end_to_end`, and `loan_lifecycle`, which matches only
+cross-*reference* notes between sibling module files. Every hit is one module pointing at another's
+contract, never a document owning the path between them.
+
+This is a gap with a name, because the loan lifecycle in the session workflow order is exactly such a
+journey: Funding → Post Funding → Document Repository → Custodian → Titles → UniFi Servicing → UniFi
+Collections → Loss Mitigation → Insurance → Ancillary → Checks → Complaints → Call Reports. That
+sequence governs how this plan sequences work, and no document describes it as a flow with an owner
+per step.
+
+It has not blocked authoring yet, because every registered requirement is single sub-module. It
+becomes blocking wherever a workflow's state is set outside the module under test — the confirmed
+Funding case is the shape of the problem: the terminal `Funded` state is owned by DecisionLender, not
+by the Funding dashboard, so a Funding → Post Funding assertion crosses an application boundary that
+no module contract owns. A `layer` decision (D6) does not resolve it; the seam is horizontal, not
+vertical.
+
+**Proposed resolution — a fourth tier.** One document per cross-module journey, naming the step
+sequence, the module owning each step, the state carried between steps, the abort behaviour, and the
+cleanup owner when a middle step fails. `TESTS.md` §Cross-lane validation split already defines the
+vertical contract between two engineers on one scenario; this is the horizontal equivalent between
+two modules on one workflow.
+
+**Rule of thumb.** A requirement whose steps live in one sub-module needs a module contract. A
+requirement whose steps are owned by different modules needs a flow contract *first*, or the seams
+between them get invented at authoring time. See D7.
+
+## Authority boundaries
+
+What an agent may never do on this portfolio, regardless of instruction. These are runtime guards,
+not documentation — each is enforced by a named hook generated from the harness engine and
+hash-verified per file.
+
+| Boundary | Enforced by |
+|---|---|
+| Never write to application source — it is read-only evidence | `protect-app-source` |
+| Never mutate, submit, export, download, or send in Production Smoke | `validate-cypress-rules`, `pre-validate-cypress-rules` |
+| Never write or run backend automation without an active, validated `FHF_ACTIVE_TASK` manifest, or outside its selected paths | `validate-backend-automation`, `protect-automation-scope` |
+| Never edit a gate — the control plane, generated settings, or guard sources — to make it pass | `protect-harness-governance`, owner opt-in only |
+| Never persist or export production data, screenshots included, without owner opt-in | `protect-prod-data` |
+| Never spawn an agent outside the configured roster, or a skill outside the allowlist | `block-generic-agents`, `block-forbidden-skills` |
+| Never retry the same failure past the configured `sameFailureLimit` — escalate instead | `failure-loop-guard` |
+| Never accept a subagent's claim without checking its citation against the diff | `verify-subagent-citations` |
+| Never report a structural inventory as coverage, or a skipped state as a pass | `coverage-strategy-guard`, `spec-sweep-stop-hook` |
+| Never preload documentation — read only the route the task selects | `context-read-guard` |
+
+When sources disagree, stop and report the conflict rather than choosing. When a capability returns an
+`ownerAction` status, stop and ask the owner — see Suspension below.
+
+## Policy and engine versioning
+
+The agents, rules, and guards are inputs to the output. Editing them changes what gets authored, as
+surely as changing a library version would, so they are versioned and drift-checked rather than
+trusted.
+
+| Pinned | Where |
+|---|---|
+| Generated consumer projection | `.sync-manifest.json` — one SHA256 per generated file, so a hand-edit in a consumer repo is detectable rather than silently overwritten |
+| Projection drift | `check-loader-drift.mjs` — generated guards, settings, and loaders must match the engine config |
+| Guard enforcement | `test-hooks.mjs` — pipes fixture payloads through every guard and asserts exit codes, so one that silently talks to nobody fails the build |
+| Route selection | `evals/routes.golden.json` — the expected context route per task shape |
+| Graded-gate judgment | `evals/gate-calibration.json`, scored by `eval-harness.mjs` with Cohen's kappa for inter-rater agreement |
+
+`check-loader-drift.mjs` and `test-hooks.mjs` run on every engine commit through the pre-commit hook.
+
+**Residual gap, and it is the same one a corpus always has:** the calibration evals must be run
+deliberately. Nothing forces them on a model upgrade or a rules edit, because the harness has no
+signal for "the model changed". A graded verdict recorded before such a change and one recorded after
+are not comparable, and nothing in the evidence says which side of the change a verdict came from.
+See D8.
+
+## Open decisions
+
+These block the plan, not the code. Each names what stops moving until it is answered, so a stalled
+decision is visible as stalled work rather than as an unassigned ask. Owners are only listed where
+this repository already names one; `unassigned` is stated rather than guessed.
+
+| # | Decision | Owner | Blocks |
+|---|---|---|---|
+| D1 | Execution tier per requirement — which requirements are deploy gates | unassigned (QA + release) | Every tier-coverage claim. `assignExecutionPolicy()` in `build-requirements.mjs` returns `UNKNOWN` for all 331 requirements, so no run can currently report smoke or regression tier coverage against intent |
+| D2 | Spec approval — moving a module contract from `status: draft` to approved | Product SME per module (adoption strategy ask 1) | Every requirement staying `draft`. All 41 module contracts and all 10 component contracts declare `status: draft`, including the five blueprint-ready ones, so the registry has zero `active` requirements and the coverage definition below cannot be applied |
+| D3 | Test-data lifecycle — shared, or bespoke per scenario | unassigned; needs a reviewed design plus the Dev/QA data owner (adoption strategy ask 1) | Every mutation-scenario estimate. Until it is answered each one budgets bespoke setup and cleanup, which is the per-scenario cost driver in the estimates above |
+| D4 | One release designated to capture a manual baseline | Chintan and Prachi (adoption strategy ask 2) | Effort-reduction and manual-to-automated reporting. `calculate-regression-effort.mjs` is fail-closed and returns `UNKNOWN` without observed person-minutes against a frozen checklist |
+| D5 | Intended retry, UI Coverage floor, and lane ownership policy | unassigned (see Cypress execution policy drift, Current position) | One canonical execution policy. E2E has zero global retries against Smoke's configured floors of 50 and 30, and the E2E buildspec can select Smoke specs on production-mapped branches |
+| D6 | Verification layer per requirement — at what stack depth each requirement is proven | unassigned (QA + service owners) | Any layer-coverage claim, and exit criteria below. `layer` is `UNKNOWN` on all 331 requirements; see Verification layers |
+| D7 | Adopt a cross-module flow-contract tier, and name an owner per journey step | unassigned (product + QA) | Any multi-module requirement. Confirmed absent from the specs tree; the loan-lifecycle sequence this plan sequences by has no owning document |
+| D8 | Does an agent, rules, or model change invalidate prior graded verdicts? | unassigned (harness owner) | Comparability of gate verdicts across a policy change. The calibration corpus exists but nothing triggers it |
+
+**Coverage definition, once D1, D2 and D6 are answered.** Every `active` requirement maps to exactly
+one passing test at its assigned tier and layer. It is not a line or branch percentage, and no percentage target is
+set here — a percentage over a draft registry measures the draft, not the coverage.
+
+## Suspension, resumption, and exit criteria
+
+**Suspend and escalate** when any of these holds. Each is a case where continuing produces evidence
+that cannot be trusted, so more execution makes the position worse rather than better:
+
+- A capability status carries `ownerAction` — authentication, authorization, access-request, or
+  escalated. Continuing on partial data is prohibited, not merely discouraged.
+- The same failure recurs past the configured `sameFailureLimit`.
+- A module contract is older than the application behaviour it describes.
+- An agent reports a conflict between sources instead of choosing one.
+- A cleanup step fails and may have left state behind in a shared environment.
+- An unexplained failure arrives on a shared Dev environment before the environment has been checked
+  — read it as a triage cost first, never as a product signal.
+
+**Resume** only once the cause is resolved. A failure caused by drifted application behaviour resumes
+after the module contract is re-verified and re-approved — never after the assertion is loosened
+until the failure disappears. That is the false-green path `TESTS.md` §False-green controls blocks.
+
+**Exit criteria for a slice:**
+
+- Every `active` requirement in scope maps to exactly one passing test at its assigned tier and
+  layer, with no `UNKNOWN` in either field.
+- Execution evidence meets `TESTS.md` §Execution evidence minimum, with run provenance recorded.
+- Every gate verdict recorded, and any `PASS_WITH_ACTIONS` action named and owned.
+- No requirement left in `draft` without a decision above owning it.
+
+**"All planned tests executed" is deliberately not an exit criterion.** It is not falsifiable and it
+says nothing about whether what ran covers what was agreed — a suite can execute completely and still
+be 198 fallback markers and 75 skips deep, which is the measured current position, not a hypothetical.
 
 ## Estimation gate
 

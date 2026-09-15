@@ -1,0 +1,78 @@
+--- a/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml
++++ b/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml
+@@ -64,18 +64,31 @@ business_rules:
+   - id: BR-ASGN-001
+     statement: Assignment Main tab displays a loan work queue with row-level detail fields for operational triage (Action, NOD Exp., Contract State, DPD, Principal Bal., Past Due Bal., Last Pay, Resident State, # of Payments Made, Last Worked, PTP Date, Region, Assigned To).
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js]
++      tests: [backend:tests/smoke/loss_mitigation/assignment/test_assignment_api_health.py]
++
+   - id: BR-ASGN-002
+     statement: Each queue row displays the loan reference, customer name, vehicle description (year/make/model), VIN, GPS Installed status, and Serial Number.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js]
++
+   - id: BR-ASGN-003
+     statement: Loan Number is a hyperlink that navigates to the corresponding loan record in the dev3 environment for that loan.
+     priority: Medium
+   - id: BR-ASGN-004
+     statement: Each row displays a disposition label (e.g. No Status) reflecting the account's current stage.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js]
++
+   - id: BR-ASGN-005
+     statement: Each row displays the Assigned To representative with assignment date.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js]
++
+   - id: BR-ASGN-006
+     statement: Action is an editable per-row field constrained to the supported action list.
+     priority: High
+@@ -88,6 +101,9 @@ business_rules:
+   - id: BR-ASGN-009
+     statement: An eligible account's region is determined from Contract State using the approved state-to-region mapping in specs/modules/common/loss-mitigation/state-to-region-map.yaml.
+     priority: Critical
++    traces:
++      tests: [backend:tests/smoke/loss_mitigation/assignment/test_assignment_master_data.py]
++
+   - id: BR-ASGN-010
+     statement: Accounts route only to queue-eligible Asset Management associates within the matched region; queue-ineligible users (see specs/modules/common/loss-mitigation/queue-ineligible-users.yaml) never receive assignments.
+     priority: Critical
+@@ -100,6 +116,9 @@ business_rules:
+   - id: BR-ASGN-013
+     statement: Upon assignment, the system creates and persists an account-to-representative assignment record (sticky ownership) that the account keeps throughout the repo lifecycle, across both Assignment and Repo dashboards.
+     priority: Critical
++    traces:
++      tests: [backend:tests/smoke/loss_mitigation/assignment/test_assignment_db_connectivity.py]
++
+   - id: BR-ASGN-014
+     statement: Sticky ownership ends only when the repo case is closed, or the account reaches one of the final statuses (Secured – Involuntary, Secured – Voluntary, Secured – Impound, or an existing final status such as BK or Unable to Locate).
+     priority: Critical
+@@ -115,12 +134,23 @@ business_rules:
+   - id: BR-ASGN-018
+     statement: Assigned To, Region, Contract State, and Last Worked Date are visible table columns and filters on the Assignment Main tab, and a Last Worked > 7 Days indicator is shown per row.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/assignment-filtering.cy.js]
++      tests: [backend:tests/loss_mitigation/assignment/test_assignment_filter_identity.py]
++
+   - id: BR-ASGN-019
+     statement: The Assigned To filter is pre-applied by default at screen load, scoped to the currently logged-in representative.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/assignment-filtering.cy.js]
++      tests: [backend:tests/loss_mitigation/assignment/test_assignment_filter_identity.py]
++
+   - id: BR-ASGN-020
+     statement: CSV exports from the Assignment Dashboard include Assigned To, Region, Contract State, and Last Worked Date as columns.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/assignment-filtering.cy.js]
++
+   - id: BR-ASGN-021
+     statement: When a note is created from the Assignment Dashboard, the system automatically includes an "Assignment:" dashboard-source identifier in the note text, visible in note history.
+     priority: High

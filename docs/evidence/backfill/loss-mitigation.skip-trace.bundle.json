@@ -1,0 +1,322 @@
+{
+  "schema": "fhf-harness/backfill-bundle/v1",
+  "module": "loss-mitigation",
+  "spec": "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml",
+  "instruction": "For each rule below, declare where it is verified. Use ONLY names from `evidence`. Omit a rule entirely rather than guess - an unresolvable trace is worse than none, because it reports as covered while nothing verifies the rule. Return JSON: { \"proposals\": [ { \"id\": \"BR-...\", \"traces\": { \"ui\": [], \"api\": [], \"db\": [], \"tests\": [] } } ] }",
+  "evidence": {
+    "endpoints": [
+      "AUTOIMS_API_USERNAME",
+      "AUTOIMS_API_PASSWORD",
+      "AUTOIMS_ENDPOINT",
+      "AUTOIMS_BASE_PATH",
+      "AUTOIMS_EVENTS_IMPORT_SCRIPT",
+      "AUTOIMS_EVENTS_SUBSCRIBER_SCRIPT",
+      "REPO_INVOICE_TRACKER_ENDPOINT",
+      "APPROVE_REPO_INVOICE_ENDPOINT",
+      "REPO_INVOICE_STATUS_ENDPOINT",
+      "REPO_INVOICE_TRANSACTION_FAILED_ENDPOINT",
+      "AUCTION_INVOICE_TRACKER_ENDPOINT",
+      "AUCTION_INVOICE_STATUS_ENDPOINT",
+      "APPROVE_AUCTION_INVOICE_ENDPOINT",
+      "AUCTION_INVOICE_NLS_TXN_CODES_ENDPOINT",
+      "AUCTION_INVOICE_LINE_ITEMS_ENDPOINT",
+      "REPO_INVOICE_LINE_ITEMS_ENDPOINT",
+      "GET_REMARKETING_ACCOUNTS_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_PROFILE_ENDPOINT",
+      "GET_REMARKETING_TASK_LIST_ENDPOINT",
+      "GET_IMPOUND_DASHBOARD_ENDPOINT",
+      "GET_IMPOUND_STATUS_ENDPOINT",
+      "GET_IMPOUND_DOCS_NEEDED_ENDPOINT",
+      "GET_IMPOUND_DETAIL_ENDPOINT",
+      "GET_IMPOUND_ASSIGNED_HISTORY_ENDPOINT",
+      "GET_IMPOUND_NOTIFICATION_ENDPOINT",
+      "GET_TRANSPORT_DASHBOARD_ENDPOINT",
+      "GET_TRANSPORT_STATUS_ENDPOINT",
+      "GET_RECON_DASHBOARD_ENDPOINT",
+      "GET_RECON_ACTION_STATUS_ENDPOINT",
+      "GET_RECON_AUTOIMS_HOLD_TYPE_ENDPOINT",
+      "GET_TITLES_REMARKETING_TAB_ENDPOINT",
+      "GET_TITLES_REMARKETING_TITLES_TAB_ENDPOINT",
+      "GET_FHF_NOTIFICATION_REMARKETING_ENDPOINT",
+      "GET_FHF_NOTIFICATION_IMPOUND_ENDPOINT"
+    ],
+    "tables": [
+      "REMARKETING_TRACKER",
+      "REMARKETING_DSHBRD_VW",
+      "REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DASHBOARD_VW",
+      "PKG_IMPOUND_DASHBOARD",
+      "LM_TRANSPORT_USERS",
+      "PKG_TRANSPORT",
+      "PKG_RECON_DASHBOARD",
+      "REMARKETING_INSTANCE",
+      "REMARKETING_TAB_VW",
+      "REMARKETING_TITLE_TAB_VW",
+      "PKG_REMARKETING_DASHBOARD",
+      "REPO_INVOICE_TRACKER",
+      "REPO_INVOICE_INSTANCE",
+      "REPO_INVOICE_LINE_ITEMS",
+      "REPO_INVOICE_NLS_TXN_CODES",
+      "REPO_INVOICE_STATUS",
+      "REPO_INVOICE_TRACKER_VW",
+      "REPO_INVOICE_TRACKER_REPO_VW",
+      "REPO_INVOICE_STATUS_VW",
+      "REPO_INVOICE_NLS_TXN_CODES_VW",
+      "REPO_INVOICE_LINE_ITEMS_VW",
+      "REPO_INVOICE_TRACKER_ACCOUNTING_VW",
+      "REPO_INVOICE_TRANSACTION_FAILED_VW",
+      "RDN_EVENTS_STREAM",
+      "RDN_EVENTS_CHECKPOINT",
+      "RDN_PUBLISHER_EVENTS_MASTER",
+      "RDN_REPO_INSTANCE_VW",
+      "AUCTION_INVOICE_TRACKER",
+      "AUCTION_INVOICE_INSTANCE",
+      "AUCTION_INVOICE_LINE_ITEMS",
+      "AUCTION_INVOICE_STATUS",
+      "AUCTION_INVOICE_TRACKER_VW",
+      "AUCTION_INVOICE_STATUS_VW",
+      "AUCTION_INVOICE_NLS_TXN_CODES_VW",
+      "AUCTION_INVOICE_LINE_ITEMS_VW",
+      "AUCTION_INVOICE_TRANSACTION_FAILED_VW",
+      "LM_REMARKETING_TRACKER",
+      "LM_REMARKETING_DSHBRD_VW",
+      "LM_REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DSHBRD_TRACKER",
+      "IMPOUND_INSTANCE",
+      "IMPOUND_STATUS",
+      "IMPOUND_NOTIFICATION",
+      "IMPOUND_NOTIFICATION_DOC_MAN",
+      "IMPOUND_DOCS_NEEDED_VW",
+      "IMPOUND_DSHBRD_DETAIL_VW",
+      "IMPOUND_ASSIGNED_HISTORY_VW",
+      "IMPOUND_QUEUE_ASGN_VW",
+      "TRANSPORT_DSHBRD_TRACKER",
+      "TRANSPORT_INSTANCE",
+      "TRANSPORT_STATUS",
+      "TRANSPORT_NOTE_ATTRIBUTES",
+      "TRANSPORT_DSHBRD_VW",
+      "TRANSPORT_DSHBRD_VW_V2",
+      "TRANSPORT_STATUS_VW",
+      "RECON_DASHBOARD_TRACKER",
+      "RECON_ACTION_STATUS",
+      "RECON_DASHBOARD_VW",
+      "TITLE_REMARKETING_TRACKER",
+      "TITLE_REMARKETING_INSTANCE",
+      "TITLE_REMARKETING_TAB_VW",
+      "TITLES_REMARKETING_TITLE_TAB_VW",
+      "TITLE_REMARKETING_NOTIFICATION_VW",
+      "PKG_TITLES_REMARKETING_DASHBOARD"
+    ],
+    "tests": [
+      "backend:tests/loss_mitigation/assignment/test_assignment_filter_identity.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_accounting_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_status/test_repo_status_creation.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_api_health.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_master_data.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_api_health.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_master_data.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_api_health.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_master_data.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_api_health.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_api_health.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_master_data.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_api_health.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_master_data.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_api_health.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_db_connectivity.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_master_data.py"
+    ],
+    "ui": [
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/assignment-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/recon-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/remarketing-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-vendor-assignment.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoiceDashboardSorting.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoices.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardNoteAPIAssertion.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardSorting.cy.js",
+      "cypress/tests/scratch/_seed-repo-invoice-ready-to-pay.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/auction-invoice/auctionInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/impound/lossMitigationImpoundDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/recon/lossMitigationReconDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/remarketing/lossMitigationRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo-invoice/repoInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/transport/lossMitigationTransportDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing/titlesRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing-titles/titlesRemarketingTitlesDashboard.cy.js"
+    ]
+  },
+  "rules": [
+    {
+      "id": "BR-SKIP-001",
+      "text": "- id: BR-SKIP-001\r\n    statement: Skip Main tab displays a loan work queue with row-level detail fields for operational triage (Action, Contract State, Skip Assign Date, Last Worked, DPD, Principal Bal., Past Due Bal., Last Pay, Repo Agent, Days with Agent, Cycle Count, PTP Date, Region, Assigned To).\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-002",
+      "text": "- id: BR-SKIP-002\r\n    statement: Each queue row displays the loan reference, customer name, vehicle description (year/make/model), VIN, GPS Installed status, and Serial Number.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-003",
+      "text": "- id: BR-SKIP-003\r\n    statement: Loan Number is a hyperlink that navigates to the corresponding loan record in the dev3 environment for that loan.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-004",
+      "text": "- id: BR-SKIP-004\r\n    statement: Each row displays a disposition label (e.g. Out to Skip, On Hold, Out to Repo) reflecting the account's current stage.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-005",
+      "text": "- id: BR-SKIP-005\r\n    statement: Each row displays the Assigned To representative with assignment date, and a Repo Type badge (Voluntary Repo or Involuntary Repo).\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-006",
+      "text": "- id: BR-SKIP-006\r\n    statement: Action is an editable per-row field constrained to the supported action list.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-007",
+      "text": "- id: BR-SKIP-007\r\n    statement: The Notes icon on a row opens a Notes popup scoped to that loan, showing an Add Note entry field and cross-module Notes History.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-008",
+      "text": "- id: BR-SKIP-008\r\n    statement: Notes popup Log control remains disabled until note text is entered.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-009",
+      "text": "- id: BR-SKIP-009\r\n    statement: Notes History organizes entries by source dashboard tab (Call Center, Repo, Skip, Re-Marketing) and preserves the logging user and timestamp per entry.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-010",
+      "text": "- id: BR-SKIP-010\r\n    statement: Skip filter panel supports Export to CSV of the current Skip result set.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-011",
+      "text": "- id: BR-SKIP-011\r\n    statement: Left-side filters apply as a combined filter set to the Skip queue, spanning multi-select dropdowns, date ranges, numeric ranges, and keyword filters.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-012",
+      "text": "- id: BR-SKIP-012\r\n    statement: The Last Worked > 7 days filter is an independent binary checkbox, distinct from the Last Worked date range control.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-013",
+      "text": "- id: BR-SKIP-013\r\n    statement: Hold/Close Criteria supports an additional Strict checkbox modifier controlling exact-match filtering behavior.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-014",
+      "text": "- id: BR-SKIP-014\r\n    statement: Skip Main tab displays only lm_skip_tracker records where is_Active = 1; for an account already sent to skip, a later transition to On Hold or Out to Repo keeps is_Active = 1, so this gate only hides a record once an account fully exits skip.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-SKIP-015",
+      "text": "- id: BR-SKIP-015\r\n    statement: Accounts are mapped to a region (East, Central, or West) based on Contract State using the approved state-to-region mapping in specs/modules/common/loss-mitigation/state-to-region-map.yaml.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-SKIP-016",
+      "text": "- id: BR-SKIP-016\r\n    statement: When an account rolls to Skip Tracing, it exits the active Repo queue, enters the Skip assignment process, and remains within the same region as its original Repo assignment (per Contract State).\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-SKIP-017",
+      "text": "- id: BR-SKIP-017\r\n    statement: Skip accounts route only to queue-eligible Skip Tracing representatives within the account's matched region; queue-ineligible users (Managers, Associate Managers, Team Leads, and designated Senior Associates) never receive assignments, in any region.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-SKIP-018",
+      "text": "- id: BR-SKIP-018\r\n    statement: Within a matched region, an eligible account is assigned to the queue-eligible representative with the lowest active Skip queue volume; when volumes tie, the account goes to the representative least recently assigned an account.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-SKIP-019",
+      "text": ""
+    },
+    {
+      "id": "BR-SKIP-020",
+      "text": "- id: BR-SKIP-020\r\n    statement: The 60-day Skip rotation reassigns accounts only among Skip Tracing representatives within the same region (no cross-region rotation), and the representative who owned the account in the previous rotation cycle cannot receive it again in the next cycle.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-SKIP-021",
+      "text": "- id: BR-SKIP-021\r\n    statement: Queue-ineligible users (Managers, Associate Managers, Team Leads, designated Senior Associates) retain view and update access to the Skip Dashboard but never receive account assignments.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-022",
+      "text": "- id: BR-SKIP-022\r\n    statement: Assigned To, Region, and Contract State are visible table columns and filters on the Skip Main tab; Region and Contract State were already present, and Assigned To (renamed from Assigned Associate) is added as of this update.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-023",
+      "text": "- id: BR-SKIP-023\r\n    statement: The Assigned To filter is pre-applied by default at screen load, scoped to the currently logged-in representative.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-024",
+      "text": "- id: BR-SKIP-024\r\n    statement: When a note is created from the Skip Dashboard, the system automatically prepends the \"Skip:\" dashboard identifier to the note text.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-025",
+      "text": "- id: BR-SKIP-025\r\n    statement: CSV exports from the Skip Dashboard include Assigned To, Region, and Last Worked Date as columns, in addition to the existing exported fields.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-026",
+      "text": "- id: BR-SKIP-026\r\n    statement: On Hold and Out to Repo accounts remain assigned to their previously assigned representative and continue to count toward that representative's active Skip queue volume for routing purposes.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-027",
+      "text": "- id: BR-SKIP-027\r\n    statement: Last Worked date updates for an On Hold account only when the note is added by that account's assigned representative; a note added by any other user does not update Last Worked.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-028",
+      "text": "- id: BR-SKIP-028\r\n    statement: When an account moves to a Secured-* status, it is removed from the Skip queue and the previously assigned representative's active queue count decreases by 1.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-029",
+      "text": "- id: BR-SKIP-029\r\n    statement: When the underlying repo account is deleted from dev3, the corresponding Skip record is deleted from lm_account_queue.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-SKIP-030",
+      "text": "- id: BR-SKIP-030\r\n    statement: When a region has exactly one queue-eligible representative, the 60-day Skip rotation does not change that representative's last_assigned_on date and accounts remain assigned to that same (only) representative.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-031",
+      "text": "- id: BR-SKIP-031\r\n    statement: When a representative finishes their assigned workload (active Skip queue count reaches 0), the system rebalances the region by transferring another representative's remaining count to the now-free representative, resetting that other representative's count to 0 in turn — keeping work moving to whoever is free rather than leaving one representative idle at 0 while a peer still holds a backlog.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-032",
+      "text": "- id: BR-SKIP-032\r\n    statement: |\r\n      DPD >= 400 reassignment to Gibran Esquivel Vazquez (BR-SKIP-019) is not triggered by a\r\n      dedicated DAG or the 60-day rotation cycle — it happens immediately when the account's DPD\r\n      reaches or crosses 400.\r\n    priority: Critical\r\n    note: Per SERV-11825 (corrects the prior assumption of a dedicated DAG trigger — there is no such DAG)."
+    },
+    {
+      "id": "BR-SKIP-033",
+      "text": "- id: BR-SKIP-033\r\n    statement: The 60-day Skip rotation DAG must complete successfully for a region with only one queue-eligible representative rather than failing or erroring.\r\n    priority: High"
+    },
+    {
+      "id": "BR-SKIP-034",
+      "text": "- id: BR-SKIP-034\r\n    statement: |\r\n      When the 60-day Skip rotation executes, the reassigned account's Last Worked date is reset to\r\n      null — except for an account assigned to the DPD >= 400 fixed owner (Gibran Esquivel Vazquez,\r\n      see BR-SKIP-019), whose Last Worked date is not reset, consistent with that account's owner\r\n      not changing due to rotation.\r\n    priority: High\r\n    note: Per SERV-11825 (added as a follow-up criteria after initial test case generation)."
+    }
+  ]
+}

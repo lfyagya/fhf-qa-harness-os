@@ -1,0 +1,318 @@
+{
+  "schema": "fhf-harness/backfill-bundle/v1",
+  "module": "loss-mitigation",
+  "spec": "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml",
+  "instruction": "For each rule below, declare where it is verified. Use ONLY names from `evidence`. Omit a rule entirely rather than guess - an unresolvable trace is worse than none, because it reports as covered while nothing verifies the rule. Return JSON: { \"proposals\": [ { \"id\": \"BR-...\", \"traces\": { \"ui\": [], \"api\": [], \"db\": [], \"tests\": [] } } ] }",
+  "evidence": {
+    "endpoints": [
+      "AUTOIMS_API_USERNAME",
+      "AUTOIMS_API_PASSWORD",
+      "AUTOIMS_ENDPOINT",
+      "AUTOIMS_BASE_PATH",
+      "AUTOIMS_EVENTS_IMPORT_SCRIPT",
+      "AUTOIMS_EVENTS_SUBSCRIBER_SCRIPT",
+      "REPO_INVOICE_TRACKER_ENDPOINT",
+      "APPROVE_REPO_INVOICE_ENDPOINT",
+      "REPO_INVOICE_STATUS_ENDPOINT",
+      "REPO_INVOICE_TRANSACTION_FAILED_ENDPOINT",
+      "AUCTION_INVOICE_TRACKER_ENDPOINT",
+      "AUCTION_INVOICE_STATUS_ENDPOINT",
+      "APPROVE_AUCTION_INVOICE_ENDPOINT",
+      "AUCTION_INVOICE_NLS_TXN_CODES_ENDPOINT",
+      "AUCTION_INVOICE_LINE_ITEMS_ENDPOINT",
+      "REPO_INVOICE_LINE_ITEMS_ENDPOINT",
+      "GET_REMARKETING_ACCOUNTS_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_ENDPOINT",
+      "GET_REMARKETING_ELIGIBILITY_PROFILE_ENDPOINT",
+      "GET_REMARKETING_TASK_LIST_ENDPOINT",
+      "GET_IMPOUND_DASHBOARD_ENDPOINT",
+      "GET_IMPOUND_STATUS_ENDPOINT",
+      "GET_IMPOUND_DOCS_NEEDED_ENDPOINT",
+      "GET_IMPOUND_DETAIL_ENDPOINT",
+      "GET_IMPOUND_ASSIGNED_HISTORY_ENDPOINT",
+      "GET_IMPOUND_NOTIFICATION_ENDPOINT",
+      "GET_TRANSPORT_DASHBOARD_ENDPOINT",
+      "GET_TRANSPORT_STATUS_ENDPOINT",
+      "GET_RECON_DASHBOARD_ENDPOINT",
+      "GET_RECON_ACTION_STATUS_ENDPOINT",
+      "GET_RECON_AUTOIMS_HOLD_TYPE_ENDPOINT",
+      "GET_TITLES_REMARKETING_TAB_ENDPOINT",
+      "GET_TITLES_REMARKETING_TITLES_TAB_ENDPOINT",
+      "GET_FHF_NOTIFICATION_REMARKETING_ENDPOINT",
+      "GET_FHF_NOTIFICATION_IMPOUND_ENDPOINT"
+    ],
+    "tables": [
+      "REMARKETING_TRACKER",
+      "REMARKETING_DSHBRD_VW",
+      "REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DASHBOARD_VW",
+      "PKG_IMPOUND_DASHBOARD",
+      "LM_TRANSPORT_USERS",
+      "PKG_TRANSPORT",
+      "PKG_RECON_DASHBOARD",
+      "REMARKETING_INSTANCE",
+      "REMARKETING_TAB_VW",
+      "REMARKETING_TITLE_TAB_VW",
+      "PKG_REMARKETING_DASHBOARD",
+      "REPO_INVOICE_TRACKER",
+      "REPO_INVOICE_INSTANCE",
+      "REPO_INVOICE_LINE_ITEMS",
+      "REPO_INVOICE_NLS_TXN_CODES",
+      "REPO_INVOICE_STATUS",
+      "REPO_INVOICE_TRACKER_VW",
+      "REPO_INVOICE_TRACKER_REPO_VW",
+      "REPO_INVOICE_STATUS_VW",
+      "REPO_INVOICE_NLS_TXN_CODES_VW",
+      "REPO_INVOICE_LINE_ITEMS_VW",
+      "REPO_INVOICE_TRACKER_ACCOUNTING_VW",
+      "REPO_INVOICE_TRANSACTION_FAILED_VW",
+      "RDN_EVENTS_STREAM",
+      "RDN_EVENTS_CHECKPOINT",
+      "RDN_PUBLISHER_EVENTS_MASTER",
+      "RDN_REPO_INSTANCE_VW",
+      "AUCTION_INVOICE_TRACKER",
+      "AUCTION_INVOICE_INSTANCE",
+      "AUCTION_INVOICE_LINE_ITEMS",
+      "AUCTION_INVOICE_STATUS",
+      "AUCTION_INVOICE_TRACKER_VW",
+      "AUCTION_INVOICE_STATUS_VW",
+      "AUCTION_INVOICE_NLS_TXN_CODES_VW",
+      "AUCTION_INVOICE_LINE_ITEMS_VW",
+      "AUCTION_INVOICE_TRANSACTION_FAILED_VW",
+      "LM_REMARKETING_TRACKER",
+      "LM_REMARKETING_DSHBRD_VW",
+      "LM_REMARKETING_ELIGIBILITY_VW",
+      "IMPOUND_DSHBRD_TRACKER",
+      "IMPOUND_INSTANCE",
+      "IMPOUND_STATUS",
+      "IMPOUND_NOTIFICATION",
+      "IMPOUND_NOTIFICATION_DOC_MAN",
+      "IMPOUND_DOCS_NEEDED_VW",
+      "IMPOUND_DSHBRD_DETAIL_VW",
+      "IMPOUND_ASSIGNED_HISTORY_VW",
+      "IMPOUND_QUEUE_ASGN_VW",
+      "TRANSPORT_DSHBRD_TRACKER",
+      "TRANSPORT_INSTANCE",
+      "TRANSPORT_STATUS",
+      "TRANSPORT_NOTE_ATTRIBUTES",
+      "TRANSPORT_DSHBRD_VW",
+      "TRANSPORT_DSHBRD_VW_V2",
+      "TRANSPORT_STATUS_VW",
+      "RECON_DASHBOARD_TRACKER",
+      "RECON_ACTION_STATUS",
+      "RECON_DASHBOARD_VW",
+      "TITLE_REMARKETING_TRACKER",
+      "TITLE_REMARKETING_INSTANCE",
+      "TITLE_REMARKETING_TAB_VW",
+      "TITLES_REMARKETING_TITLE_TAB_VW",
+      "TITLE_REMARKETING_NOTIFICATION_VW",
+      "PKG_TITLES_REMARKETING_DASHBOARD"
+    ],
+    "tests": [
+      "backend:tests/loss_mitigation/assignment/test_assignment_filter_identity.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/auction_invoice/test_auction_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_accounting_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_approval_flow.py",
+      "backend:tests/loss_mitigation/repo_invoice/test_repo_invoice_denial_flow.py",
+      "backend:tests/loss_mitigation/repo_status/test_repo_status_creation.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_api_health.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/assignment/test_assignment_master_data.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/auction_invoice/test_auction_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_api_health.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/impound/test_impound_master_data.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_api_health.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/recon/test_recon_master_data.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_api_health.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/remarketing/test_remarketing_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo/test_repo_master_data.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_api_health.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/repo_invoice/test_repo_invoice_master_data.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_api_health.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/skip/test_skip_master_data.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_api_health.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_db_connectivity.py",
+      "backend:tests/smoke/loss_mitigation/transport/test_transport_master_data.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_api_health.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_db_connectivity.py",
+      "backend:tests/smoke/titles/remarketing_titles/test_remarketing_titles_master_data.py"
+    ],
+    "ui": [
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/assignment-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/auctionInvoice.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/recon-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/remarketing-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repo-vendor-assignment.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoice-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoiceDashboardSorting.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/repoInvoices.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/skip-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport-filtering.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transport.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardNoteAPIAssertion.cy.js",
+      "cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/transportDashboardSorting.cy.js",
+      "cypress/tests/scratch/_seed-repo-invoice-ready-to-pay.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/assignment/lossMitigationAssignmentDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/auction-invoice/auctionInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/impound/lossMitigationImpoundDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/recon/lossMitigationReconDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/remarketing/lossMitigationRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo/lossMitigationRepoDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/repo-invoice/repoInvoiceDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/skip/lossMitigationSkipDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/loss-mitigation/transport/lossMitigationTransportDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing/titlesRemarketingDashboard.cy.js",
+      "cypress/tests/fhf-dashboard/smoke/titles/remarketing-titles/titlesRemarketingTitlesDashboard.cy.js"
+    ]
+  },
+  "rules": [
+    {
+      "id": "BR-REC-023",
+      "text": "- id: BR-REC-023\r\n    statement: Recon Main tab must render the required column headers with editability behavior exactly as defined in the table column contract.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-REC-001",
+      "text": "- id: BR-REC-001\r\n    statement: Recon Main tab displays a loan work queue with row-level update controls for operational triage.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-003",
+      "text": "- id: BR-REC-003\r\n    statement: Editable row fields are limited to Driveable, Action, Follow-up Date, and Notes.\r\n    priority: Critical"
+    },
+    {
+      "id": "BR-REC-004",
+      "text": "- id: BR-REC-004\r\n    statement: Action value must be selected from the supported list only.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-005",
+      "text": "- id: BR-REC-005\r\n    statement: Red row highlighting indicates Age 45+ Days from Secured Date and must remain consistent after updates.\r\n    priority: Medium"
+    },
+    {
+      "id": "BR-REC-006",
+      "text": "- id: BR-REC-006\r\n    statement: Bulk Action menu must expose only Follow-up Date, Action, and Notes options (in that order). The Bulk Actions button is disabled when no rows are selected.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-007",
+      "text": "- id: BR-REC-007\r\n    statement: Bulk Notes Add action remains disabled until notes text is provided.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-008",
+      "text": "- id: BR-REC-008\r\n    statement: Bulk Follow-up Add action remains disabled until a valid date is selected.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-009",
+      "text": ""
+    },
+    {
+      "id": "BR-REC-011",
+      "text": "- id: BR-REC-011\r\n    statement: PTP Date is displayed as a dedicated table column in Recon Main tab.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-014",
+      "text": "- id: BR-REC-014\r\n    statement: When email is sent to auction, an email icon is shown on the left side of the loan row.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-022",
+      "text": "- id: BR-REC-022\r\n    statement: Export CSV button exports Recon table data when clicked.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-025",
+      "text": "- id: BR-REC-025\r\n    statement: \"The Email Auction modal (opened from the row three-dot/kebab menu) presents a Purpose dropdown with exactly these values in this display order: Presale Inspection, Mech/Frame Check, Diag, Repair Update, Estimate, CR Update (see email_use_cases Email Auction purpose_dropdown).\"\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-026",
+      "text": "- id: BR-REC-026\r\n    statement: In the Email Auction modal the To field is auto-populated with the Auction Email Address (the auction's fleet-lease/commercial contact(s)) when auction contact information exists, and the CC field defaults to remarketing@firsthelp.com and transports@firsthelpfinancial.com.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-027",
+      "text": "- id: BR-REC-027\r\n    statement: In the Email Auction modal the Subject is auto-populated from the selected Purpose and the VIN in the format \"<Purpose> [VIN]\" (e.g. \"Presale Inspection [VIN]\") and remains editable by the user.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-028",
+      "text": "- id: BR-REC-028\r\n    statement: In the Email Auction modal the Email Body is auto-populated from the email_template row for the selected Purpose (department=LOSS_MITIGATION, category=RECON, is_Active=1; template IDs 90–95). Content is governed by the live email_template rows rather than hardcoded in this spec. The field remains editable by the user.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-030",
+      "text": "- id: BR-REC-030\r\n    statement: Hovering over the Recon table's Auction column shows the Auction Contact Card for that row's auction.\r\n    priority: Low\r\n    note: Per SERV-12096, added along with the shared Auction Contact Card component."
+    },
+    {
+      "id": "BR-REC-031",
+      "text": ""
+    },
+    {
+      "id": "BR-REC-032",
+      "text": "- id: BR-REC-032\r\n    statement: |\r\n      Marking a Recon record as Complete removes it from the active Recon queue. The record is\r\n      retained in RECON_DASHBOARD_TRACKER (identified by IDRECON_DASHBOARD_TRACKER) and is never\r\n      deleted — it remains accessible for history and audit. See data_population_rules.lifecycle_rules.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-033",
+      "text": "- id: BR-REC-033\r\n    statement: The Three Dot Menu (kebab ⋮) is hidden for users without write access to the Recon sub-module — only users with Recon write access see it and can access Email Titles and Email Auction. Inherited from specs/components/table.component.yaml RL-008.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-034",
+      "text": "- id: BR-REC-034\r\n    statement: The Title Status filter dropdown must display all available Title Status values in alphabetical (A-Z) order.\r\n    priority: Low"
+    },
+    {
+      "id": "BR-REC-035",
+      "text": "- id: BR-REC-035\r\n    statement: When the Driveable column cell displays the value \"No\", the text is rendered in red. This is a display-only style change — it does not affect filtering, editing, or any functional behavior of the Driveable field.\r\n    priority: Low"
+    },
+    {
+      "id": "BR-REC-036",
+      "text": ""
+    },
+    {
+      "id": "BR-REC-037",
+      "text": "- id: BR-REC-037\r\n    statement: |\r\n      Recon is a Tier 2 read-only Events tab consumer — the Add Event control and Remove Event\r\n      option are not shown to Recon users. Event viewing, sub-tab navigation, and notification\r\n      badge are fully available; only write actions (Add Event, Remove Event) are absent.\r\n      All shared Events tab mechanics are inherited from event.component.yaml and tested via\r\n      Tier 1 test cases in test_cases/components/event/ — Recon's own coverage is exactly 3\r\n      cases per event.component.yaml consumer_test_tiers.tier_2_rhs_consumers.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-038",
+      "text": "- id: BR-REC-038\r\n    statement: |\r\n      Notes added to a Recon record via the inline Notes column field (row-level edit) or via the\r\n      Bulk Notes Add modal (bulk action) are stored as manual notes for the corresponding record\r\n      and must appear in the Manual Notes sub-tab of the RHS Notes tab for that record.\r\n      Both entry points produce notes visible in the same Manual Notes sub-tab — there is no\r\n      separate or secondary location for Bulk Notes.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-039",
+      "text": "- id: BR-REC-039\r\n    statement: |\r\n      The Loan Documents tab contains a \"Document Repository\" shortcut button in the top-right\r\n      corner of the tab. Clicking it opens the document management system (docman) for the\r\n      selected loan/account. The button is always visible regardless of whether any documents\r\n      are listed in the tab.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-040",
+      "text": "- id: BR-REC-040\r\n    statement: |\r\n      The Email History tab displays only emails sent from the Recon module. Emails from other\r\n      modules are excluded — the tab is filtered by the Recon loggedFrom parameter. No emails\r\n      from other dashboards or modules appear regardless of the selected account's history.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-041",
+      "text": "- id: BR-REC-041\r\n    statement: |\r\n      After a successful email send (Email Auction or Email Titles), the sent email appears in\r\n      the Email History tab immediately — no page refresh is required. The new email is listed\r\n      under the Today group with the correct From, Subject, and sent Time.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-042",
+      "text": "- id: BR-REC-042\r\n    statement: |\r\n      IDRECON_DASHBOARD_TRACKER is a versioning key, not a business identifier. Every time a field\r\n      on a Recon record changes, the current row is set to IS_ACTIVE = 0 and a new row is inserted\r\n      with IS_ACTIVE = 1, preserving a full field-change audit trail. IDRECON_DASHBOARD_TRACKER\r\n      uniquely identifies a single version of a record, not a unique loan or repo event.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-043",
+      "text": ""
+    },
+    {
+      "id": "BR-REC-044",
+      "text": "- id: BR-REC-044\r\n    statement: |\r\n      The same loan number can have multiple IS_ACTIVE = 1 rows in RECON_DASHBOARD_TRACKER — one\r\n      per REPO_INSTANCE_ID. There is no technical constraint preventing multiple rows from being\r\n      IS_ACTIVE = 1 simultaneously. When this occurs, the loan number appears multiple times on the\r\n      Recon dashboard, each row tied to a different REPO_INSTANCE_ID. The Recon dashboard does not\r\n      deduplicate by loan number; it displays one row per active RECON_DASHBOARD_TRACKER record.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-045",
+      "text": "- id: BR-REC-045\r\n    statement: |\r\n      The Recon dashboard loads with a default sort of Follow-up Date ASC (primary) then\r\n      Date Added ASC (secondary). Rows with no Follow-up Date set (NULL) appear last. Within\r\n      rows that share the same Follow-up Date value, Date Added ASC determines the tie-break\r\n      sequence. This default ordering applies on initial page load and after any filter change\r\n      that triggers a data reload; it is overridden only when the user manually clicks a column\r\n      header sort control.\r\n    priority: High"
+    },
+    {
+      "id": "BR-REC-046",
+      "text": ""
+    }
+  ]
+}

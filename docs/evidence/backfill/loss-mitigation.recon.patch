@@ -1,0 +1,76 @@
+--- a/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml
++++ b/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml
+@@ -142,15 +142,27 @@ business_rules:
+   - id: BR-REC-023
+     statement: Recon Main tab must render the required column headers with editability behavior exactly as defined in the table column contract.
+     priority: Critical
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/recon/lossMitigationReconDashboard.cy.js]
++      db: [RECON_DASHBOARD_VW]
++
+   - id: BR-REC-001
+     statement: Recon Main tab displays a loan work queue with row-level update controls for operational triage.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/recon/lossMitigationReconDashboard.cy.js]
++      api: [GET_RECON_DASHBOARD_ENDPOINT]
++
+   - id: BR-REC-003
+     statement: Editable row fields are limited to Driveable, Action, Follow-up Date, and Notes.
+     priority: Critical
+   - id: BR-REC-004
+     statement: Action value must be selected from the supported list only.
+     priority: High
++    traces:
++      api: [GET_RECON_ACTION_STATUS_ENDPOINT]
++      db: [RECON_ACTION_STATUS]
++
+   - id: BR-REC-005
+     statement: Red row highlighting indicates Age 45+ Days from Secured Date and must remain consistent after updates.
+     priority: Medium
+@@ -215,12 +227,18 @@ business_rules:
+       retained in RECON_DASHBOARD_TRACKER (identified by IDRECON_DASHBOARD_TRACKER) and is never
+       deleted — it remains accessible for history and audit. See data_population_rules.lifecycle_rules.
+     priority: High
++    traces:
++      db: [RECON_DASHBOARD_TRACKER]
++
+   - id: BR-REC-033
+     statement: The Three Dot Menu (kebab ⋮) is hidden for users without write access to the Recon sub-module — only users with Recon write access see it and can access Email Titles and Email Auction. Inherited from specs/components/table.component.yaml RL-008.
+     priority: High
+   - id: BR-REC-034
+     statement: The Title Status filter dropdown must display all available Title Status values in alphabetical (A-Z) order.
+     priority: Low
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/recon-filtering.cy.js]
++
+   - id: BR-REC-035
+     statement: When the Driveable column cell displays the value "No", the text is rendered in red. This is a display-only style change — it does not affect filtering, editing, or any functional behavior of the Driveable field.
+     priority: Low
+@@ -282,6 +300,8 @@ business_rules:
+       with IS_ACTIVE = 1, preserving a full field-change audit trail. IDRECON_DASHBOARD_TRACKER
+       uniquely identifies a single version of a record, not a unique loan or repo event.
+     priority: High
++    traces:
++      db: [RECON_DASHBOARD_TRACKER]
+ 
+   - id: BR-REC-043
+     statement: |
+@@ -303,6 +323,8 @@ business_rules:
+       Recon dashboard, each row tied to a different REPO_INSTANCE_ID. The Recon dashboard does not
+       deduplicate by loan number; it displays one row per active RECON_DASHBOARD_TRACKER record.
+     priority: High
++    traces:
++      db: [RECON_DASHBOARD_TRACKER]
+ 
+   - id: BR-REC-045
+     statement: |
+@@ -313,6 +335,8 @@ business_rules:
+       that triggers a data reload; it is overridden only when the user manually clicks a column
+       header sort control.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/recon/lossMitigationReconDashboard.cy.js]
+ 
+   - id: BR-REC-046
+     statement: |

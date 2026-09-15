@@ -1,0 +1,33 @@
+{
+  "schema": "fhf-harness/backfill-state/v1",
+  "module": "loss-mitigation",
+  "startedAt": "2026-09-15T21:00:54.336Z",
+  "specs": {
+    "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml": {
+      "rules": 8,
+      "patchedAt": "2026-09-15T21:00:54.406Z"
+    },
+    "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml": {
+      "rules": 23,
+      "patchedAt": "2026-09-15T21:07:14.216Z"
+    },
+    "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml": {
+      "rules": 13,
+      "patchedAt": "2026-09-15T21:08:07.977Z"
+    },
+    "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml": {
+      "rules": 11,
+      "patchedAt": "2026-09-15T21:09:06.400Z"
+    },
+    "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml": {
+      "rules": 9,
+      "patchedAt": "2026-09-15T21:09:06.590Z"
+    }
+  },
+  "totals": {
+    "proposed": 126,
+    "kept": 84,
+    "dropped": 1
+  },
+  "updatedAt": "2026-09-15T21:09:06.591Z"
+}

@@ -1,0 +1,187 @@
+--- a/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml
++++ b/Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml
+@@ -145,16 +145,30 @@ business_rules:
+   - id: BR-IMP-001
+     statement: Impound Dashboard renders a work queue with row-level fields for tracking impounded vehicle accounts (see table_column_contract.required_headers for the full field list).
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/impound/lossMitigationImpoundDashboard.cy.js]
++      api: [GET_IMPOUND_DASHBOARD_ENDPOINT]
++
+   - id: BR-IMP-002
+     statement: A header record-count display ("Showing X of Y Records") reflects the currently loaded/filtered result set size.
+     priority: Low
++    traces:
++      ui: [cypress/tests/fhf-dashboard/smoke/loss-mitigation/impound/lossMitigationImpoundDashboard.cy.js]
++
+   - id: BR-IMP-003
+     statement: A "Show Archived Accounts" toggle controls whether archived accounts — accounts whose Impound Status is a final status (see table_column_contract Impound Status status_lifecycle) — are included in the result set; off by default, which excludes them.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound.cy.js]
++
+   - id: BR-IMP-004
+     statement: An "Action Needed" indicator (bell icon with a red dot) is shown in the dashboard header when one or more accounts require attention.
+     priority: Medium
+     note: Exact trigger criteria and click behavior are not yet confirmed.
++    traces:
++      api: [GET_IMPOUND_NOTIFICATION_ENDPOINT]
++      db: [IMPOUND_NOTIFICATION]
++
+   - id: BR-IMP-005
+     statement: "Loan # is styled as a hyperlink (blue text) on each row."
+     priority: Medium
+@@ -162,6 +176,10 @@ business_rules:
+   - id: BR-IMP-006
+     statement: Impound Status is an editable per-row dropdown (single value per row) constrained to the supported status list (see table_column_contract Impound Status); the same status list is available as multi-select options in the Impound Status filter.
+     priority: High
++    traces:
++      api: [GET_IMPOUND_STATUS_ENDPOINT]
++      db: [IMPOUND_STATUS]
++
+   - id: BR-IMP-007
+     statement: Impound State is an editable per-row dropdown (single value per row) constrained to the supported state/territory list (see table_column_contract Impound State), or "Select..." when unset.
+     priority: Medium
+@@ -172,6 +190,9 @@ business_rules:
+     statement: Each Impound Status value is classified as final (terminal/closed) or non-final (in-progress), with a defined sort order for display grouping (see table_column_contract Impound Status status_lifecycle).
+     priority: Medium
+     note: Duplicate/Error and Fee Dispute are not yet classified as final or non-final.
++    traces:
++      db: [IMPOUND_STATUS]
++
+   - id: BR-IMP-009
+     statement: DPD (Days Past Due) is a read-only numeric column.
+     priority: Medium
+@@ -186,32 +207,60 @@ business_rules:
+   - id: BR-IMP-012
+     statement: The left-hand-side filter panel exposes Loan Number, VIN, Impound Status, Impound State, Assigned To, PTP, Follow Up Date, Impound Completed Date, Days on Impound Dashboard, Date of Impound, Lien Sale Date, Notice Received Date, and Last Worked Date (see filter_inventory).
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js]
++
+   - id: BR-IMP-013
+     statement: Filter selections in the left-hand-side filter panel are only applied to the result set when Apply is clicked; Cancel discards pending selections without applying them.
+     priority: High
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js]
++
+   - id: BR-IMP-014
+     statement: PTP renders as a "Select..." dropdown in the filter panel rather than a date-range control.
+     priority: Medium
+     note: Allowed option values are not yet confirmed.
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js]
++
+   - id: BR-IMP-015
+     statement: Days on Impound Dashboard is a numeric Min/Max range filter.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js]
++
+   - id: BR-IMP-016
+     statement: Each filter in the panel has an adjacent overflow (⋮) control.
+     priority: Low
+     note: Exact behavior (e.g. pin, clear-single-filter, reorder) is not yet confirmed.
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound-filtering.cy.js]
++
+   - id: BR-IMP-017
+     statement: The right-hand-side panel provides Notes, Loan Details, Loan Documents, Financial Snapshot, Events, and Email History tabs for the selected row (see right_hand_side_contract.enabled_tabs).
+     priority: Medium
++    traces:
++      api: [GET_IMPOUND_DETAIL_ENDPOINT]
++      db: [IMPOUND_DSHBRD_DETAIL_VW]
++
+   - id: BR-IMP-019
+     statement: An account is populated onto the Impound dashboard when a Vehicle Impounded event is added for it via Unifi, which creates a new impound instance for the account (see data_population_rules.eligibility_rules, instance_contract).
+     priority: Critical
++    traces:
++      db: [IMPOUND_DSHBRD_TRACKER, IMPOUND_INSTANCE]
++
+   - id: BR-IMP-020
+     statement: If an account already has an active impound instance, a subsequent Vehicle Impounded event does not create a new/duplicate instance for that account.
+     priority: Critical
++    traces:
++      db: [IMPOUND_INSTANCE]
++
+   - id: BR-IMP-021
+     statement: Each occurrence of an account being impounded is tracked as a distinct instance identified by an instance_id; an account may have multiple instances over its lifetime, but only one is active at a time (see instance_contract).
+     priority: High
++    traces:
++      db: [IMPOUND_INSTANCE]
++
+   - id: BR-IMP-022
+     statement: Repo Status is a read-only pass-through value reflecting the account's corresponding repossession status in Leapfrog (dev3) (see data_population_rules.pass_through_fields).
+     priority: Medium
+@@ -219,9 +268,15 @@ business_rules:
+     statement: Assigned To is an editable per-row dropdown (single value per row) showing the person (e.g. agent) assigned to the account.
+     priority: Medium
+     note: Full allowed-value list not yet confirmed.
++    traces:
++      db: [IMPOUND_QUEUE_ASGN_VW]
++
+   - id: BR-IMP-024
+     statement: Days on Impound Dashboard is a read-only computed numeric column reflecting how long the account's active instance has been on the dashboard.
+     priority: Medium
++    traces:
++      db: [IMPOUND_DASHBOARD_VW]
++
+   - id: BR-IMP-025
+     statement: The table column and its corresponding left-hand-side filter use different labels for the same field in two cases — "PTP Date" (column) / "PTP" (filter) and "Last Worked" (column) / "Last Worked Date" (filter) — mirroring the Client/Client Name label pattern documented on sibling dashboards.
+     priority: Low
+@@ -232,6 +287,10 @@ business_rules:
+   - id: BR-IMP-027
+     statement: The Assigned To widget on the Details Page records each prior assignment with a timestamp when the assignment changes, and displays the resulting Assignment History list in reverse chronological order (most recent first).
+     priority: High
++    traces:
++      api: [GET_IMPOUND_ASSIGNED_HISTORY_ENDPOINT]
++      db: [IMPOUND_ASSIGNED_HISTORY_VW]
++
+   - id: BR-IMP-028
+     statement: When the account's LF (Leapfrog) Securement/Repo Status becomes "Secured - Impound", the system automatically populates the Secured Date on the Impound Dashboard and sets the Impound Status to "Vehicle Secured", always overwriting the current Impound Status regardless of its prior value.
+     priority: Critical
+@@ -239,9 +298,15 @@ business_rules:
+   - id: BR-IMP-029
+     statement: "Impound Completed Date is populated with the current system date when the Impound Status changes to any final status (Vehicle Secured, Client Secured, Insurance Secured, Impound Cancelled, Lien loss, Not Impound)."
+     priority: High
++    traces:
++      db: [IMPOUND_DSHBRD_TRACKER]
++
+   - id: BR-IMP-030
+     statement: Once the Impound Completed Date is populated it is not overwritten by any future status update.
+     priority: High
++    traces:
++      db: [IMPOUND_DSHBRD_TRACKER]
++
+   - id: BR-IMP-031
+     statement: "Days on Impound Dashboard is calculated from Notice Received Date as its baseline: for active accounts (Impound Completed Date not yet populated), Current Date minus Notice Received Date; for resolved accounts (Impound Completed Date populated), Impound Completed Date minus Notice Received Date. Once an account is resolved the value is frozen and no longer increases with the current date."
+     priority: High
+@@ -249,12 +314,18 @@ business_rules:
+   - id: BR-IMP-032
+     statement: When Days on Impound Dashboard is greater than 5, its value is displayed in red on the dashboard list view.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound.cy.js]
++
+   - id: BR-IMP-033
+     statement: The Days on Impound Dashboard column is positioned immediately before the Date of Impound column on the main dashboard list view (already reflected in table_column_contract.required_headers ordering).
+     priority: Medium
+   - id: BR-IMP-034
+     statement: Exporting Impound Dashboard data produces a file that includes all dashboard columns, including the new/updated fields.
+     priority: Medium
++    traces:
++      ui: [cypress/tests/fhf-dashboard/e2e/dashboards/loss-mitigation/impound.cy.js]
++
+   - id: BR-IMP-035
+     statement: The Basic Details widget on the Details Page includes a "Titles Details Page" link that navigates to the corresponding account's Details Page on the Titles module.
+     priority: Medium
+@@ -267,6 +338,9 @@ business_rules:
+     statement: When an account has no Notice Received Date, Days on Impound Dashboard renders blank ("-") rather than a numeric value, since the calculation has no baseline to measure from (see BR-IMP-031).
+     priority: High
+     note: 'Per SERV-12124: confirmed with requester that a missing baseline shows no value rather than falling back to Date of Impound or defaulting to 0.'
++    traces:
++      db: [IMPOUND_DASHBOARD_VW]
++
+   - id: BR-IMP-038
+     statement: >-
+       The main dashboard list view displays its columns in this left-to-right order: Loan #, Customer
