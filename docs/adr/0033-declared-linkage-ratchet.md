@@ -69,11 +69,39 @@ The gate fired on its own author before it was accepted: `check-docs-links` reje
 `validate-spec-linkage.mjs` for carrying no "Why this exists" header, which is ADR-0027 decision 4
 working as designed on the hook that implements this one.
 
-Scope is deliberately narrow. This requires a rule to say where it is verified; it does not check
-that the named test, endpoint or table exists, nor that the test actually asserts the rule. Those are
-real follow-ups, and both need the declarations to exist first. Endpoints (0 of 234) and tables
-(8 of 356) are not gated here either — the same ratchet can extend to them once rule tracing is
-established and the authoring cost is understood.
+## Amendment (2026-09-16) — declared edges must resolve
+
+The decision above shipped without resolution: a rule satisfied the ratchet by *naming* an endpoint,
+table or test, whether or not it existed. That is the fake-edge problem — the arrow is drawn and no
+data flows along it — and it is worse than no edge, because the linkage report counts it as covered
+while nothing verifies the rule.
+
+Resolution is now enforced, and each category degrades independently:
+
+| Reference | Must resolve against | Failure |
+|---|---|---|
+| `api: [NAME]` | a key in `tests/example_env` (237 present) | blocks |
+| `db: [NAME]` | a declaration in `tests/commons/db_schema.py` (310 present) | blocks |
+| `tests:` / `ui:` path | a real file under the backend or a lane root | blocks |
+| named test does not mention the rule id | — | **warns** |
+
+The last row is deliberately a warning. Citing a rule id inside a test is a new convention with
+almost no adoption (6 of 322 test files cite anything), so blocking on it would reject correct work
+written before the convention existed.
+
+**A category whose source cannot be read is skipped, not failed.** A partial workspace — no backend
+checkout, a lane absent on this machine — is not an authoring error, and blocking on it would make
+the gate unusable for anyone who has not cloned everything. This is the same choice the missing
+baseline makes.
+
+Verified against the live workspace: a real endpoint and a real table pass, a bogus endpoint, a
+bogus table and a non-existent file each block with the specific reason, and an untraced rule still
+blocks. The hermetic self-tests point `CLAUDE_PROJECT_DIR` at the temp workspace so they exercise
+the degradation path instead; resolution itself is proven where the names actually exist.
+
+Still out of scope: whether the named test *asserts* the rule rather than merely mentioning it, and
+the reverse direction — endpoints (0 of 234) and tables (8 of 356) named in specs. Both remain
+available to the same ratchet once rule tracing has adoption.
 
 What does not change: the 608 baselined rules, the index's refusal to infer edges, and every existing
 gate.

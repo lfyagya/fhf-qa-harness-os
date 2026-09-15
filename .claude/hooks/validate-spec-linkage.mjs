@@ -18,7 +18,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hookContent, hookFilePath } from "./lib/hook-payload.mjs";
 import { emitAllow } from "./lib/hook-runtime.mjs";
-import { untracedRules, tracedButBaselined, parseRuleTraces } from "./lib/spec-linkage.mjs";
+import { untracedRules, tracedButBaselined, parseRuleTraces, loadTraceUniverse, resolveTraces } from "./lib/spec-linkage.mjs";
+import { loadHarnessConfig } from "./lib/harness-config.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BASELINE_FILE = path.join(HERE, "linkage-baseline.json");
@@ -54,6 +55,37 @@ try {
   process.exit(0);
 }
 
+// Resolve what the spec declares. A declared edge that names something non-existent is a fake
+// edge: the arrow is drawn and no data flows along it. Declaring is cheap, so resolution is what
+// makes the declaration worth anything.
+function traceRoots() {
+  try {
+    const config = loadHarnessConfig();
+    const root = process.env.CLAUDE_PROJECT_DIR ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd();
+    const abs = (rel) => (rel ? path.resolve(root, rel) : null);
+    const backendRel = config.paths?.automationLanes?.backend?.root
+      ?? config.paths?.lanes?.backend?.root ?? null;
+    const laneRoots = Object.values(config.paths?.lanes ?? {})
+      .map((lane) => (lane?.root ? abs(path.join(lane.root, lane.package ?? "")) : null))
+      .filter(Boolean);
+    return { backendRoot: abs(backendRel), laneRoots };
+  } catch {
+    // No config, no resolution. Existence checks degrade to skipped rather than failing every
+    // reference, which is the same choice the baseline fallback makes.
+    return { backendRoot: null, laneRoots: [] };
+  }
+}
+
+const universe = loadTraceUniverse(traceRoots());
+const unresolved = [];
+const uncited = [];
+for (const rule of parseRuleTraces(text)) {
+  if (!rule.traced) continue;
+  const result = resolveTraces(rule, universe);
+  for (const problem of result.unresolved) unresolved.push(`${rule.id}: ${problem}`);
+  for (const problem of result.uncited) uncited.push(problem);
+}
+
 const untraced = untracedRules(text, baseline);
 const stale = tracedButBaselined(text, baseline);
 
@@ -64,6 +96,25 @@ if (stale.length > 0) {
     `validate-spec-linkage: ${stale.join(", ")} now declare traces but remain in `
     + `.claude/hooks/linkage-baseline.json. Remove them so the baseline keeps shrinking.`,
   );
+}
+
+if (uncited.length > 0) {
+  // Warned, not blocked: the file exists, and citing a rule id inside a test has almost no
+  // adoption yet (6 of 322 test files cite anything). Blocking here would reject correct work.
+  console.error("validate-spec-linkage: declared test(s) resolve but do not mention the rule:");
+  for (const problem of uncited) console.error(`  ${problem}`);
+}
+
+if (unresolved.length > 0) {
+  console.error(`BLOCKED: ${unresolved.length} declared trace(s) name something that does not exist.`);
+  console.error("");
+  for (const problem of unresolved) console.error(`  ${problem}`);
+  console.error("");
+  console.error("A trace must resolve: an api: name is a key in tests/example_env, a db: name is");
+  console.error("declared in tests/commons/db_schema.py, and a tests:/ui: path is a real file.");
+  console.error("A declared edge that resolves to nothing is worse than no edge - it reports as");
+  console.error("covered while nothing verifies the rule.");
+  process.exit(2);
 }
 
 if (untraced.length === 0) {

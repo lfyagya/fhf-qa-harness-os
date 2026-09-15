@@ -812,8 +812,12 @@ expect("validate-backend-automation passes a selected helper-based pytest test",
 // ---- validate-spec-linkage: the traces ratchet ----
 const linkageSpecPath = path.join(tmp, "specs", "modules", "demo", "thing.yaml");
 const linkageSpec = (rules) => [" module: Demo".trim(), "business_rules:", ...rules, "", "flows:", "  - step: one"].join("\n");
+// CLAUDE_PROJECT_DIR points at the temp workspace so trace resolution finds no backend checkout
+// and no lane roots. That keeps these cases hermetic and exercises the degradation path: an
+// unresolvable source must skip that category, never false-block. Resolution itself is verified
+// against the live workspace, where the names actually exist.
 const linkageRun = (content, file = linkageSpecPath) =>
-  run("validate-spec-linkage.mjs", { tool_input: { file_path: file, content } });
+  run("validate-spec-linkage.mjs", { tool_input: { file_path: file, content } }, { CLAUDE_PROJECT_DIR: tmp });
 
 expect("spec linkage blocks a new business rule with no traces",
   linkageRun(linkageSpec(["  - id: BR-ZZZ-999", "    rule: brand new"])),
@@ -823,12 +827,17 @@ expect("spec linkage allows a new rule that declares traces",
 expect("spec linkage allows a baselined rule that is still untraced",
   linkageRun(linkageSpec(["  - id: BR-ANC-001", "    rule: predates the gate"])), 0);
 expect("spec linkage warns when a baselined rule gains traces",
-  linkageRun(linkageSpec(["  - id: BR-ANC-001", "    rule: now traced", "    traces:", "      tests: [backend:tests/smoke/x/test_y.py]"])),
+  linkageRun(linkageSpec(["  - id: BR-ANC-001", "    rule: now traced", "    traces:", "      tests: [backend:tests/api/users/test_users.py]"])),
   (r) => r.code === 0 && r.stderr.includes("linkage-baseline"));
 expect("spec linkage ignores a non-spec file",
   linkageRun("business_rules:\n  - id: BR-ZZZ-999", path.join(tmp, "thing.cy.js")), 0);
 expect("spec linkage ignores a spec with no business rules",
   linkageRun("module: Demo\nflows:\n  - step: one"), 0);
+// Resolution must degrade, not false-block: a partial workspace (no backend checkout, a lane
+// absent) is not an authoring error. Resolution itself is verified against the live workspace.
+expect("spec linkage degrades when the trace sources are unavailable",
+  linkageRun(linkageSpec(["  - id: BR-ZZZ-998", "    rule: traced", "    traces:", "      api: [NO_SUCH_ENDPOINT_XYZ]"])), 0);
+
 expect("validate-spec-linkage.mjs allows a metadata-less Cursor probe",
   runProbe("validate-spec-linkage.mjs"), 0);
 
