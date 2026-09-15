@@ -1,3 +1,7 @@
+---
+name: generate-conftest
+description: Generate a backend module conftest.py with the schema dataclass, state manager and module-scoped API client fixture. Use when scaffolding a new backend test module.
+---
 # generate-conftest Skill
 
 Generate `conftest.py` with schema dataclass and 3 required fixtures for a test module.

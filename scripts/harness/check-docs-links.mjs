@@ -19,6 +19,32 @@ function walk(dir, extensions) {
   });
 }
 
+// A skill that ships but is not allowlisted is refused by block-forbidden-skills the moment it
+// is invoked, and one with no description cannot be matched by intent routing at all. Nine
+// skills were in exactly that state on 2026-09-16 - the whole backend authoring family - and
+// every existing check passed, because nothing verified that "exists" implies "usable".
+function checkSkillsAreUsable(issues, config) {
+  const skillsDir = path.join(HARNESS_ROOT, ".claude", "skills");
+  if (!fs.existsSync(skillsDir)) return;
+  const allow = new Set(config.engineering?.harness?.skills ?? []);
+  for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const name = entry.name;
+    if (!allow.has(name)) {
+      issues.push(`Shipped skill is not allowlisted: .claude/skills/${name} - add it to engineering.harness.skills or delete the skill; a permanently blocked skill is dead weight`);
+    }
+    const file = path.join(skillsDir, name, "SKILL.md");
+    if (!fs.existsSync(file)) {
+      issues.push(`Shipped skill has no SKILL.md: .claude/skills/${name}`);
+      continue;
+    }
+    const head = fs.readFileSync(file, "utf8").slice(0, 2000);
+    const fm = head.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---/);
+    if (!fm || !/^description:\s*\S/m.test(fm[1])) {
+      issues.push(`Shipped skill has no description: .claude/skills/${name}/SKILL.md - intent routing matches on description, so a skill without one can never be routed to`);
+    }
+  }
+}
 function repoPath(value) {
   return value.replaceAll("\\", "/").replace(/^\.?\//, "");
 }
@@ -31,6 +57,7 @@ try {
   config = JSON.parse(fs.readFileSync(CONFIG, "utf8"));
   documentation = config.documentation;
   engineering = config.engineering;
+  checkSkillsAreUsable(issues, config);
 } catch (error) {
   issues.push(`Invalid harness config: ${error.message}`);
 }

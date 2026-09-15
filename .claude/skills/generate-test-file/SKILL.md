@@ -1,3 +1,7 @@
+---
+name: generate-test-file
+description: Generate a backend pytest test file inheriting BaseDB with ordered tests and shared assertion helpers. Use when adding backend tests to an existing module.
+---
 # generate-test-file Skill
 
 Generate `tests/{module}/test_{module}.py` with `BaseDB` test class template and Allure decorators.

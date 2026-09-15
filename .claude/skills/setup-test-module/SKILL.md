@@ -1,3 +1,7 @@
+---
+name: setup-test-module
+description: Scaffold a complete backend test module - directory, conftest, API client, data builder and first test file. Use when starting backend automation for a module that has none.
+---
 # Setup Test Module Skill
 
 ## 1. Name + Trigger

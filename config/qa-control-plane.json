@@ -1606,6 +1606,9 @@
     ],
     "letters": [],
     "loss-mitigation": [
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/common-loss-mitigation.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/queue-ineligible-users.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/state-to-region-map.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/invoices.yaml",
@@ -1613,9 +1616,7 @@
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/recon.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/repo.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/skip-trace.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/transport.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/queue-ineligible-users.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/state-to-region-map.yaml"
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/transport.yaml"
     ],
     "post-funding": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/post-funding/post-funding.yaml"
@@ -3241,16 +3242,25 @@
         "qa-automation-gate"
       ],
       "skills": [
-        "cypress-explain",
-        "cypress-docs",
-        "cypress-tap",
-        "cypress-author",
         "backend-test-author",
-        "hookify",
-        "ponytail-review",
-        "skill-creator",
         "claude-md-improver",
-        "ralph-loop"
+        "cypress-author",
+        "cypress-docs",
+        "cypress-explain",
+        "cypress-tap",
+        "e2e-tests-generator",
+        "generate-api-client",
+        "generate-conftest",
+        "generate-data-builder",
+        "generate-test-file",
+        "hookify",
+        "plan",
+        "ponytail-review",
+        "ralph-loop",
+        "setup-test-module",
+        "skill-creator",
+        "smoke-test-cases",
+        "smoke-tests-writer"
       ],
       "laneLocalPaths": [],
       "laneLocalPathsNote": "Repo-relative paths (file or directory) a lane owns and canonical does not. sync-loader-shims never deletes these, including under --force. Prefer promoting shared infrastructure to canonical; use this only for genuinely lane-specific files inside a synced directory.",

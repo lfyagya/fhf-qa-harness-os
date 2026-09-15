@@ -1,3 +1,7 @@
+---
+name: generate-api-client
+description: Generate api/{module}_client.py boilerplate extending BaseAPIClient for a backend module. Use when adding a new backend API client.
+---
 # generate-api-client Skill
 
 Generate `api/{module}_client.py` boilerplate extending `BaseAPIClient`.

@@ -1,3 +1,7 @@
+---
+name: generate-data-builder
+description: Generate a backend data factory under tests/commons/data_builder for a module. Use when a backend module needs Faker-based payload factories.
+---
 # generate-data-builder Skill
 
 Generate data builder factory methods for FHF test payloads.

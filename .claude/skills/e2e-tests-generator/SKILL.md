@@ -1,3 +1,7 @@
+---
+name: e2e-tests-generator
+description: Generate backend end-to-end pytest suites that span API and Oracle for a module. Use for mutable dev-environment backend flows.
+---
 # e2e-tests-generator Skill
 
 Research-gated test writer. It does not write a single line of test code until it has

@@ -1,3 +1,7 @@
+---
+name: smoke-test-cases
+description: Produce a backend smoke test case specification document for a module before any code is written. Use as the first step of backend smoke coverage.
+---
 # smoke-test-cases Skill
 
 Research-only test case generator. Reads every available source for a module, verifies all DB

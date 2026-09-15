@@ -1,3 +1,7 @@
+---
+name: smoke-tests-writer
+description: Code-only backend smoke test writer. Takes a specification from smoke-test-cases and produces the GET-only smoke implementation. Use after the specification exists.
+---
 # smoke-tests-writer Skill
 
 Code-only smoke test writer. Takes a test case specification document produced by the
