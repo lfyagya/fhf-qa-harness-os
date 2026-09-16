@@ -236,8 +236,10 @@ function validateTestCaseBinding(manifest, frontendTestData) {
       issues.push(`${label}.testData must reference a fixture key or record { none: "<reason>" }`);
     } else if (typeof data.none === "string") {
       if (!data.none.trim()) issues.push(`${label}.testData.none must give a reason`);
-    } else if (data.fixture !== undefined
+    } else if ((data.fixture !== undefined || data.key !== undefined)
         && (!isRelativeSafePath(data.fixture) || typeof data.key !== "string" || !data.key.trim())) {
+      // A key without a path is a half-written fixture reference, not a choice of another source.
+      // Telling that author they "must reference a fixture key" names the one thing they did do.
       issues.push(`${label}.testData needs a repo-relative fixture path and a non-empty key`);
     } else if (data.fixture === undefined
         && !["synthetic-builder", "api-seed"].includes(data.source)) {
