@@ -28,7 +28,7 @@ Do not browse or preload this tree. Read the single owner matching the task.
 | Getting a QA onboarded onto the harness — setup, usage, guardrails | `adoption/qa-harness.md` (one page, top to bottom) |
 | Candidate QA AI workflow standard (proposed, under review) — maps test generation, coverage design, regression development, data setup, reviews, and quality checks to the document that governs each | `adoption/qa-ai-adoption-strategy.md` §3 |
 | Evidenced QA-side adoption blockers — spec maturity, missing `data-cy` hooks, test-data lifecycle, backend parity, access grants, missing manual baseline, smoke deploy gate | `adoption/qa-ai-adoption-strategy.md` §4 |
-| QA AI adoption program — objectives and baselines, backend/frontend parity, workshop run sheet, sync cadence | `adoption/qa-ai-adoption-strategy.md` |
+| QA AI adoption program — objectives, kickoff agenda | `adoption/qa-ai-adoption-strategy.md` |
 
 ## Where this tree lives
 
