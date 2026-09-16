@@ -32,6 +32,8 @@ const repos = [
   "front-end-automation-smoke",
   "fhf-backend-automation",
 ];
+// frontend-change is routed by nothing and selected only by a manifest - keep it in the fixture.
+const bundles = ["full-stack-change", "frontend-change", "backend-api-change"];
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 function fixture() {
@@ -159,6 +161,7 @@ const frontendTestData = {
 };
 const options = {
   repoIds: repos,
+  bundleIds: bundles,
   runnerIds,
   runners,
   executionBudget,
@@ -176,6 +179,12 @@ assert.match(
   validateTaskManifest(incompleteMutationData, options).join("\n"),
   /syntheticOwnedIdentity must record/,
 );
+const unroutedBundle = fixture();
+unroutedBundle.selection.sourceBundles = ["frontend-change"];
+assert.deepEqual(validateTaskManifest(unroutedBundle, options), []);
+const typoBundle = fixture();
+typoBundle.selection.sourceBundles = ["frontnd-change"];
+assert.match(validateTaskManifest(typoBundle, options).join("\n"), /unknown source bundle: frontnd-change/);
 const invalidBudget = fixture();
 invalidBudget.plan.executionBudget.maxRecordedToolResults = 101;
 assert.match(validateTaskManifest(invalidBudget, options).join("\n"), /hard ceiling/);
