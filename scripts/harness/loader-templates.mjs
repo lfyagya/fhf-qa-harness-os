@@ -377,6 +377,18 @@ Resolve which one by full path, never by folder name.
 
 The harness engine lives in a separate checkout; edit policy there and re-run sync rather than
 hand-editing anything generated here.
+
+This workspace's \`docs/\` tree is the documentation payload, versioned on branch \`fhf-docs\` of the
+engine's remote, \`git@github.com:lfyagya/fhf-qa-harness-os.git\`. Its history is unrelated to \`main\`
+and is never merged into it (ADR-0018, ADR-0035). Keep this tree on \`fhf-docs\`: checking out an
+engine branch here removes every payload-only file (ADR-0026). To obtain it on a new machine:
+
+\`\`\`text
+git clone -b fhf-docs --single-branch git@github.com:lfyagya/fhf-qa-harness-os.git FHF
+\`\`\`
+
+Payload access is repository-scoped, so it also grants the engine on \`main\`. If someone needs the
+documentation without the harness internals, that is a hosting question, not a checkout trick.
 `;
 }
 
