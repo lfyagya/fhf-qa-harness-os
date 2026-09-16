@@ -454,6 +454,7 @@ function validateCrossRepositorySeams(changeUnits, policy) {
 
 export function validateTaskManifest(manifest, {
   repoIds = [],
+  bundleIds = [],
   runnerIds = [],
   runners = {},
   executionBudget,
@@ -482,6 +483,16 @@ export function validateTaskManifest(manifest, {
       !Array.isArray(manifest.selection?.sourceBundles) || manifest.selection.sourceBundles.length === 0 ||
       !Array.isArray(manifest.selection?.expansionReasons)) {
     issues.push("selection must record routeId, sourceBundles, and expansionReasons");
+  }
+  // The bundle catalog is a superset of the routed bundles on purpose: a route pre-seeds the
+  // common cases, and the manifest selects directly for everything else (frontend-change,
+  // letters-workflow and repossession-workflow have no route at all). check-docs-links validates
+  // route -> bundle in one direction only, so without this the authoritative selection was the
+  // one place a bundle id was never checked and a typo passed every gate.
+  if (bundleIds.length) {
+    for (const bundleId of manifest.selection?.sourceBundles ?? []) {
+      if (!bundleIds.includes(bundleId)) issues.push(`unknown source bundle: ${bundleId}`);
+    }
   }
   const changeUnits = manifest.plan?.changeUnits ?? [];
   if (!Array.isArray(changeUnits) || changeUnits.length === 0) {

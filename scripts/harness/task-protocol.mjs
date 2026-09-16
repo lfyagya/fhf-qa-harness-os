@@ -298,6 +298,7 @@ function protocolOptions(config) {
   const runners = config.engineering?.executionRunners?.runners ?? {};
   return {
     repoIds: Object.keys(config.productTopology?.repositories ?? {}),
+    bundleIds: Object.keys(config.productTopology?.sourceBundles ?? {}),
     runnerIds: Object.keys(runners),
     runners,
     approvalFields: config.engineering?.taskProtocol?.approval?.boundFields,
