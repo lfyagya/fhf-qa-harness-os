@@ -32,7 +32,7 @@ const repos = [
   "front-end-automation-smoke",
   "fhf-backend-automation",
 ];
-// frontend-change is routed by nothing and selected only by a manifest — keep it in the fixture.
+// frontend-change is routed by nothing and selected only by a manifest - keep it in the fixture.
 const bundles = ["full-stack-change", "frontend-change", "backend-api-change"];
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
