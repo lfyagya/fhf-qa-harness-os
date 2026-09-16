@@ -30,6 +30,32 @@ Do not browse or preload this tree. Read the single owner matching the task.
 | Evidenced QA-side adoption blockers — spec maturity, missing `data-cy` hooks, test-data lifecycle, backend parity, access grants, missing manual baseline, smoke deploy gate | `adoption/qa-ai-adoption-strategy.md` §4 |
 | QA AI adoption program — objectives and baselines, backend/frontend parity, workshop run sheet, sync cadence | `adoption/qa-ai-adoption-strategy.md` |
 
+## Where this tree lives
+
+This tree is versioned on branch `fhf-docs` of the harness engine's remote,
+`git@github.com:lfyagya/fhf-qa-harness-os.git`. Its history is unrelated to `main` and is never
+merged into it: `main` stays engine-only, and the payload borrows the remote as storage without
+entering the engine's history. ADR-0018 set that arrangement up; ADR-0035 made it the payload's
+home rather than an interim parking spot.
+
+To obtain it on a new machine:
+
+```text
+git clone -b fhf-docs --single-branch git@github.com:lfyagya/fhf-qa-harness-os.git FHF
+```
+
+Two consequences of sharing the engine's remote, both accepted in ADR-0035 rather than worked
+around. Access is repository-scoped — GitHub grants read per repository, not per branch, so being
+given this tree also gives you the engine on `main`; if someone should have the documentation but
+not the harness internals, reopen the hosting question instead of reaching for a sparse checkout.
+And the account is personal, so the durable backup is a second clone of this branch elsewhere, not
+a second repository.
+
+Keep the workspace checked out on `fhf-docs`. Checking out an engine branch at the workspace root
+removes every payload-only file, because the two histories share no commits (ADR-0026).
+
+## Ownership
+
 Ownership is configured in
 `C:\Users\Leapfrog\fhf-harness-os\config\qa-control-plane.json` → `documentation.owners`.
 Update an existing owner; do not create another report. The team product specification owns intent;
