@@ -151,7 +151,9 @@ gate, read the diff, ship. A BLOCK verdict means fix, never override.
 **UI functional and regression**, when you are proving UI behaviour in Dev or QA. Verify in the UI
 functional checkout, read that lane guide and the standards it points to, then state the ticket and
 module and let routing pick the generator. Mutations use synthetic owned data and are cleaned up in
-the spec. Ship only after you have read the diff; work stays uncommitted until then.
+the spec. Specs stay thin: selectors live in `cypress/configs/ui`, routes in `cypress/configs/api`,
+and flows in existing custom commands. A spec that inlines selectors or duplicates a command is a
+gate BLOCK. Ship only after you have read the diff; work stays uncommitted until then.
 
 **Production smoke**, when you are proving production is reachable and structured — not that a
 workflow can change data. Verify in the smoke checkout on that repository's staging branch. GET only:
@@ -214,8 +216,19 @@ proven no-write, downstream reconciliation where it applies, and verified cleanu
 The gate verdict is bound to a change digest, so re-running after an unrelated edit does not reuse an
 old PASS. A ticket moves intake → spec proposal → approved → configured → implemented → gated →
 executed → pull request → updated outside. Approval and the final external update are approval-gated.
-A Jira status such as In Testing only suggests a starting position; it never replaces repository
-evidence.
+A Jira status such as In Development or In Testing only suggests a starting position; it never
+replaces repository evidence and it is never a harness stamp. QA may freeze spec and scenarios
+while development continues on the same ticket. The owner path is an in-chat yes in Cursor,
+Claude, Codex, or any other client; the agent then writes the local stamp. Do not ask the owner
+to run `approve` in a terminal.
+
+Before that yes, every task gets a pre-human review pack on the manifest (`review.<gate>`).
+Compare spec (`intentVsBuilt`), scenario (`scenarioRef`), planned test (`assertion`), and frozen
+source. MATCH only when they agree; otherwise name the overlay or defect. A miss that is readable
+from selected source (wrong endpoint, missing control, SQL vs AC) is a Dev notice **before** any
+run. Accepted YAML overlays, parked rows, and runtime-only claims are not bugs. Protocol validate
+only checks that a YAML group name exists; it is not this review. This applies to every QA member
+using the harness.
 
 You are done when the gate is PASS, native evidence matches the selected tests, you have read the
 diff, and you have not called a setup or access failure a product result.
@@ -517,6 +530,7 @@ regenerate.
 | `node .harness/setup.mjs` | Once per aggregation or UI-lane checkout |
 | `node .harness/verify.mjs` | Before every session |
 | `node .harness/task-protocol.mjs validate \| digest \| next` | Frozen plans. Read-only. Never approves |
+| `node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>` | Last-resort human TTY only. Owner path is in-chat confirm, then `stampGate`. Agents never run this |
 | `node .harness/backend-task-runner.mjs preflight \| run` | Backend tests from the aggregation workspace |
 | `node .harness/capability-doctor.mjs --capability <id> --subject <label>` | Missing access. Never accepts credentials |
 
