@@ -157,7 +157,7 @@ Backend evidence additionally binds the test, runner, path, revision, environmen
 
 Four things are rejected as a false green: fallback markers treated as coverage, disabled suites treated as passing, a stubbed mutation treated as a workflow, and a file inventory treated as product coverage. A full UI-to-API-to-database chain additionally needs a controlled start state, a real UI mutation, the exact UI request and result, the direct API contract, the exact database state or a proven no-write, downstream reconciliation where it applies, and verified cleanup.
 
-The gate verdict is bound to a change digest, so re-running after an unrelated edit does not reuse an old PASS. A ticket moves intake → spec proposal → approved → configured → implemented → gated → executed → pull request → updated outside. Approval and the final external update are approval-gated. A Jira status such as In Testing only suggests a starting position; it never replaces repository evidence.
+The gate verdict is bound to a change digest, so re-running after an unrelated edit does not reuse an old PASS. A ticket moves intake → spec proposal → approved → configured → implemented → gated → executed → pull request → updated outside. Approval and the final external update are approval-gated. A Jira status such as In Testing only suggests a starting position; it never replaces repository evidence. Before each human stamp, every task writes `review.<gate>` comparing spec, scenario, planned test, and frozen source. A source-proven defect notifies Dev before any run. This is harness policy for every QA member, not a ticket exception.
 
 You are done when the gate is PASS, native evidence matches the selected tests, you have read the diff, and you have not called a setup or access failure a product result.
 
@@ -238,6 +238,7 @@ The CLI contract is currently an older generation than the assistant projection.
 | `node .harness/setup.mjs` | Once per aggregation or UI-lane checkout |
 | `node .harness/verify.mjs` | Before every session |
 | `node .harness/task-protocol.mjs validate \| digest \| next` | Frozen plans. Read-only. Never approves |
+| `node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>` | Human-only stamp for spec, scenarios, plan, test-cases, evidence, or release |
 | `node .harness/backend-task-runner.mjs preflight \| run` | Backend tests from the aggregation workspace |
 | `node .harness/capability-doctor.mjs --capability <id> --subject <label>` | Missing access. Never accepts credentials |
 

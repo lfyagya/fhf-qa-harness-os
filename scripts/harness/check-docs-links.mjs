@@ -512,6 +512,11 @@ if (engineering) {
     if (!taskProtocol.approval?.boundFields?.includes("grounding.intentVsBuilt")) {
       issues.push("task protocol approval must bind grounding.intentVsBuilt");
     }
+    if (taskProtocol.preHumanReview?.appliesTo !== "every-task"
+        || !taskProtocol.preHumanReview?.artefacts?.includes("grounding.intentVsBuilt")
+        || taskProtocol.preHumanReview?.proactiveDefects?.action == null) {
+      issues.push("task protocol preHumanReview must apply to every task and require spec/scenario/test/source comparison plus proactive Dev notice");
+    }
     if (!taskProtocol.snapshot?.freeze?.includes("intent-vs-built-classification")) {
       issues.push("task protocol snapshot must freeze intent-vs-built-classification");
     }

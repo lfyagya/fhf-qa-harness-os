@@ -5,6 +5,7 @@ import { loadHarnessConfig, detectLane } from "./lib/harness-config.mjs";
 import { emitContext } from "./lib/hook-runtime.mjs";
 import { readFreshHandoff } from "./lib/memory-state.mjs";
 import { formatWorkspacePreflight, workspacePreflight } from "./lib/workspace-contract.mjs";
+import { formatTaskGateContext, inspectActiveTaskGates } from "./lib/task-protocol.mjs";
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, "utf8")); } catch { process.exit(0); }
@@ -18,7 +19,8 @@ const lines = [
   "[fhf-harness] Tool-neutral runtime contract:",
   `- Authority: .claude/harness.config.json; context mode=${context.mode}; lane=${lane}.`,
   "- For each prompt, evaluate engineering.context.routes by highest priority; task intent breaks ties.",
-  "- Task protocol: do not plan or author tests until grounding.intentVsBuilt is classified; node .harness/task-protocol.mjs next is the next action.",
+  "- Task protocol: do not plan or author tests until grounding.intentVsBuilt is classified. The harness evaluates the next gate; do not skip it.",
+  "- Pre-human review (every task): before a gate confirm, write review.<gate> comparing spec, scenario, planned test, and frozen source. Source-proven defects notify Dev before Cypress or pytest. Protocol validate is not that review.",
   `- Session scope=${memory.sessionScope}; preserve only configured exact facts in ${memory.handoffFile}.`,
   `- Application source boundary=${harness.boundaries.applicationSource.mode}; shell and file writes are guarded.`,
   `- Backend automation boundary=${harness.boundaries.automationSource.mode}; active manifest env=${harness.boundaries.automationSource.activeManifestEnv}.`,
@@ -27,6 +29,9 @@ const lines = [
 
 if (!workspace.ready) lines.push(formatWorkspacePreflight(workspace, config));
 else if (workspace.warnings.length > 0) lines.push(`- Optional integrations: ${workspace.warnings.join(" ")}`);
+
+const gateContext = formatTaskGateContext(inspectActiveTaskGates(config));
+if (gateContext) lines.push(`- ${gateContext}`);
 
 if (handoff?.facts && Object.keys(handoff.facts).length > 0) {
   lines.push(`- Fresh handoff facts: ${JSON.stringify(handoff.facts)}`);

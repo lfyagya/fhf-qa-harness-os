@@ -622,8 +622,9 @@ For task-required Jira, Figma, Cypress Cloud, backend, or TestRail access, run
 the exact safe access or approved fallback when a selected capability cannot be read; it never accepts credentials.
 TestRail is task-selected for case lookup/reporting only; uploads always need separate explicit approval.
 Use \`node .harness/task-protocol.mjs contract\` to inspect the task schema, then \`validate\`,
-\`digest\`, and \`next\` against one runtime-only task manifest. These commands are read-only and
-never approve, commit, merge, deploy, or write externally.${backendRunner ? `
+\`digest\`, and \`next\` against one runtime-only task manifest. Those three commands are read-only
+and never approve. A human stamps a gate with \`approve --manifest <task.json> --gate <id>\`;
+agents cannot.${backendRunner ? `
 ${backendRunner.trimEnd()}` : ""}
 `;
 }

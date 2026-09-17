@@ -10,11 +10,15 @@ import {
   approvalState,
   canonicalJson,
   dependencyCycles,
+  firstPendingGate,
+  gateDigest,
+  gateState,
   missingAcceptanceOracleCoverage,
   missingVerificationEvidence,
   nextStep,
   selectProofMode,
   sha256,
+  stampGate,
   validateTaskManifest,
 } from "./task-protocol-lib.mjs";
 
@@ -342,6 +346,121 @@ assert.equal(approvalState(classificationInvalidatesApproval).state, "current");
 classificationInvalidatesApproval.grounding.intentVsBuilt.rows[0].built = "source silently rewrote the AC";
 assert.equal(approvalState(classificationInvalidatesApproval).state, "stale");
 
+const gates = [
+  {
+    id: "spec",
+    label: "Product spec",
+    boundFields: ["grounding.acceptanceCriteriaDigest", "grounding.catalogVersion"],
+    requiredFrom: ["planned", "approved", "implementing", "verified", "complete"],
+  },
+  {
+    id: "scenarios",
+    label: "Approved scenarios",
+    boundFields: ["plan.tests"],
+    extract: "scenario-refs",
+    requiredFrom: ["planned", "approved", "implementing", "verified", "complete"],
+  },
+  {
+    id: "plan",
+    label: "Task plan",
+    boundFields: ["ticketFamily", "grounding", "selection", "plan.changeUnits", "plan.impact", "plan.executionBudget"],
+    requiredFrom: ["planned", "approved", "implementing", "verified", "complete"],
+  },
+  {
+    id: "test-cases",
+    label: "Selected tests",
+    boundFields: ["plan.tests"],
+    requiredFrom: ["planned", "approved", "implementing", "verified", "complete"],
+  },
+  {
+    id: "evidence",
+    label: "Native evidence",
+    boundFields: ["evidence"],
+    requiredFrom: ["verified", "complete"],
+  },
+  {
+    id: "release",
+    label: "Release confidence",
+    boundFields: ["evidence", "plan.impact"],
+    requiredFrom: ["complete"],
+  },
+];
+const gatedOptions = { ...options, gates, legacySingleDigestSatisfies: "plan" };
+const gated = fixture();
+assert.equal(gateState(gated, gates[0]).state, "missing");
+assert.equal(firstPendingGate(gated, gates, "planned").gate.id, "spec");
+assert.equal(nextStep(gated, gatedOptions).action, "await-human-approval");
+assert.equal(nextStep(gated, gatedOptions).gate, "spec");
+
+gated.approval.stamps = {
+  spec: {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+    digest: gateDigest(gated, gates[0]),
+  },
+};
+assert.equal(gateState(gated, gates[0]).state, "current");
+assert.equal(firstPendingGate(gated, gates, "planned").gate.id, "scenarios");
+assert.equal(nextStep(gated, gatedOptions).gate, "scenarios");
+
+const scenarioOnly = structuredClone(gated);
+scenarioOnly.plan.tests[0].path = "src/contracts/renamed.test.tsx";
+assert.equal(gateDigest(scenarioOnly, gates[1]), gateDigest(gated, gates[1]));
+assert.notEqual(gateDigest(scenarioOnly, gates[3]), gateDigest(gated, gates[3]));
+
+const scenarioChanged = structuredClone(gated);
+scenarioChanged.plan.tests[0].scenarioRef.group = "B99.9";
+assert.notEqual(gateDigest(scenarioChanged, gates[1]), gateDigest(gated, gates[1]));
+
+gated.approval.approvedDigest = approvalDigest(gated);
+assert.equal(gateState(gated, gates[2], { legacyGateId: "plan" }).state, "current");
+assert.equal(gateState(gated, gates[2], { legacyGateId: "plan" }).via, "legacy-approvedDigest");
+assert.equal(firstPendingGate(gated, gates, "planned", { legacyGateId: "plan" }).gate.id, "scenarios");
+
+const stamped = fixture();
+stamped.approval = stampGate(stamped, gates[0], {
+  approvedBy: "Sanjay Koju",
+  approvedAt: "2026-09-17T00:00:00.000Z",
+});
+assert.equal(stamped.approval.stamps.spec.approvedBy, "Sanjay Koju");
+assert.equal(gateState({ ...fixture(), approval: stamped.approval }, gates[0]).state, "current");
+assert.match(
+  validateTaskManifest({
+    ...fixture(),
+    approval: { required: true, stamps: { spec: { approvedBy: "", approvedAt: "nope", digest: "short" } } },
+  }, gatedOptions).join("\n"),
+  /approvedBy must be recorded/,
+);
+
+const allPlannedStamped = fixture();
+for (const gate of gates.filter((item) => item.requiredFrom.includes("planned"))) {
+  allPlannedStamped.approval = stampGate(allPlannedStamped, gate, {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, { approvalFields: options.approvalFields, legacyGateId: "plan" });
+}
+assert.equal(nextStep(allPlannedStamped, gatedOptions).action, "begin-implementation");
+assert.equal(nextStep(allPlannedStamped, gatedOptions).blocked, false);
+
+const evidenceStage = structuredClone(verified);
+evidenceStage.approval.stamps = Object.fromEntries(
+  gates.filter((gate) => gate.requiredFrom.includes("planned")).map((gate) => [gate.id, {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+    digest: gateDigest(evidenceStage, gate),
+  }]),
+);
+assert.equal(firstPendingGate(evidenceStage, gates, "verified").gate.id, "evidence");
+assert.equal(nextStep(evidenceStage, gatedOptions).gate, "evidence");
+evidenceStage.approval.stamps.evidence = {
+  approvedBy: "Sanjay Koju",
+  approvedAt: "2026-09-17T00:00:00.000Z",
+  digest: gateDigest(evidenceStage, gates[4]),
+};
+assert.equal(nextStep(evidenceStage, gatedOptions).action, "complete-task");
+evidenceStage.stage = "complete";
+assert.equal(nextStep(evidenceStage, gatedOptions).gate, "release");
+
 const cliRoot = mkdtempSync(path.join(tmpdir(), "fhf-task-protocol-"));
 const manifestPath = path.join(cliRoot, "task.json");
 writeFileSync(manifestPath, JSON.stringify(fixture()), "utf8");
@@ -354,6 +473,40 @@ assert.equal(JSON.parse(nextResult.stdout).action, "await-human-approval");
 const contractResult = spawnSync(process.execPath, [path.join(HERE, "task-protocol.mjs"), "contract"], { encoding: "utf8" });
 assert.equal(contractResult.status, 0, contractResult.stderr);
 assert.equal(JSON.parse(contractResult.stdout).schema, "fhf-harness/task/v1");
+assert.deepEqual(JSON.parse(contractResult.stdout).approvalGates, [
+  "spec",
+  "scenarios",
+  "plan",
+  "test-cases",
+  "evidence",
+  "release",
+]);
+const nextGated = JSON.parse(nextResult.stdout);
+assert.equal(nextGated.gate, "spec");
+const agentApprove = spawnSync(
+  process.execPath,
+  [path.join(HERE, "task-protocol.mjs"), "approve", "--manifest", manifestPath, "--gate", "spec"],
+  { encoding: "utf8", env: { ...process.env, CLAUDECODE: "1" } },
+);
+assert.equal(agentApprove.status, 2);
+assert.match(agentApprove.stderr, /Agents cannot approve/);
+const humanApprove = spawnSync(
+  process.execPath,
+  [path.join(HERE, "task-protocol.mjs"), "approve", "--manifest", manifestPath, "--gate", "spec"],
+  {
+    encoding: "utf8",
+    input: "yes\n",
+    env: Object.fromEntries(
+      Object.entries({ ...process.env, CLAUDECODE: "", CLAUDE_CODE: "", CURSOR_AGENT: "" })
+        .filter(([, value]) => value !== ""),
+    ),
+  },
+);
+assert.equal(humanApprove.status, 0, humanApprove.stderr);
+assert.equal(JSON.parse(humanApprove.stdout).gate, "spec");
+assert.equal(JSON.parse(humanApprove.stdout).approved, true);
+const afterApprove = spawnSync(process.execPath, [path.join(HERE, "task-protocol.mjs"), "next", "--manifest", manifestPath], { encoding: "utf8" });
+assert.equal(JSON.parse(afterApprove.stdout).gate, "scenarios");
 rmSync(cliRoot, { recursive: true, force: true });
 
 console.log("Task protocol tests passed.");

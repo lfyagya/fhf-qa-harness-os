@@ -9,6 +9,7 @@ import { extractFacts, isExternalBackendWorkspace, mergeHandoff } from './lib/me
 import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
 import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
 import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
+import { formatTaskGateContext, inspectActiveTaskGates } from './lib/task-protocol.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -50,11 +51,15 @@ if (ticket) {
     console.error(`- ${error.message}`);
     process.exit(2);
   }
-  if (access.exitCode !== 0) {
-    console.error(formatCapabilityStatus(access));
-    process.exit(2);
-  }
+  // Cursor fail-closes UserPromptSubmit on exit 2 and shows only Retry. That
+  // overlay cannot collect OAuth. Inject the ask into the turn instead.
   lines.push(formatCapabilityStatus(access));
+  if (access.exitCode !== 0) {
+    const ask = access.ownerAction
+      ? `Ask the owner in this turn to authenticate, authorize, or choose a declared fallback.`
+      : `Use the active connector to authenticate if needed, then complete the live probe.`;
+    lines.push(`[jira] ${ticket} is not ready (${access.status}). ${ask} Do not invent ticket contents or pick a fallback unprompted.`);
+  }
 }
 const isExternalBackend = isExternalBackendWorkspace({ cwd });
 
@@ -127,6 +132,9 @@ if (overlay?.session?.ticket || overlay?.session?.module) {
 // 3. Duplication pre-check on creation prompts
 const isCreate = /\b(create|write|add|new|generate)\b.*(config|command|spec|test|hook)/i.test(prompt);
 const moduleMatch = prompt.match(/(?:for|command for|config for|spec for)\s+([\w-]+)/);
+const gateContext = formatTaskGateContext(inspectActiveTaskGates(config));
+if (gateContext) lines.push(gateContext);
+
 if (isCreate && moduleMatch) {
   try {
     const hits = execSync(`git ls-files "*${moduleMatch[1]}*"`, { cwd: process.env.CLAUDE_CWD ?? process.cwd(), encoding: 'utf8', timeout: 5000 }).trim();

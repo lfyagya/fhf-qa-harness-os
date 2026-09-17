@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { approvalDigest } from "./task-protocol-lib.mjs";
+import { approvalDigest, stampGate } from "./task-protocol-lib.mjs";
 import { loadHarnessConfig } from "../../.claude/hooks/lib/harness-config.mjs";
 import { recordCapabilityOutcome } from "../../.claude/hooks/lib/capability-control.mjs";
 
@@ -29,6 +29,7 @@ for (const key of [
   // latent hole since that guard was written.
   "FHF_ALLOW_HARNESS_EDIT",
   "FHF_ALLOW_PROD_DATA",
+  "FHF_ACTIVE_TASK",
 ]) delete isolatedGitEnv[key];
 
 function run(hook, payload, env = {}, args = []) {
@@ -233,6 +234,19 @@ if (backendConfig.workspaceContract?.lanes?.backend) {
 }
 backendConfig.moduleSpecPaths = {};
 writeFileSync(backendConfigPath, JSON.stringify(backendConfig));
+const liveApproval = backendConfig.engineering.taskProtocol.approval;
+const ungatedTaskPath = path.join(tmp, "ungated-task.json");
+writeFileSync(ungatedTaskPath, JSON.stringify(activeTask));
+for (const gate of (liveApproval.gates ?? []).filter((item) => (item.requiredFrom ?? []).includes("planned"))) {
+  activeTask.approval = stampGate(activeTask, gate, {
+    approvedBy: "hook-fixture",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, {
+    approvalFields: liveApproval.boundFields,
+    legacyGateId: liveApproval.legacySingleDigestSatisfies ?? "plan",
+  });
+}
+writeFileSync(activeTaskPath, JSON.stringify(activeTask));
 const workspaceEnv = {
   FHF_HARNESS_CONFIG: backendConfigPath,
   FHF_CONSUMER_ROOT: tmp,
@@ -240,6 +254,7 @@ const workspaceEnv = {
   FHF_BACKEND_ROOT: backendRoot,
 };
 const activeTaskEnv = { ...workspaceEnv, FHF_ACTIVE_TASK: activeTaskPath };
+const ungatedTaskEnv = { ...workspaceEnv, FHF_ACTIVE_TASK: ungatedTaskPath };
 const staleTaskPath = path.join(tmp, "stale-task.json");
 const staleTask = structuredClone(activeTask);
 staleTask.plan.impact.regression.push("changed after approval");
@@ -382,6 +397,20 @@ expect("protect-automation-scope blocks backend writes without an active task",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
+expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, ungatedTaskEnv), 2);
+expect("enforce-task-gates allows writes when no task is active",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, workspaceEnv), 0);
+expect("enforce-task-gates blocks the next step until the current gate is stamped",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, ungatedTaskEnv), 2);
+expect("enforce-task-gates allows the next write after planned gates are stamped",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, activeTaskEnv), 0);
+expect("session-context names the pending gate for an active task",
+  run("session-context.mjs", {
+    hook_event_name: "sessionStart",
+    cwd: tmp,
+  }, { ...ungatedTaskEnv, CLAUDE_CWD: tmp }),
+  (r) => r.code === 0 && r.stdout.includes("spec"));
 expect("protect-automation-scope blocks stale task approval",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, staleTaskEnv), 2);
 expect("protect-automation-scope blocks a changed backend repository revision",
@@ -555,6 +584,7 @@ for (const hook of [
   "manual-task-guard.mjs",
   "protect-app-source.mjs",
   "protect-automation-scope.mjs",
+  "enforce-task-gates.mjs",
   "protect-second-brain-boundary.mjs",
   "pre-validate-cypress-rules.mjs",
   "protect-prod-data.mjs",
@@ -616,12 +646,12 @@ expect("prompt-router blocks malformed harness config with repair guidance",
     FHF_HARNESS_CONFIG: invalidConfigPath,
   }),
   (r) => r.code === 2 && r.stderr.includes("Harness configuration is unavailable or invalid") && r.stderr.includes("Harness config is invalid"));
-expect("prompt-router blocks ticket grounding and requests Jira OAuth access",
+expect("prompt-router asks for Jira OAuth without blocking the turn",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "false", CLAUDE_CWD: tmp }),
-  (r) => r.code === 2 && r.stderr.includes("CAPABILITY BLOCKED") && r.stderr.includes("OAuth") && r.stderr.includes("sanitized ticket export"));
-expect("prompt-router blocks a declared connector until a live ticket read is recorded",
+  (r) => r.code === 0 && r.stdout.includes("CAPABILITY BLOCKED") && r.stdout.includes("OAuth") && r.stdout.includes("sanitized ticket export") && r.stdout.includes("Ask the owner") && !r.stderr.includes("CAPABILITY BLOCKED"));
+expect("prompt-router asks for a live ticket read without blocking the turn",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "true", CLAUDE_CWD: tmp }),
-  (r) => r.code === 2 && r.stderr.includes("no observed probe result") && r.stderr.includes("ticket contents remain outside runtime state"));
+  (r) => r.code === 0 && r.stdout.includes("no observed probe result") && r.stdout.includes("authenticate if needed") && r.stdout.includes("ticket contents remain outside runtime state") && !r.stderr.includes("CAPABILITY BLOCKED"));
 expect("prompt-router blocks an unconfigured Smoke workspace",
   run("prompt-router.mjs", { cwd: smokeRoot, prompt: "write a new smoke test" }, {
     FHF_HARNESS_CONFIG: smokeConfigPath,
