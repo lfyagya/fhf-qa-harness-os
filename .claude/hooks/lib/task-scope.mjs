@@ -180,7 +180,7 @@ function activeTask(config, env, stages) {
     if (!manifest.approval.approvedDigest || manifest.approval.approvedDigest !== current) {
       return { ok: false, reason: "active task approval is missing or stale" };
     }
-    const gateBlock = humanApprovalBlock(manifest, config, source);
+    const gateBlock = humanApprovalBlock(manifest, config);
     if (gateBlock) return { ok: false, reason: gateBlock.reason };
   } else if (!["planned", "approved", "implementing", "verified"].includes(manifest.stage)) {
     return { ok: false, reason: "an unapproved task may act only from planned, approved, implementing, or verified stage" };

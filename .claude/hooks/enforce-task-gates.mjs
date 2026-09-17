@@ -14,7 +14,7 @@ try {
 }
 
 const config = loadHarnessConfig();
-const inspection = inspectActiveTaskGates(config);
+const inspection = inspectActiveTaskGates(config, process.env, payload);
 if (inspection.active && inspection.error) {
   console.error(`BLOCKED: ${inspection.error}`);
   process.exit(2);

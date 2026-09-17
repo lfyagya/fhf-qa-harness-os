@@ -32,18 +32,26 @@ export function pendingHumanGate(manifest, config) {
   return firstPendingGate(manifest, options.gates, manifest.stage, options);
 }
 
-export function humanApprovalBlock(manifest, config, manifestPath) {
+export function isActiveTaskManifestWrite(filePath, source) {
+  if (!filePath || !source) return false;
+  try {
+    return path.resolve(filePath).replace(/\\/g, "/").toLowerCase()
+      === path.resolve(source).replace(/\\/g, "/").toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+export function humanApprovalBlock(manifest, config) {
   const pending = pendingHumanGate(manifest, config);
   if (!pending) return null;
-  const command = `node .harness/task-protocol.mjs approve --manifest ${manifestPath} --gate ${pending.gate.id}`;
   return {
     pending,
-    reason: `human approval required for gate "${pending.gate.id}" (${pending.gate.label ?? pending.gate.id}); ${pending.state}. Stop this step. A human runs: ${command}`,
-    command,
+    reason: `human approval required for gate "${pending.gate.id}" (${pending.gate.label ?? pending.gate.id}); ${pending.state}. Stop implementation. Write review.${pending.gate.id} on the task manifest, then present the in-chat confirm UI. Do not dump a CLI approve command. Agents cannot approve.`,
   };
 }
 
-export function inspectActiveTaskGates(config, env = process.env) {
+export function inspectActiveTaskGates(config, env = process.env, payload = {}) {
   const envName = config.engineering?.taskProtocol?.activeManifestEnv ?? "FHF_ACTIVE_TASK";
   const source = String(env[envName] ?? "").trim();
   if (!source) return { active: false, envName };
@@ -58,12 +66,18 @@ export function inspectActiveTaskGates(config, env = process.env) {
       error: `active task manifest is unavailable or invalid: ${error.message}`,
     };
   }
+  const pending = humanApprovalBlock(manifest, config);
+  const filePath = payload?.tool_input?.file_path
+    ?? payload?.input?.file_path
+    ?? payload?.input?.path
+    ?? payload?.tool_input?.path
+    ?? "";
   return {
     active: true,
     envName,
     source,
     manifest,
-    block: humanApprovalBlock(manifest, config, source),
+    block: pending && !isActiveTaskManifestWrite(filePath, source) ? pending : null,
     next: nextStep(manifest, { ...gateOptions(config), repoIds: Object.keys(config.productTopology?.repositories ?? {}) }),
   };
 }

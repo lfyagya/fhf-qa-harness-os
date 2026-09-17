@@ -403,6 +403,8 @@ expect("enforce-task-gates allows writes when no task is active",
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, workspaceEnv), 0);
 expect("enforce-task-gates blocks the next step until the current gate is stamped",
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, ungatedTaskEnv), 2);
+expect("enforce-task-gates allows writing the active task manifest while a gate is pending",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: ungatedTaskPath } }, ungatedTaskEnv), 0);
 expect("enforce-task-gates allows the next write after planned gates are stamped",
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, activeTaskEnv), 0);
 expect("session-context names the pending gate for an active task",
@@ -410,7 +412,7 @@ expect("session-context names the pending gate for an active task",
     hook_event_name: "sessionStart",
     cwd: tmp,
   }, { ...ungatedTaskEnv, CLAUDE_CWD: tmp }),
-  (r) => r.code === 0 && r.stdout.includes("spec"));
+  (r) => r.code === 0 && r.stdout.includes("spec") && !r.stdout.includes("approve --manifest"));
 expect("protect-automation-scope blocks stale task approval",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, staleTaskEnv), 2);
 expect("protect-automation-scope blocks a changed backend repository revision",
