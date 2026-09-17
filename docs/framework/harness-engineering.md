@@ -142,13 +142,21 @@ acceptance-criteria digest, repository SHAs and paths, intent-vs-built classific
 dependency DAG, QA impact, runner selection, and proof modes. It does not copy the catalog,
 repositories, full Jira history, chat, or Obsidian vault into task context.
 
-The approval digest covers the grounded selection, intent-vs-built rows, and plan. Changed ticket
-data, source SHAs/paths, classification, graph slice, dependencies, impact, runners, or proof modes
-invalidate approval and block the next step. Unclassified or `ask-product` rows emit
+Human approval is six ordered stamps (`spec`, `scenarios`, `plan`, `test-cases`, `evidence`,
+`release`), each bound to a digest of named manifest fields and recorded as
+`{ approvedBy, approvedAt, digest }`. A human stamps a gate with
+`node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>` from a real terminal
+or a piped `yes`; Claude Code and Cursor Agent cannot approve. The legacy single `approvedDigest`
+still satisfies the `plan` gate only. Changed ticket data, source SHAs/paths, classification, graph
+slice, dependencies, impact, runners, proof modes, scenario citations, or evidence artifacts
+invalidate the matching stamp and block the next step. Unclassified or `ask-product` rows emit
 `classify-intent-vs-built` and block planning. `defect` rows emit `resolve-intent-vs-built-defect`
 and block verified/complete. Dependency cycles and unknown dependencies also block. The decision
 core emits one machine-readable next action; it never approves, commits, merges, deploys, or writes
-externally.
+externally. Do not route FHF work through the global `lane` CLI or dashboard. Session start and
+every prompt inject the current gate. Write and pytest hooks fail closed on the earliest
+missing stamp, so step 2 cannot start until step 1 is approved. Approval itself stays
+human: the harness never types `yes`.
 
 Proof modes are evidence-specific: hermetic tests can use RED/GREEN replay or same-test base/pass;
 Cypress, production Smoke, API, Oracle, and third-party tests require native execution artifacts.

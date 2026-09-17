@@ -80,6 +80,107 @@ export function approvalState(manifest, fields = DEFAULT_APPROVAL_FIELDS) {
   };
 }
 
+function scenarioRefsPayload(manifest) {
+  return (manifest.plan?.tests ?? []).map((test) => test?.scenarioRef ?? null);
+}
+
+export function gatePayload(manifest, gate) {
+  const extract = gate?.extract ?? "fields";
+  if (extract === "scenario-refs") return scenarioRefsPayload(manifest);
+  if (extract !== "fields") {
+    throw new Error(`unknown gate extract: ${extract}`);
+  }
+  return approvalPayload(manifest, gate?.boundFields ?? []);
+}
+
+export function gateDigest(manifest, gate) {
+  return sha256(canonicalJson(gatePayload(manifest, gate)));
+}
+
+export function gateState(manifest, gate, {
+  approvalFields = DEFAULT_APPROVAL_FIELDS,
+  legacyGateId = "plan",
+} = {}) {
+  const currentDigest = gateDigest(manifest, gate);
+  const stamp = manifest.approval?.stamps?.[gate.id] ?? null;
+  if (stamp?.digest === currentDigest) {
+    return { state: "current", currentDigest, stamp };
+  }
+  if (stamp?.digest) {
+    return { state: "stale", currentDigest, approvedDigest: stamp.digest, stamp };
+  }
+  if (gate.id === legacyGateId && manifest.approval?.approvedDigest) {
+    const legacy = approvalState(manifest, approvalFields);
+    if (legacy.state === "current") {
+      return { state: "current", currentDigest, stamp: null, via: "legacy-approvedDigest" };
+    }
+  }
+  return { state: "missing", currentDigest, stamp: null };
+}
+
+export function requiredGates(gates = [], stage) {
+  return gates.filter((gate) => (gate.requiredFrom ?? []).includes(stage));
+}
+
+export function firstPendingGate(manifest, gates, stage, options = {}) {
+  for (const gate of requiredGates(gates, stage)) {
+    const state = gateState(manifest, gate, options);
+    if (state.state !== "current") return { gate, ...state };
+  }
+  return null;
+}
+
+export function stampGate(manifest, gate, { approvedBy, approvedAt }, {
+  approvalFields = DEFAULT_APPROVAL_FIELDS,
+  legacyGateId = "plan",
+} = {}) {
+  if (typeof approvedBy !== "string" || !approvedBy.trim()) {
+    throw new Error("approvedBy must be a non-empty string");
+  }
+  if (typeof approvedAt !== "string" || !Number.isFinite(Date.parse(approvedAt))) {
+    throw new Error("approvedAt must be an ISO-8601 timestamp");
+  }
+  const digest = gateDigest(manifest, gate);
+  const approval = {
+    ...manifest.approval,
+    stamps: {
+      ...(manifest.approval?.stamps ?? {}),
+      [gate.id]: { approvedBy: approvedBy.trim(), approvedAt, digest },
+    },
+  };
+  if (gate.id === legacyGateId) {
+    approval.approvedDigest = approvalDigest(manifest, approvalFields);
+  }
+  return approval;
+}
+
+function validateStamps(manifest, gates = []) {
+  const stamps = manifest.approval?.stamps;
+  if (stamps === undefined) return [];
+  if (!stamps || typeof stamps !== "object" || Array.isArray(stamps)) {
+    return ["approval.stamps must be an object"];
+  }
+  const issues = [];
+  const known = new Set(gates.map((gate) => gate.id).filter(Boolean));
+  for (const [id, stamp] of Object.entries(stamps)) {
+    if (known.size && !known.has(id)) issues.push(`approval.stamps.${id} is not a configured gate`);
+    if (!stamp || typeof stamp !== "object" || Array.isArray(stamp)) {
+      issues.push(`approval.stamps.${id} must be an object`);
+      continue;
+    }
+    if (typeof stamp.approvedBy !== "string" || !stamp.approvedBy.trim()) {
+      issues.push(`approval.stamps.${id}.approvedBy must be recorded`);
+    }
+    if (typeof stamp.approvedAt !== "string" || !Number.isFinite(Date.parse(stamp.approvedAt))) {
+      issues.push(`approval.stamps.${id}.approvedAt must be an ISO-8601 timestamp`);
+    }
+    if (!/^[a-f0-9]{64}$/.test(stamp.digest ?? "")) {
+      issues.push(`approval.stamps.${id}.digest must be a sha256 digest`);
+    }
+  }
+  return issues;
+}
+
 export function dependencyCycles(changeUnits = []) {
   const dependencies = new Map(changeUnits.map((unit) => [unit.id, unit.dependsOn ?? []]));
   const visiting = new Set();
@@ -236,8 +337,10 @@ function validateTestCaseBinding(manifest, frontendTestData) {
       issues.push(`${label}.testData must reference a fixture key or record { none: "<reason>" }`);
     } else if (typeof data.none === "string") {
       if (!data.none.trim()) issues.push(`${label}.testData.none must give a reason`);
-    } else if (data.fixture !== undefined
+    } else if ((data.fixture !== undefined || data.key !== undefined)
         && (!isRelativeSafePath(data.fixture) || typeof data.key !== "string" || !data.key.trim())) {
+      // A key without a path is a half-written fixture reference, not a choice of another source.
+      // Telling that author they "must reference a fixture key" names the one thing they did do.
       issues.push(`${label}.testData needs a repo-relative fixture path and a non-empty key`);
     } else if (data.fixture === undefined
         && !["synthetic-builder", "api-seed"].includes(data.source)) {
@@ -461,6 +564,7 @@ export function validateTaskManifest(manifest, {
   capabilityControl,
   crossRepositorySeam,
   frontendTestData,
+  gates = [],
 } = {}) {
   const issues = [];
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
@@ -550,6 +654,7 @@ export function validateTaskManifest(manifest, {
     issues.push("plan.impact must classify functional, regression, and smoke scope");
   }
   if (typeof manifest.approval?.required !== "boolean") issues.push("approval.required must be boolean");
+  issues.push(...validateStamps(manifest, gates));
   if (!Array.isArray(manifest.evidence?.artifacts)) issues.push("evidence.artifacts must be an array");
   issues.push(...validateTestHonesty(manifest));
   issues.push(...validateTestCaseBinding(manifest, frontendTestData));
@@ -588,7 +693,31 @@ export function nextStep(manifest, options = {}) {
   if (issues.length) return { action: "repair-task-manifest", stage: manifest?.stage ?? null, blocked: true, issues };
 
   const approval = approvalState(manifest, options.approvalFields);
-  if (["planned", "approved", "implementing", "verified", "complete"].includes(manifest.stage)
+  const gateOptions = {
+    approvalFields: options.approvalFields,
+    legacyGateId: options.legacySingleDigestSatisfies ?? "plan",
+  };
+  const gates = options.gates ?? [];
+  const pendingGate = gates.length && manifest.approval?.required
+    ? firstPendingGate(manifest, gates, manifest.stage, gateOptions)
+    : null;
+  if (pendingGate) {
+    return {
+      action: pendingGate.state === "stale" ? "refresh-human-approval" : "await-human-approval",
+      stage: manifest.stage,
+      blocked: true,
+      gate: pendingGate.gate.id,
+      label: pendingGate.gate.label ?? pendingGate.gate.id,
+      approval,
+      pending: {
+        id: pendingGate.gate.id,
+        state: pendingGate.state,
+        currentDigest: pendingGate.currentDigest,
+      },
+    };
+  }
+  if (!gates.length
+      && ["planned", "approved", "implementing", "verified", "complete"].includes(manifest.stage)
       && manifest.approval?.required && approval.state !== "current") {
     return {
       action: approval.state === "stale" ? "refresh-human-approval" : "await-human-approval",
@@ -631,10 +760,13 @@ export function nextStep(manifest, options = {}) {
     }
   }
 
+  const plannedAction = gates.length
+    ? "begin-implementation"
+    : (manifest.approval?.required ? "record-human-approval" : "begin-implementation");
   const actions = {
     intake: "ground-task",
     grounded: "plan-cross-repository-change",
-    planned: manifest.approval?.required ? "record-human-approval" : "begin-implementation",
+    planned: plannedAction,
     approved: "begin-implementation",
     implementing: "collect-native-verification-evidence",
     verified: "complete-task",

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { humanApprovalBlock } from "./task-protocol.mjs";
 
 function normalized(value) {
   if (Array.isArray(value)) return value.map(normalized);
@@ -179,6 +180,8 @@ function activeTask(config, env, stages) {
     if (!manifest.approval.approvedDigest || manifest.approval.approvedDigest !== current) {
       return { ok: false, reason: "active task approval is missing or stale" };
     }
+    const gateBlock = humanApprovalBlock(manifest, config);
+    if (gateBlock) return { ok: false, reason: gateBlock.reason };
   } else if (!["planned", "approved", "implementing", "verified"].includes(manifest.stage)) {
     return { ok: false, reason: "an unapproved task may act only from planned, approved, implementing, or verified stage" };
   }

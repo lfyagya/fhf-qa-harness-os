@@ -401,6 +401,15 @@ function syncRuntimeEvidence(repoPath, lane) {
   writeText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
 }
 
+function syncCursorPolicyRules(repoPath) {
+  const names = ["task-approval.mdc", "thin-tests.mdc", "pre-human-review.mdc"];
+  for (const name of names) {
+    const source = path.join(HARNESS_ROOT, ".cursor", "rules", name);
+    if (!fs.existsSync(source)) continue;
+    writeText(path.join(repoPath, ".cursor", "rules", name), fs.readFileSync(source, "utf8"));
+  }
+}
+
 function syncFhfRoot() {
   for (const sub of CLAUDE_SUBFOLDERS) {
     copyDirSync(path.join(HARNESS_ROOT, ".claude", sub), path.join(FHF_ROOT, ".claude", sub));
@@ -408,6 +417,7 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, ".claude", "settings.json"), harnessSettings());
   writeText(path.join(FHF_ROOT, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(path.join(FHF_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  syncCursorPolicyRules(FHF_ROOT);
   writeText(path.join(FHF_ROOT, ".github", "copilot-instructions.md"), parentCopilotInstructions());
   writeText(path.join(FHF_ROOT, "CLAUDE.md"), parentClaudeInstructions());
   writeText(path.join(FHF_ROOT, "AGENTS.md"), parentAgents());

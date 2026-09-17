@@ -34,6 +34,18 @@ Surface it as a single question with explicit options, not prose — the owner p
 - proceed with that capability's evidence marked unverified, where the task allows it,
 - stop the task.
 
+The prompt router injects this as session context and exits 0. Do not fail-close the
+Cursor turn: a blocked overlay with only Retry cannot collect authentication. Ask in
+the turn, then call the client's Atlassian auth/login tool when the owner chooses
+authenticate.
+
+## Pre-human review (every task)
+
+Before a spec, scenarios, plan, or test-cases stamp: write `review.<gate>` comparing
+`intentVsBuilt`, `scenarioRef`, planned `assertion`, and frozen source. MATCH only when
+they agree. A source-proven `defect` notifies Dev before any Cypress or pytest run.
+Accepted overlays, parked rows, and runtime-only claims are not bugs.
+
 Report which capability, which subject, and the exact status; the harness prints the same
 banner via `formatCapabilityStatus`. Only auth, authorization, an undeclared connector, or
 an exhausted retry budget reaches the owner this way. A transient connector failure

@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import readline from "node:readline/promises";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   TASK_SCHEMA,
   approvalDigest,
   approvalState,
+  gateState,
   nextStep,
+  stampGate,
   validateTaskManifest,
 } from "./task-protocol-lib.mjs";
 
@@ -302,6 +306,8 @@ function protocolOptions(config) {
     runnerIds: Object.keys(runners),
     runners,
     approvalFields: config.engineering?.taskProtocol?.approval?.boundFields,
+    gates: config.engineering?.taskProtocol?.approval?.gates ?? [],
+    legacySingleDigestSatisfies: config.engineering?.taskProtocol?.approval?.legacySingleDigestSatisfies ?? "plan",
     executionBudget: config.engineering?.taskProtocol?.executionBudget,
     crossRepositorySeam: config.engineering?.taskProtocol?.crossRepositorySeam,
     frontendTestData: config.qualityAssurance?.frontendTestData,
@@ -313,6 +319,115 @@ function print(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
+function isAgentProcess() {
+  return Boolean(process.env.CLAUDECODE || process.env.CLAUDE_CODE || process.env.CURSOR_AGENT);
+}
+
+function gitUserName() {
+  const result = spawnSync("git", ["config", "user.name"], { encoding: "utf8" });
+  const name = result.stdout?.trim();
+  if (!name) throw new Error("git config user.name is empty; set it before approving");
+  return name;
+}
+
+function gateReport(manifest, options) {
+  return (options.gates ?? []).map((gate) => ({
+    id: gate.id,
+    label: gate.label ?? gate.id,
+    ...gateState(manifest, gate, {
+      approvalFields: options.approvalFields,
+      legacyGateId: options.legacySingleDigestSatisfies,
+    }),
+  }));
+}
+
+async function readPipedLine() {
+  return new Promise((resolve, reject) => {
+    let buffer = "";
+    const onData = (chunk) => {
+      buffer += chunk;
+      if (buffer.includes("\n")) {
+        cleanup();
+        resolve(buffer.split("\n")[0]);
+      }
+    };
+    const onEnd = () => {
+      cleanup();
+      if (buffer.length) resolve(buffer);
+      else reject(new Error("no confirmation given"));
+    };
+    const cleanup = () => {
+      process.stdin.off("data", onData);
+      process.stdin.off("end", onEnd);
+    };
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", onData);
+    process.stdin.on("end", onEnd);
+  });
+}
+
+async function confirmYes(question) {
+  if (isAgentProcess()) {
+    throw new Error("approval needs a human at a terminal. Agents cannot approve.");
+  }
+  if (process.stdin.isTTY === true) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      const answer = await rl.question(question);
+      return /^\s*y(es)?\s*$/i.test(answer);
+    } finally {
+      rl.close();
+    }
+  }
+  const answer = await readPipedLine();
+  return /^\s*y(es)?\s*$/i.test(answer);
+}
+
+async function approveCommand(options) {
+  const gateId = option("--gate");
+  const gates = options.gates ?? [];
+  const gate = gates.find((item) => item.id === gateId);
+  if (!gate) {
+    throw new Error(`unknown gate: ${gateId ?? "(missing)"}. Use one of: ${gates.map((item) => item.id).join(", ")}`);
+  }
+  if (isAgentProcess()) {
+    throw new Error("approval needs a human at a terminal. Agents cannot approve.");
+  }
+  const source = option("--manifest");
+  if (!source) throw new Error("--manifest <task.json> is required");
+  const manifestPath = path.resolve(source);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const state = gateState(manifest, gate, {
+    approvalFields: options.approvalFields,
+    legacyGateId: options.legacySingleDigestSatisfies,
+  });
+  if (state.state === "current") {
+    print({ approved: true, unchanged: true, gate: gate.id, stamp: state.stamp, digest: state.currentDigest });
+    return;
+  }
+  const approvedBy = gitUserName();
+  const approvedAt = new Date().toISOString();
+  process.stderr.write(
+    `Approve ${gate.id} (${gate.label ?? gate.id}) as ${approvedBy}?\n`
+    + `digest: ${state.currentDigest}\n`
+    + "Type yes to stamp this gate.\n",
+  );
+  const confirmed = await confirmYes("Approve this gate? [yes/no] ");
+  if (!confirmed) throw new Error("no confirmation given");
+  const approval = stampGate(manifest, gate, { approvedBy, approvedAt }, {
+    approvalFields: options.approvalFields,
+    legacyGateId: options.legacySingleDigestSatisfies,
+  });
+  const next = { ...manifest, approval };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+  print({
+    approved: true,
+    gate: gate.id,
+    stamp: approval.stamps[gate.id],
+    next: nextStep(next, options),
+  });
+}
+
 function contract(config) {
   print({
     schema: TASK_SCHEMA,
@@ -320,6 +435,8 @@ function contract(config) {
     manifestPath: config.engineering.taskProtocol.manifestPath,
     requiredSections: config.engineering.taskProtocol.requiredSections,
     approvalBoundFields: config.engineering.taskProtocol.approval.boundFields,
+    approvalGates: (config.engineering.taskProtocol.approval.gates ?? []).map((gate) => gate.id),
+    approveCommand: config.engineering.taskProtocol.approval.approveCommand,
     executionBudget: config.engineering.taskProtocol.executionBudget,
     crossRepositorySeam: config.engineering.taskProtocol.crossRepositorySeam,
     frontendTestData: config.qualityAssurance.frontendTestData,
@@ -359,6 +476,7 @@ function contract(config) {
       validate: "node .harness/task-protocol.mjs validate --manifest <task.json>",
       digest: "node .harness/task-protocol.mjs digest --manifest <task.json>",
       next: "node .harness/task-protocol.mjs next --manifest <task.json>",
+      approve: "node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>",
       backendPreflight: "node .harness/backend-task-runner.mjs preflight --manifest <absolute-task.json> --test-id <id>",
     },
   });
@@ -382,11 +500,17 @@ try {
     if (issues.length > 0) process.exitCode = 1;
   } else if (command === "digest") {
     const manifest = loadManifest();
-    print({ digest: approvalDigest(manifest, options.approvalFields), approval: approvalState(manifest, options.approvalFields) });
+    print({
+      digest: approvalDigest(manifest, options.approvalFields),
+      approval: approvalState(manifest, options.approvalFields),
+      gates: gateReport(manifest, options),
+    });
   } else if (command === "next") {
     print(nextStep(loadManifest(), options));
+  } else if (command === "approve") {
+    await approveCommand(options);
   } else {
-    throw new Error("Usage: task-protocol.mjs <contract|validate|digest|next> [--manifest <task.json>]");
+    throw new Error("Usage: task-protocol.mjs <contract|validate|digest|next|approve> [--manifest <task.json>] [--gate <id>]");
   }
 } catch (error) {
   console.error(`Task protocol error: ${error.message}`);
