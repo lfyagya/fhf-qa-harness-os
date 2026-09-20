@@ -7,6 +7,10 @@
 This is the only maintained selector backlog. Re-verify the cited frontend source before filing or
 closing an item; line numbers and branch state age faster than the requested contract.
 
+- Filing drafts awaiting Jira access: [`data-cy-hook-filing-drafts-2026-09-05.md`](./data-cy-hook-filing-drafts-2026-09-05.md).
+  SERV ticket text for SH-02, SH-06 and SH-07, written against this ledger's 2026-09-05 state and
+  never filed (`capability-doctor` returned `access-request-required`). It duplicates row content by
+  design; re-read the rows here before filing, since they moved on 2026-09-20.
 - Structural coverage: `docs/evidence/coverage-computed.json`.
 - Product behavior: `docs/framework/application-intelligence/`.
 - Workflow readiness/sequence: `docs/planning/roadmap/effort-breakdown-by-module-and-subdashboard.md`.
