@@ -273,6 +273,25 @@ These are not failure counts. Each marker must be classified as an intentionally
 a deterministic fixture gap, or a false green. A required precondition that disappears at runtime
 must not pass silently.
 
+### Open cross-layer route and contract mismatches
+
+Moved here 2026-09-20 from the smoke chain inventory, where they sat among static counts. These are
+not inventory: each is a case where one lane can stay green against a route the other lane says is
+wrong, which is the false-green exposure this section exists to record. All five were re-verified
+against `fhf-backend-automation` `b8c6dc4`; none is fixed. The source page called them "all four",
+written before D5 was appended.
+
+They are defect *candidates*, not confirmed defects, and the rule at the top of this ledger applies:
+none is promoted until the application contract or a native run settles it.
+
+| ID | Mismatch | Why it can go green anyway | What settles it |
+|---|---|---|---|
+| D1 | Five ACD lookups (provider list, cancellation reasons, process status, states, other-product-type) migrated in prod off ORDS onto a non-ORDS `/acdwrapper/*` proxy. The FE config records a live prod capture dated 2026-07-28 and cross-checks `wrapperEndpoints.ACD_WRAPPER = 'acdwrapper'` in the application's `network.js`; `acdwrapper` appears in zero backend files. | Backend health-checks the pre-migration ORDS paths. FE reads prod, BE runs Dev/QA, which may still serve the old routes — so both lanes can pass while describing different systems. | The application contract, before treating it as a defect |
+| D2 | ACD main dashboard path. `tests/example_env:74` is `/firsthelp_coll/ancillary-cancellation/cancellations-new/all/loans/collectionsmanager`; the FE config records `/ancillary-cancellation/loans/all/{role}`. Also baked into `tests/commons/api_schemas/ancillary_cancellation_dashboard_schemas.py:67`. | A health check against a surviving legacy path proves the path answers, not that it is the path the product uses. | One contract check |
+| D3 | Repo instance route. Backend `REPO_INSTANCE_ENDPOINT=/repo_invoice/repo_instance` vs frontend `/repo_invoice/rdn_repo_instance/**`. | The DB view is `RDN_REPO_INSTANCE_VW` (`tests/commons/db_schema.py:106`), so the `RDN_` prefix is real at the data layer — which makes the FE glob the likely-correct route and the backend env the stale one. | One contract check |
+| D4 | Impound notification. Backend `/impound/notification` vs frontend `/dashboard-communication/fhf_notification/*/INSURANCE_LC`. | Two tests named "notification", two different routes, neither obviously wrong. | The application contract |
+| D5 | Duplicate field contracts (structural). FE `configs/api/**` and BE `tests/commons/api_schemas/**` define the same response contracts independently, with no shared source and no cross-lane diff. Transport verified: 60 fields, identical today. | Nothing compares them. The first backend rename makes one lane red for a reason nobody will connect to the other lane's green. | A cross-lane contract diff, or one shared source |
+
 ## Decision and update rule
 
 1. Accept coverage only at the deepest link actually proven.

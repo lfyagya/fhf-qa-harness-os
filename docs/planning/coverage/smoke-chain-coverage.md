@@ -296,35 +296,12 @@ the useful per-module quality signal.
 
 ## Open cross-layer defects
 
-All four re-verified against `b8c6dc4`; none fixed.
+Moved 2026-09-20 to [`fullstack-chain-risk-matrix.md`](./fullstack-chain-risk-matrix.md)
+§ *Cross-cutting false-green exposure*, keeping D1–D5 and their identifiers. They are defect
+candidates rather than inventory: each is a case where one lane stays green against a route the
+other lane says is wrong, which is a claim about evidence and belongs in the ledger.
 
-**D1 — ACD acdwrapper drift.** Five ACD lookups (provider list, cancellation reasons, process
-status, states, other-product-type) migrated in prod off ORDS onto a non-ORDS `/acdwrapper/*`
-proxy; the FE config records a live prod capture dated 2026-07-28 and cross-checks
-`wrapperEndpoints.ACD_WRAPPER = 'acdwrapper'` in the application's `network.js`. Grep for
-`acdwrapper` across the backend returns zero files — backend health-checks the pre-migration ORDS
-paths. **Caveat:** FE reads prod, BE runs Dev/QA, which may still serve the old routes. Verify
-against the application contract before treating as a defect.
-
-**D2 — ACD main dashboard path.** `tests/example_env:74` is
-`/firsthelp_coll/ancillary-cancellation/cancellations-new/all/loans/collectionsmanager`; the FE
-config records the current path as `/ancillary-cancellation/loans/all/{role}`. Also baked into
-`tests/commons/api_schemas/ancillary_cancellation_dashboard_schemas.py:67`.
-
-**D3 — Repo instance route.** Backend `REPO_INSTANCE_ENDPOINT=/repo_invoice/repo_instance` vs
-frontend `/repo_invoice/rdn_repo_instance/**`. The DB view is `RDN_REPO_INSTANCE_VW`
-(`tests/commons/db_schema.py:106`), so the `RDN_` prefix is real at the data layer — which makes
-the FE glob the more likely-correct route and the backend env the stale one. One contract check
-settles it.
-
-**D4 — Impound notification.** Backend `/impound/notification` vs frontend
-`/dashboard-communication/fhf_notification/*/INSURANCE_LC`. Two tests named "notification", two
-different routes, neither obviously wrong.
-
-**D5 — Duplicate field contracts (structural).** FE `configs/api/**` and BE
-`tests/commons/api_schemas/**` define the same response contracts independently, with no shared
-source and no cross-lane diff. Transport verified: 60 fields, identical today. The first backend
-rename makes one lane red for a reason nobody will connect to the other lane's green.
+Priority item 5 below still refers to them by ID.
 
 ---
 
