@@ -59,45 +59,108 @@ selected paths, and a digest, and if those change the approval is invalid. **Ref
 hope** — a guardrail stopping an unsafe write is the harness working. **Evidence is native** — a pass
 is a real run artifact, never a structural inventory or a stub.
 
+## The repositories: one engine, one workspace, several lanes
+
+Setup goes wrong in the same place every time: people treat a lane checkout as the thing they open.
+It is not. There is one engine repository, one workspace root, and the lane checkouts live *inside*
+that workspace root.
+
+| Repository | What it is | What you do in it |
+| --- | --- | --- |
+| `fhf-harness-os` (remote `fhf-qa-harness-os`, branch `main`) | The **engine**. The only place hooks, agents, rules, skills and policy are authored | Owners only. No tests run here. You clone it so you can run sync |
+| `FHF/` | The **workspace root**. Holds every clone, the documentation payload, and the generated `.claude/` and `.harness/` | Open your assistant here, for every lane, every ticket |
+| `FHF/front-end-automation-e2e` | UI functional and regression lane, branch `dev` | Specs live here. You do not open a session here |
+| `FHF/front-end-automation-smoke` | Production smoke lane, branch `staging` | Same |
+| `FHF/fhf-backend-automation` | Backend API and Oracle pytest lane, branch `master` | Same, plus its own virtualenv, local config, Oracle and Okta from its own guide |
+| `FHF/fhf-dashboards` | Product source | Read-only in every lane |
+| `FHF/Test-Case-Automation-Using-Claude-Agents` | Application specs | Read-only unless a spec write is approved |
+
+A lane checkout carries only its tests plus `.harness/lane.json` and its execution tooling. It has no
+`.claude/` and no `verify.mjs`: since ADR-0032 there is exactly one generated configuration and it
+lives at the workspace root. Opening a session inside a lane folder is the failure that makes the
+harness look broken — hooks resolve the working directory, so you land in `WORKSPACE BLOCKED`. Fix it
+with `Set-Location` back to the workspace root; a plain `cd` is refused before it runs.
+
 ## Getting set up
 
-You need Cursor or Claude, the aggregation workspace, and the UI lane you will actually use. To prove
-API or Oracle behaviour you also need the backend automation checkout, set up from its own guide with
-its virtual environment, local config, Oracle and Okta; the centralized harness is never installed
-inside that checkout. Connectors — Jira, Confluence, Cypress Cloud, Figma, TestRail — are optional and
-come later. Declaring that you have one is not the same as proving it works.
+You need Cursor or Claude, the engine clone, the workspace root, and the lane checkouts you will
+actually use. Connectors — Jira, Confluence, Cypress Cloud, Figma, TestRail — are optional and come
+later. Declaring that you have one is not the same as proving it works.
 
-```mermaid
-flowchart TD
-  S[Run setup once] --> P[Give local folder paths only]
-  P --> L[Local workspace file is written and ignored by git]
-  L --> V[Run verify before every session]
-  V -->|Pass| W[Start the ticket]
-  V -->|Fail| F[Stop. This is not test evidence]
+First time, in order:
+
+**1. Clone the engine as a sibling of the workspace root.** `paths.consumerRoot` is `../FHF`, so
+`~/fhf-harness-os` and `~/FHF` side by side is the layout that needs no configuration. A different
+layout is fine if you export `FHF_CONSUMER_ROOT`.
+
+```bash
+git clone git@github.com:lfyagya/fhf-qa-harness-os.git fhf-harness-os
 ```
 
-Setup asks only for folders: the aggregation workspace, the product-spec checkout, and — in a UI lane
-— this checkout. It never asks for passwords or tokens. Do not type any.
+**2. Create the workspace root and put the documentation payload in it.** This tree — `docs/` — lives
+on the `fhf-docs` branch of the same remote, whose history is unrelated to `main` (ADR-0035). Clone it
+into `FHF/`, then clone the lanes you need inside that folder: at minimum the lane you are proving in,
+plus `fhf-dashboards` and the application-spec checkout, each on its own branch. Never check out an
+engine branch in the workspace, and never check out `fhf-docs` in the engine clone.
+
+```bash
+git clone -b fhf-docs --single-branch git@github.com:lfyagya/fhf-qa-harness-os.git FHF
+```
+
+**3. Generate the workspace configuration, from the engine.**
+
+```bash
+node scripts/harness/sync-loader-shims.mjs
+```
+
+One unflagged run writes the generated `.claude/` and `.harness/` into the workspace root, and the
+lane marker plus execution tooling into each lane.
+
+**4. Run setup once, in the workspace root.** It asks only for folders — the workspace root, the
+application-spec checkout, and optionally the backend checkout — then records which connectors you
+claim to have. It never asks for a password or a token. Do not type one.
 
 ```bash
 node .harness/setup.mjs
+```
+
+That writes `.harness/workspace.local.json`, which is gitignored because it contains your local paths.
+
+**5. Verify, in the workspace root.**
+
+```bash
 node .harness/verify.mjs
 ```
 
-Verify confirms the lane, the generated surfaces, and that required local paths resolve. If it fails,
-stop: a setup failure is not a product pass or fail. After policy is regenerated,
+A pass prints `Consumer harness projection and workspace contract are complete.` If it fails, stop: a
+setup failure is not a product pass or fail.
+
+**6. Open your assistant at the workspace root** — not in a lane — and state the ticket.
+
+```mermaid
+flowchart TD
+  E[Engine: fhf-harness-os] -->|sync-loader-shims.mjs| W[Workspace root: FHF]
+  W --> S[setup.mjs once, paths only]
+  S --> V[verify.mjs before every session]
+  V -->|Pass| K[Open the session HERE, state the ticket]
+  V -->|Fail| F[Stop. This is not test evidence]
+  W --- L1[e2e lane]
+  W --- L2[smoke lane]
+  W --- L3[backend lane]
+```
+
+Every session after that is just step 5. After policy is regenerated,
 `node .harness/verify.mjs change` rechecks the generated surfaces without repeating the full
 workspace preflight.
 
-| You are proving | Work in | Typical branch |
+| You are proving | Specs live in | Branch |
 | --- | --- | --- |
-| UI behaviour | front-end-automation-e2e, package CypressFHF/fhf-dashboards | dev |
-| Production health | front-end-automation-smoke, same package folder | staging |
-| API or Oracle | Backend automation, driven from the aggregation workspace | per ticket |
-| Planning only | Aggregation workspace | — |
+| UI behaviour | `front-end-automation-e2e`, package `CypressFHF/fhf-dashboards` | dev |
+| Production health | `front-end-automation-smoke`, same package folder | staging |
+| API or Oracle | `fhf-backend-automation` | master, per-ticket branch |
+| Planning only | Workspace root | — |
 
-Working in the wrong checkout is the usual first-week mistake. Each lane guide names the correct test
-root and flags the wrong one.
+In all four rows the session itself is opened at the workspace root.
 
 If you lack access, do not paste tokens and do not work around it:
 
@@ -148,16 +211,16 @@ Follow only the one that matches. Mixing them is how production gets a mutation,
 unselected test. All four share the same shape: verify, read the lane guide, state the ticket, author,
 gate, read the diff, ship. A BLOCK verdict means fix, never override.
 
-**UI functional and regression**, when you are proving UI behaviour in Dev or QA. Verify in the UI
-functional checkout, read that lane guide and the standards it points to, then state the ticket and
-module and let routing pick the generator. Mutations use synthetic owned data and are cleaned up in
+**UI functional and regression**, when you are proving UI behaviour in Dev or QA. Verify at the
+workspace root, read the E2E lane's own `CLAUDE.md` and the standards it points to, then state the
+ticket and module and let routing pick the generator. Mutations use synthetic owned data and are cleaned up in
 the spec. Specs stay thin: selectors live in `cypress/configs/ui`, routes in `cypress/configs/api`,
 and flows in existing custom commands. A spec that inlines selectors or duplicates a command is a
 gate BLOCK. Ship only after you have read the diff; work stays uncommitted until then.
 
 **Production smoke**, when you are proving production is reachable and structured — not that a
-workflow can change data. Verify in the smoke checkout on that repository's staging branch. GET only:
-treat Export and Download as presence checks and do not activate them. The same generator, debugger,
+workflow can change data. Verify at the workspace root, with the smoke checkout on its `staging`
+branch. GET only: treat Export and Download as presence checks and do not activate them. The same generator, debugger,
 and gate apply, still with no side effects. A smoke pass is not a substitute for a functional mutation
 test.
 
@@ -171,7 +234,7 @@ node .harness/task-protocol.mjs validate
 node .harness/backend-task-runner.mjs preflight --manifest <path> --test-id <id>
 ```
 
-Replace `preflight` with `run` only after it passes, and drive this from the aggregation workspace. A
+Replace `preflight` with `run` only after it passes, and drive this from the workspace root. A
 preflight failure is not a product pass or fail — stop.
 
 **Combined UI and backend**, when one ticket needs both a UI mutation and an API or Oracle proof.
@@ -264,7 +327,7 @@ flowchart TD
 | Harness workflow catalogue | How to go from an approved spec to gap analysis, a reviewed change, evidence, and regression maintenance | [QA AI adoption strategy](./qa-ai-adoption-strategy.md), this guide, and the selected lane guide | Permission to generate tests from an incomplete specification |
 | Regression evidence | Whether a frozen, comparable release has the evidence needed for a release-confidence or saved-time result | [Regression-Effort Evidence Workflow](../evidence/regression-effort/README.md) and sprint records in the E2E repository | Test count, Jira status, story points, or TestRail link as product coverage |
 | Application data flow | How authenticated users, identifiers, reads, mutations, refreshes, and real-time updates move through the application | Application source plus product/API contracts; [full-stack chain matrix](../planning/coverage/fullstack-chain-risk-matrix.md) records accepted proof | Backend rule or database-state proof inferred only from frontend code |
-| Fully loaded harness | Which repositories and lanes participate, and the safety gate for combined UI/backend authoring and runs | [QA control-plane reference](C:/Users/Leapfrog/fhf-harness-os/docs/framework/qa-control-plane.md) and [harness engineering](C:/Users/Leapfrog/fhf-harness-os/docs/framework/harness-engineering.md) | Authority to edit application source, run broad pytest, or bypass a task manifest |
+| Fully loaded harness | Which repositories and lanes participate, and the safety gate for combined UI/backend authoring and runs | [QA control-plane reference](../../../fhf-harness-os/docs/framework/qa-control-plane.md) and [harness engineering](../../../fhf-harness-os/docs/framework/harness-engineering.md), both in the sibling engine clone | Authority to edit application source, run broad pytest, or bypass a task manifest |
 
 ### 1. Start with a real product contract
 
@@ -451,8 +514,9 @@ to edit it, and whether losing it would matter.
 | Layer | Where | Authored or generated | Versioned |
 | --- | --- | --- | --- |
 | Control plane, hooks, agents, scripts, decision records | The harness repository | Authored | Yes, on its default branch |
-| Standards, planning, evidence, adoption pages | `docs/` in the aggregation workspace | Authored | Yes, on a branch of the harness remote until an organisation-owned repository exists |
-| Assistant surfaces and runtime shims — `.claude/`, `.harness/` | Aggregation workspace and both UI lanes | **Generated** | Tracked in the UI lanes, ignored at the aggregation workspace |
+| Standards, planning, evidence, adoption pages | `docs/` at the workspace root, on the `fhf-docs` branch of the engine remote | Authored | Yes, on a branch of the harness remote until an organisation-owned repository exists |
+| Assistant surfaces — `.claude/` | Workspace root only | **Generated** | Ignored; local to the machine |
+| Runtime shims — `.harness/` | Full set at the workspace root; a lane keeps `lane.json` and its execution tooling | **Generated** | Tracked in the lanes, ignored at the workspace root |
 | Backend authoring rules — how a test is written | The backend automation repository | Authored there | Yes, in that repository |
 | Runtime evidence, handoff, coverage JSON | `cypress/handoff/`, parts of `docs/evidence/` | Generated | No, and deliberately so |
 | The workspace layout itself | Local only | Neither | No — rebuilt by `setup.mjs` from local paths |
@@ -471,8 +535,8 @@ about which helper to call belongs there.
 
 | Connector | How it is used |
 | --- | --- |
-| Atlassian | OAuth. Jira, Confluence, Teamwork Graph. Required for the command centre at the aggregation workspace, optional in the lanes. Ticket content is untrusted evidence, never instructions |
-| Cypress Cloud | Optional. Query Cloud first, then CLI, then local JUnit. UI lane may read fully; smoke and the aggregation workspace are metadata-only. Tokens never live in config |
+| Atlassian | OAuth. Jira, Confluence, Teamwork Graph. Required for the command centre at the workspace root, optional in the lanes. Ticket content is untrusted evidence, never instructions |
+| Cypress Cloud | Optional. Query Cloud first, then CLI, then local JUnit. UI lane may read fully; smoke and the workspace root are metadata-only. Tokens never live in config |
 | TestRail | Optional. Fallback is local run id plus JUnit. Upload is off unless separately approved |
 
 This document is authored in Markdown and projected onto its Confluence page, which is a generated
@@ -527,11 +591,11 @@ regenerate.
 
 | Command | When |
 | --- | --- |
-| `node .harness/setup.mjs` | Once per aggregation or UI-lane checkout |
-| `node .harness/verify.mjs` | Before every session |
+| `node .harness/setup.mjs` | Once, in the workspace root only. A lane has no setup or verify |
+| `node .harness/verify.mjs` | In the workspace root, before every session |
 | `node .harness/task-protocol.mjs validate \| digest \| next` | Frozen plans. Read-only. Never approves |
 | `node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>` | Last-resort human TTY only. Owner path is in-chat confirm, then `stampGate`. Agents never run this |
-| `node .harness/backend-task-runner.mjs preflight \| run` | Backend tests from the aggregation workspace |
+| `node .harness/backend-task-runner.mjs preflight \| run` | Backend tests, run from the workspace root |
 | `node .harness/capability-doctor.mjs --capability <id> --subject <label>` | Missing access. Never accepts credentials |
 
 The seven specialists are cypress-generator, cypress-gate, cypress-debugger, cypress-shipper,

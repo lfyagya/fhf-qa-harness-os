@@ -23,8 +23,8 @@ Do not browse or preload this tree. Read the single owner matching the task.
 | Cloud failure triage, night brief, failed-spec re-runs | `framework/triage-runbook.md` |
 | Cypress version bump / migration prompts | `framework/cypress-version-upgrade-checklist.md` |
 | Missing frontend test hooks | `planning/data-cy-hook-backlog.md` |
-| Current sprint / Jira / evidence dashboard | `C:\Users\Leapfrog\fhf-harness-os\docs\framework\qa-control-plane.md` |
-| Harness internals | `C:\Users\Leapfrog\fhf-harness-os\docs\framework\harness-engineering.md` |
+| Current sprint / Jira / evidence dashboard | `../fhf-harness-os/docs/framework/qa-control-plane.md` — the engine clone, a sibling of this workspace |
+| Harness internals | `../fhf-harness-os/docs/framework/harness-engineering.md` — same clone |
 | Getting a QA onboarded onto the harness — setup, usage, guardrails | `adoption/qa-harness.md` (one page, top to bottom) |
 | Candidate QA AI workflow standard (proposed, under review) — maps test generation, coverage design, regression development, data setup, reviews, and quality checks to the document that governs each | `adoption/qa-ai-adoption-strategy.md` §3 |
 | Evidenced QA-side adoption blockers — spec maturity, missing `data-cy` hooks, test-data lifecycle, backend parity, access grants, missing manual baseline, smoke deploy gate | `adoption/qa-ai-adoption-strategy.md` §4 |
@@ -57,7 +57,7 @@ removes every payload-only file, because the two histories share no commits (ADR
 ## Ownership
 
 Ownership is configured in
-`C:\Users\Leapfrog\fhf-harness-os\config\qa-control-plane.json` → `documentation.owners`.
+`../fhf-harness-os/config/qa-control-plane.json` → `documentation.owners`.
 Update an existing owner; do not create another report. The team product specification owns intent;
 live source/API/DB evidence verifies implementation and exposes conflicts. Obsidian is retrieval-only
 and never writes facts back.
