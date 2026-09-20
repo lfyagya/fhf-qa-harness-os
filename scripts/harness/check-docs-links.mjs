@@ -49,6 +49,29 @@ function repoPath(value) {
   return value.replaceAll("\\", "/").replace(/^\.?\//, "");
 }
 
+// ADR-0026 separated the engine tree from the payload tree, but only fixed the five files that
+// were duplicated at the time. The class stayed open: an authored docs/ path can exist on both
+// the engine branch and at the workspace root, and nothing reports it. On 2026-09-20 six had
+// diverged again - documentation.owners resolves against the workspace, so the engine copies
+// were forks nobody published, and the onboarding page among them was the one engineers read.
+// check-loader-drift.mjs covers generated projections; this covers authored ones.
+function checkPayloadIsNotDuplicated(issues) {
+  if (path.resolve(FHF_ROOT) === path.resolve(HARNESS_ROOT)) return; // same tree: nothing to compare
+  let tracked;
+  try {
+    tracked = execFileSync("git", ["-C", HARNESS_ROOT, "ls-files", "docs"], { encoding: "utf8" });
+  } catch {
+    return; // no git, or docs/ untracked: the drift check is not the place to fail on that
+  }
+  for (const file of tracked.split("\n").map((line) => line.trim()).filter(Boolean)) {
+    if (!fs.existsSync(path.join(FHF_ROOT, file))) continue;
+    issues.push(
+      `${file} exists in this repository and at the workspace root. Authored documentation lives ` +
+        `in exactly one tree (ADR-0026): keep the copy the owner resolves to and delete the other`,
+    );
+  }
+}
+
 const issues = [];
 let config;
 let documentation;
@@ -58,6 +81,7 @@ try {
   documentation = config.documentation;
   engineering = config.engineering;
   checkSkillsAreUsable(issues, config);
+  checkPayloadIsNotDuplicated(issues);
 } catch (error) {
   issues.push(`Invalid harness config: ${error.message}`);
 }

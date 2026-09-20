@@ -39,8 +39,9 @@ scripts/harness/
     eval-harness.mjs            — route, calibration, and trace-derived repair evaluation
     calibrate-gate.mjs          — imports machine verdicts and records explicit human labels
     record-loop-event.mjs       — redacted runtime loop state and trace recorder
+    verify-canonical.mjs       — runs engineering.harness.verify.canonical, the 18 self-checks
     test-hooks.mjs             — hook regression tests
-    check-docs-links.mjs       — docs integrity check
+    check-docs-links.mjs       — docs integrity check, including payload duplication (ADR-0026)
     loader-templates.mjs       — single source of truth for generated consumer-repo content
     sync-loader-shims.mjs      — regenerates the FHF root plus E2E and Smoke consumer configuration
     check-loader-drift.mjs     — local gate: fails if a consumer repo's generated files drifted
@@ -84,6 +85,17 @@ from it and must be regenerated rather than hand-edited. A validated `FHF_HARNES
 provide short-lived session selection or lower-budget changes; it cannot widen permissions, change
 hook or agent topology, disable data protections, or raise hard safety limits. Runtime loop state,
 traces, and evidence are separate artifacts and never become policy automatically.
+
+## Self-verification
+
+`node scripts/harness/verify-canonical.mjs` runs every script in
+`engineering.harness.verify.canonical` and exits non-zero on the first failing one (~30s).
+`--list` prints the set without running it. Add a check by adding it to the control plane, not
+to a second list here.
+
+`.githooks/pre-commit` runs that same command. It is versioned so a fresh clone gets it; enable
+it once per clone with `git config core.hooksPath .githooks`. The older `.git/hooks/pre-commit`
+ran 4 of the 18 and existed on one machine only.
 
 ## Governance
 
