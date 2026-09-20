@@ -457,7 +457,7 @@ flowchart TB
 | Need                          | What exists today                                                                                                                                  | Gap                                                                                                                | Decision this call takes                                                                              |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | Onboarding                    | [`qa-harness.md`](./qa-harness.md), one page, top to bottom. Setup, three lanes, four workflows, evidence, what to do when the assistant stops you | None. This is the single training document                                                                         | Confirm it is the only reading anyone is asked to do before the workshop                              |
-| Hands-on training             | [`qa-harness.md`](./qa-harness.md) plus a green `verify.mjs` on a real ticket                                                                       | No separate workshop run sheet                                                                                     | Pair on the first ticket — stage 2, supported not solo                                                |
+| Hands-on training             | [`qa-harness.md`](./qa-harness.md) plus a green `verify.mjs` on a real ticket                                                                       | Covered by §10, merged in from the separate program page 2026-09-20                                                | Pair on the first ticket — stage 2, supported not solo                                                |
 | Finding the right document    | `docs/README.md` is a router: read the one owner matching the task, never browse the tree                                                          | None. Routing is already the rule                                                                                  | Tell people the rule. Browsing the tree is how contradictory guidance gets quoted                     |
 | Asking a question             | **Nothing.** Escalation resolves to "escalate to owner"; no channel, mailing list, or office hours is named in any document                        | §7 stage 3 already assumes "questions go to a shared channel, not to Yagya directly" — that channel does not exist | **Name the channel today.** It is a five-minute decision blocking a stage the plan already depends on |
 | Support when someone is stuck | Yagya, by name, informally                                                                                                                         | Single point of failure. Every route into help is one person                                                       | **Name a backup**, ideally one Automation QA who will hit the same problems first                     |
@@ -489,3 +489,75 @@ flowchart LR
 | Productivity dip read as tool failure                        | Named as expected in section 1 and at minute zero of the workshop                           |
 | AI-authored tests that pass without testing anything         | Every spec goes through a gate. Gate verdicts are a tracked indicator, not a formality      |
 | Adoption reported by tool-open rate rather than shipped work | Metric is about real tickets and shipped coverage. Never seat-license counts                |
+
+## 10. Workshop, sync cadence, and logistics
+
+Merged in on 2026-09-20 from a separate "Program, Workshop, and Sync Cadence" page that was tracked
+on the engine branch, where `documentation.owners` never reached it. Its rollout table, risks, and
+success-metric section duplicated §7, §9, and §2 of this page and were dropped; what follows is the
+part that existed nowhere else.
+
+### Workshop run sheet
+
+One hour, full QA team, led by QA automation with a short segment from the engineering AI workflow
+owner.
+
+**Prerequisites, circulated the working day before.** Unprepared attendees consume roughly a third
+of the session.
+
+- The workspace root `FHF` cloned, with the lane checkouts inside it: `front-end-automation-e2e`,
+  `front-end-automation-smoke`, `fhf-backend-automation`. See [`qa-harness.md`](./qa-harness.md) §
+  "The repositories"
+- Cursor or Claude Code installed and signed in
+- Node available on PATH
+- No credentials gathered; the harness never asks for any
+
+| Time | Segment | Content |
+| --- | --- | --- |
+| 0:00–0:05 | Why | The dip is expected. Nothing done in this session can reach production |
+| 0:05–0:15 | Live demonstration | One real ticket end to end: route, generate, gate, PR. No slides |
+| 0:15–0:30 | Hands-on setup | Everyone runs `setup.mjs` then `verify.mjs`, at the workspace root. Nobody leaves this segment failing |
+| 0:30–0:45 | Hands-on task | Everyone requests one test in the E2E lane and reads the result |
+| 0:45–0:55 | Guardrails | Deliberately trip a hook by attempting to edit application source; show that the refusal is the system working |
+| 0:55–1:00 | Next steps | Each person names the ticket they will take through stage 2, and where to ask questions |
+
+**Leave-behind:** the onboarding page and one named low-risk ticket per attendee.
+
+**Demonstration safety:** demonstrate in the E2E lane against Dev/QA. Do not demonstrate in the
+Smoke lane; a live production checkout in front of an audience teaches the wrong habit.
+
+### Bi-weekly adoption sync
+
+QA and engineering leads, every two weeks, initially through October. Standing agenda, 30 minutes:
+
+1. Adoption: who used AI-assisted workflows on real tickets since the last session, and who did not
+2. Coverage: specs authored, gate verdicts, and what shipped alongside development
+3. Friction: the primary blocker each person hit. This is the input that changes the harness
+4. Primary metric against baseline, per §2
+5. One decision per session, if any
+
+Supporting indicators, tracked deliberately as indicators rather than targets to avoid gaming:
+
+- Number of QAs with a passing `verify.mjs` in the last two weeks
+- Ratio of gate PASS to BLOCK verdicts, and whether BLOCKs are corrected or circumvented
+- Whether shared-channel questions concern setup or testing
+
+Friction items become harness work: configuration, routing, workspace setup, and reusable skills.
+The onboarding target is that a new QA requires the workshop and nothing further.
+
+### Coordination
+
+| Area | Scope |
+| --- | --- |
+| Engineering AI workflow | Align this page's structure and depth with the existing Frontend and Backend AI adoption documentation so the three read as one set |
+| QA practice | Wider QA rollout: spec-driven development, parallel test-suite authoring, and coverage targets per module |
+| Leadership reporting | Progress reported into the bi-weekly sync against the primary metric |
+
+### Meeting logistics
+
+Calendar invitations are sent from Outlook; this page records the agreed content only.
+
+| Meeting | Attendees | Timing |
+| --- | --- | --- |
+| QA AI adoption workshop | Full QA team; engineering AI workflow owner | Monday, 10:00–11:00 Nepal time |
+| QA AI adoption sync | QA and engineering leads | Every two weeks, 30 minutes, initially through October; slot confirmed with US participants before the first invitation |

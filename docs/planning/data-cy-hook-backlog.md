@@ -1,7 +1,7 @@
 # `data-cy` Product Hook Ledger
 
 **Owner:** frontend instrumentation gaps that block or weaken Cypress  
-**Last consolidated:** 2026-08-21 (re-verified 2026-09-05)  
+**Last consolidated:** 2026-08-21 (re-verified 2026-09-05; SH-01, SH-03 and SH-04 re-verified 2026-09-20)  
 **Not owned here:** test coverage, product behavior, priorities, delivery dates, or Jira status
 
 This is the only maintained selector backlog. Re-verify the cited frontend source before filing or
@@ -18,6 +18,7 @@ closing an item; line numbers and branch state age faster than the requested con
 | Proposed | Source-confirmed gap; re-verify before filing |
 | PO/security review | Product or access decision is required before selector work |
 | Close | Hook landed and Cypress consumers were migrated |
+| Close (product-side) | Hook landed as requested, but no lane config reads it yet. The product gap is shut; the selector work is not |
 
 ## Re-verification 2026-09-05
 
@@ -48,11 +49,35 @@ Every component that renders `complaint_type` emits zero `data-cy`, and no liter
 naming convention. These are not renames and not selectors to guess at (`source-map.md`); the
 complaint form fields cannot be addressed by field name until SH-02 ships.
 
+## Re-verification 2026-09-20
+
+Checked against the local `fhf-dashboards` checkout on `master` at `b3fa99cad`.
+
+SH-01, SH-03 and SH-04 were dropped from the table by the 2026-08-21 refresh with no `Close` row and
+no note. One of the three had genuinely landed; the other two had not, and this re-verification
+restores them rather than leaving a silent removal as the record.
+
+| Item | Verified state on `master` | Change to the row |
+|---|---|---|
+| SH-01 | `components/common/tableTS/TableMeatBallMenu.tsx` emits `table-meatball-trigger` (`:85`) and `` meatball-item-${convertToKebabCase(item.title)} `` (`:123`), landed in `6d4e2e37c` on 2026-08-20 — the day before the refresh that removed the row. The path also moved from `common/table/` to `common/tableTS/`. | **Closed.** The requested contract is emitted. No lane consumer reads it yet, so the close is product-side only |
+| SH-03 | `components/common/commonTabs/TabElements.jsx` emits **zero** `data-cy`. A tab is identified only by `className="tab-list-item"` plus the `tab-list-active` modifier and its visible label text. Six call sites mount it through `CommonTabs.jsx`. | **Re-filed.** The old row cited `commonTabs/TabElements.js`; the file is `.jsx` |
+| SH-04 | `components/common/notifications/NotificationItem.tsx` emits **zero** `data-cy`. A row is identified only by `className="notification-item ..."`, and read state is a bare unlabelled `<span>` (`:95`). Two surfaces render it. | **Re-filed** unchanged in substance |
+
+Recorded while verifying SH-01, because it is the next duplicate-identity trap in this area: four
+components emit meatball hooks in four different shapes — `meatball-item-${item.value}`
+(`common/menu/MeatballMenu.tsx`), `` meatball-item-${kebab(title)} `` (`tableTS/TableMeatBallMenu.tsx`),
+`` meatball-menu-${kebab(fieldName)} `` (`EnhancedFilterControllerUi.tsx`), and
+`` ${item.title}-meatball-item `` (funding assignment flyover). The E2E and Smoke configs each target
+a different one. That is not a filing on its own yet; it is the shape SH-08 and SH-10 already have.
+
 ## Shared component contracts
 
 | ID | Component / source | Requested stable contract | Why | Status |
 |---|---|---|---|---|
+| SH-01 | `components/common/tableTS/TableMeatBallMenu.tsx` | Trigger hook plus `meatball-item-<action>` on each option | Shared trigger and items otherwise rely on a reused class, with broad dashboard reach | Close (product-side) — emitted since `6d4e2e37c`, 2026-08-20 |
 | SH-02 | `components/common/dropdown/{Dropdown,FormDropdown,EnhancedDropdown,FormAsyncDropdown,AsyncDropdown,CreatableAsyncDropdown}.tsx` and filter `MultiSelect.jsx` | A caller-supplied or `id`/`name`-derived field wrapper, control, and searchable-input hook; retain existing FilterController `multi-select-*` hooks | `dropdown-input` and `dropdown-toggle` are shared across form fields, while `EnhancedDropdown` has no control hook; the generic identities cannot be reliably scoped when multiple fields coexist | Proposed |
+| SH-03 | `components/common/commonTabs/TabElements.jsx`, mounted through `CommonTabs.jsx` at six call sites | `tab-<stable-key>` on each tab item | A tab carries only `tab-list-item` plus the `tab-list-active` modifier, so the only discriminator is visible label text; every tabbed dashboard shares the identity | Proposed |
+| SH-04 | `components/common/notifications/NotificationItem.tsx`, rendered by `Notifications.tsx` and `RemarketingNotifications.tsx` | Stable notification-item identity, plus a read/unread hook rather than an unlabelled `<span>` | Rows expose only the reused `notification-item` class, and read state is a bare styled span with no accessible name; neither a specific notification nor its state can be addressed | Proposed |
 | SH-05 | `common/dashboard/DashboardHeader.jsx` and Titles export controls | Product-specific export-action hooks | Six remaining export buttons expose only the shared `.export-btn` class; the Titles General button has only the generic `export-csv-btn`. Neither identifies the intended export action without CSS or text | Proposed |
 | SH-06 | `common/datePicker/DatePicker.jsx` and seven equivalent month renderers | Field- and calendar-instance-keyed month/year select hooks | The same month/year hook pair repeats in all eight renderers, so a range picker or multiple date fields produces duplicate identities | Proposed |
 | SH-07 | `DatePickerTs.tsx`, `DateRangePickerTs.tsx` | Previous/next/day hooks plus field-keyed start/end input hooks | `react-dates` classes and server-field IDs are implementation detail | Proposed |
