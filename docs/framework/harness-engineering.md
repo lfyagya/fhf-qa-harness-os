@@ -4,6 +4,54 @@
 Its `engineering` object connects context, memory, harness, and loop behavior. Tool-native
 settings are generated projections, not additional sources of truth.
 
+## System overview
+
+Read this section first if you are new to the harness or need to explain it to someone who does
+not work in it daily. Everything below it is reference detail.
+
+A language model is a probabilistic generator. Asked to write tests, it produces plausible output
+rather than correct output, and that is not fixable with a better prompt because the failure is
+statistical rather than instructional. The harness is the engineering response: the model
+generates, and a deterministic layer around it decides what is allowed to survive.
+
+| Left unguarded | What it costs |
+|---|---|
+| Invented fixtures and selectors | Specs fail on first real run; the engineer debugs the generator, not the application |
+| False-green assertions | Worse than no test, because it produces a coverage number that certifies nothing |
+| Unbounded retry | Spend with no change in state |
+| Agent approves its own work | Every gate silently becomes advisory |
+
+```mermaid
+flowchart TD
+  A[Sources of truth] --> B[Task manifest, frozen and digested]
+  B --> C[Three lanes, separated by risk]
+  C --> D[Native run artifacts]
+  D --> E[Gate verdict bound to a change digest]
+  E --> F[Human reads the diff]
+  F --> G[Pull request]
+  H[Control plane] --> I[Single generator]
+  I --> J[26 hooks, fail closed]
+  I --> K[7 agents, write or review]
+  J --> B
+  K --> C
+```
+
+Sources of truth are Jira and Confluence, the approved product specifications, and application
+source that is read-only. The three lanes are UI functional work in Dev or QA, production smoke
+that may only issue GET requests, and backend API and Oracle work confined to paths the ticket
+selected. Nothing on this path lets an agent merge, publish, or approve.
+
+Where the design is not finished, stated plainly so no reader infers more than is true:
+
+| Gap | State | What closes it |
+|---|---|---|
+| Evaluator accuracy | 2 labeled calibration cases, both BLOCK, one reviewer. False-block rate unmeasured. | About 60 balanced cases and a second reviewer |
+| Hook rationales | 4 of 26 hooks carry a recorded rationale | Write-ups, so hooks can be retired as models improve |
+| Cost and cycle time | Not instrumented | The trace recorder already runs; it needs reporting |
+
+Correctness claims rest on the deterministic hooks, which are directly tested. They do not rest on
+measured evaluator judgment.
+
 ## Architecture
 
 ```text
@@ -18,15 +66,16 @@ qa-control-plane.json
             ▼
 loader-templates.mjs + sync-loader-shims.mjs
             │
-            ├─ .claude/settings.json
-            ├─ .cursor/hooks.json
-            └─ .claude/harness.config.json
+            ├─ workspace root: .claude/ (settings, harness.config.json, hooks, agents,
+            │                  rules, skills), .cursor/hooks.json, .harness/ runtime CLIs
+            └─ each lane:      .harness/lane.json, plus execution tooling in E2E and Smoke
 ```
 
-The engine lives in `fhf-harness-os`. The FHF root is a local aggregation workspace; generated
-adapters and test payloads live in the lane repositories. The E2E and Smoke projections are
-committed with their repositories so a fresh clone is immediately usable. Never hand-edit a
-generated adapter.
+The engine lives in `fhf-harness-os`. The FHF root is the workspace root: it holds the lane
+repositories and the one generated projection. Since ADR-0032 a lane receives no `.claude/` at all —
+`loadHarnessConfig()` and `markerLane()` walk up to the workspace, so one configuration serves every
+lane and a session opened at the root can act on frontend and backend in the same task. Never
+hand-edit a generated adapter.
 Every committed adapter uses the same Node launcher to resolve `CLAUDE_PROJECT_DIR`,
 `CURSOR_PROJECT_DIR`, or the project working directory at runtime. Generated files must not contain
 a developer home directory or drive-specific path. Control-plane topology remains relative data;
@@ -42,6 +91,28 @@ An optional `FHF_HARNESS_OVERLAY` is session configuration, not a second source 
 identify a ticket/module/run, select a configured route, or lower context and retry budgets. It may
 not widen permissions, change hook or agent topology, disable data protections, or raise hard
 safety limits. The effective configuration is fingerprinted in runtime loop state and traces.
+
+What the reviewed policy actually configures, counted from the tree on 17 September 2026:
+
+```mermaid
+flowchart TD
+  A[qa-control-plane.json] --> B[Governance guard and ADR requirement]
+  B --> C[sync-loader-shims]
+  C --> D[Enforcement: 26 hooks, 29 bindings, 10 events]
+  C --> E[Roster: 7 agents, 17 blocked, 19 skills]
+  C --> F[Budgets: 1 specialist, depth 1, 3 retries]
+  C --> G[Boundaries: source read-only, smoke GET-only, backend scoped]
+  D --> H[Task protocol, 6 human gates]
+  E --> H
+  F --> H
+  G --> H
+  H --> I[E2E lane, dev, 6 skills]
+  H --> J[Smoke lane, staging, 7 skills]
+  H --> K[Backend, task-scoped, 9 skills]
+  I --> L[Verification: 18 canonical scripts plus one per clone]
+  J --> L
+  K --> L
+```
 
 ### Policy and rule governance
 
@@ -84,12 +155,30 @@ and trace intent through enforcement and test evidence. Do not infer legal appli
 ticket research automatically, treat a UI guard as backend authorization, or duplicate one rule across
 config, documentation, and specifications.
 
-### Smoke workspace preflight
+The operational loop for changing policy, end to end:
 
-The Smoke consumer deliberately keeps its FHF workspace and application-specification repository as
-external payload. Its generated `.harness/workspace.example.json` is the setup form; each engineer
-creates the ignored `.harness/workspace.local.json` with `consumerRoot` and `moduleSpecsRoot` before
-working. The default `.harness/verify.mjs` checks the `staging` branch, local Smoke documentation,
+```mermaid
+flowchart TD
+  A[Owner edits the control plane] --> B{Changes hook or agent topology}
+  B -->|Yes| C[Write an ADR first]
+  C --> D[Run sync-loader-shims]
+  B -->|No| D
+  D --> E[Generated surfaces in the engine and three consumers]
+  E --> F[Run check-loader-drift]
+  F -->|Drift found| G[Regenerate, never hand edit]
+  G --> D
+  F -->|Clean| H[Hooks enforce on every turn]
+```
+
+A hand-edit in a lane repository surfaces as drift rather than becoming local truth, which is what
+makes a fourth consumer a regeneration rather than a migration.
+
+### Workspace preflight
+
+Setup and verification live at the workspace root, not in a lane. The generated
+`.harness/workspace.example.json` is the setup form; each engineer creates the ignored
+`.harness/workspace.local.json` with `consumerRoot` and `moduleSpecsRoot` before working.
+`.harness/verify.mjs` checks the vendored projection, the selected branch, local documentation,
 workspace instructions, and every configured module-spec target. Missing required inputs block work;
 Jira, Confluence, backend evidence, and Cypress Cloud are optional warnings for local Smoke runs.
 
@@ -157,6 +246,30 @@ externally. Do not route FHF work through the global `lane` CLI or dashboard. Se
 every prompt inject the current gate. Write and pytest hooks fail closed on the earliest
 missing stamp, so step 2 cannot start until step 1 is approved. Approval itself stays
 human: the harness never types `yes`.
+
+The lifecycle those stamps sit in:
+
+```mermaid
+flowchart TD
+  A[Intake from Jira] --> B[Spec proposal]
+  B --> C{Owner approves the spec}
+  C -->|No| B
+  C -->|Yes| D[Freeze the task manifest]
+  D --> E[Classify intent versus built]
+  E --> F{Any acceptance row is a defect}
+  F -->|Yes| G[Notify Dev before any run]
+  F -->|No| H[Gates spec, scenarios, plan, test-cases]
+  H --> I{Owner stamps the digest}
+  I -->|No| J[Every write stays blocked]
+  I -->|Yes| K[One specialist authors on selected paths]
+  K --> L[Native run produces evidence]
+  L --> M[Gates evidence and release]
+  M --> N{Verdict}
+  N -->|Block| O[Fix, three tries then escalate]
+  O --> K
+  N -->|Pass| P[Human reads the diff]
+  P --> Q[Pull request]
+```
 
 Proof modes are evidence-specific: hermetic tests can use RED/GREEN replay or same-test base/pass;
 Cypress, production Smoke, API, Oracle, and third-party tests require native execution artifacts.
@@ -410,6 +523,35 @@ Collection imports only machine-scored gate verdicts. It never fills human field
 agreement metrics are withheld until every collected case has an explicit reviewer, pass/fail label,
 score, and rationale.
 
+Corpus status, 17 September 2026: `scripts/harness/evals/gate-calibration.json` holds two labeled
+cases, both `BLOCK`, both labeled by one reviewer on the same day, with the judge agreeing on both.
+Agreement of two out of two on two same-verdict cases is not a measurement. With no labeled PASS
+case the false-block rate is unmeasured, and a gate that blocked every change would score perfectly
+on this corpus. Publishing an accuracy number needs labeled PASS cases, at least two independent
+reviewers on an overlapping subset with inter-rater agreement reported, and a target corpus around
+60 balanced cases across both lanes.
+
+What a claimed pass has to clear before it counts as coverage:
+
+```mermaid
+flowchart TD
+  A[Claimed pass] --> B{Native run artifact exists}
+  B -->|No| X[Rejected as false green]
+  B -->|Yes| C{Environment, revision and exact selection recorded}
+  C -->|No| X
+  C -->|Yes| D{Assertion level result present}
+  D -->|No| X
+  D -->|Yes| E{Full UI to API to database chain required}
+  E -->|Yes| F[Start state, real mutation, exact request, API contract, database state, verified cleanup]
+  E -->|No| G[Lane evidence accepted]
+  F --> G
+  G --> H[Counts as coverage of an approved scenario]
+```
+
+Four things are rejected as a false green: fallback markers treated as coverage, disabled suites
+treated as passing, a stubbed mutation treated as a workflow, and a file inventory treated as
+product coverage.
+
 ## Runtime flow
 
 ```text
@@ -421,6 +563,21 @@ prompt
   → collect proof-mode-specific native evidence
   → repair within configured limit
   → deterministic next step, durable handoff, or owner escalation
+```
+
+The guards in that fourth step are refusals, not annotations: a `PreToolUse` hook exits non-zero and
+the tool never runs.
+
+```mermaid
+flowchart TD
+  A[Agent attempts a write] --> B{Target is a harness file}
+  B -->|Yes| C[Blocked, default deny, owner opt-in required]
+  B -->|No| D{Active task gate approved}
+  D -->|No| E[Blocked before the tool runs]
+  D -->|Yes| F{Path inside manifest selected paths}
+  F -->|No| G[Blocked, out of scope]
+  F -->|Yes| H[Write proceeds]
+  H --> I[Eight post-write validators]
 ```
 
 Generator and evaluator remain separate. Cypress-only implementation routes to `cypress-generator`;
@@ -441,7 +598,7 @@ Cypress-only merge judgment routes to `cypress-gate`; Cypress-only failures rout
 `engineering.harness.verify` is split on purpose:
 
 - `canonical` — `scripts/harness/*` checks that exist only in `fhf-harness-os`.
-- `consumer` — `node .harness/verify.mjs`, vendored into every clone.
+- `consumer` — `node .harness/verify.mjs`, at the workspace root and in an `--only-baseline` clone. A lane has none.
 
 `check-docs-links.mjs` validates the engineering pillars, Jira contract, product topology, task
 protocol, runner matrix, routes, roster, hook paths, limits, documentation owners, and Obsidian
