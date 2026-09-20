@@ -3,10 +3,16 @@
 Complete three-layer smoke picture across the two lanes: what each sub-module covers at the UI,
 API, and DB layer; where the chain breaks; what closes it.
 
-> **Intended location:** `docs/planning/coverage/`. That directory is currently blocked by a
-> read/write deny rule in this environment, so the file lives one level up. Move it when the rule
-> is lifted, and reconcile against `docs/planning/coverage/fullstack-chain-risk-matrix.md` — which
-> could not be read to merge into.
+> **Boundary against the evidence ledger.** This file counts what the smoke suites *contain*: a
+> static per-layer, per-sub-module inventory read from source, plus the work that closes each gap.
+> [`fullstack-chain-risk-matrix.md`](./fullstack-chain-risk-matrix.md) records what executed runs
+> *proved*, and its first rule is that file counts, test titles, and structural layers are never
+> converted into product coverage. Both live here; neither absorbs the other, and a number from
+> this page is not evidence.
+>
+> Moved into this directory 2026-09-20. It was written one level up because the deny rule that
+> appeared to block `planning/coverage/` also prevented reading the matrix to reconcile against.
+> That rule is a machine-local tool permission and misfires on relative paths only.
 
 **Verified** 2026-08-20 against:
 

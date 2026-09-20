@@ -510,7 +510,7 @@ and [Fowler's subcutaneous-test explanation](https://martinfowler.com/bliki/Subc
 - **A prod-targeted read-only lane is endorsed, not merely tolerated.** Google SRE's production
   probes replay known-good requests against production to expose incompatibilities between test and
   production environments. The acdwrapper drift (D1 in
-  `planning/smoke-ui-api-db-chain-coverage.md`) is that phenomenon exactly.
+  `planning/coverage/smoke-chain-coverage.md`) is that phenomenon exactly.
 - **Canary is not smoke.** Google SRE distinguishes a canary from a test: it is structured user
   acceptance. Preserve that distinction if canarying is proposed as a substitute for the gate.
 
@@ -576,7 +576,7 @@ same gate/sweep split this document specifies for the UI lane.
 
 ### Prerequisite
 
-Per-module gap data lives in `planning/smoke-ui-api-db-chain-coverage.md` (15 of 38 sub-modules have
+Per-module gap data lives in `planning/coverage/smoke-chain-coverage.md` (15 of 38 sub-modules have
 the full UI→API→DB chain). That document's own §1 caveat applies here: **the backend suite has never
 been executed in this workspace**, so its 391 tests are counted, not verified. Smoke's exit
 criterion is 100% pass; until a baseline run exists, layers 1–3 above describe intent rather than a

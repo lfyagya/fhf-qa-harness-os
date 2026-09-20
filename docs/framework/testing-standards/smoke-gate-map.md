@@ -4,7 +4,7 @@ The concrete instantiation of `smoke-execution-strategy.md` §3: for every sub-m
 test is the gate at each layer, what tag it carries, and where no candidate exists.
 
 **Derived.** Reasoning lives in `smoke-execution-strategy.md`; MUST/SHOULD/MUST NOT in
-`smoke-checklist.md`; per-module chain gaps in `planning/smoke-ui-api-db-chain-coverage.md`. This
+`smoke-checklist.md`; per-module chain gaps in `planning/coverage/smoke-chain-coverage.md`. This
 file adds no policy — it resolves policy to test names.
 
 **Every cited test name was read from source** 2026-08-20: FE `it()` titles from
@@ -184,7 +184,7 @@ independently — which is a reasonable sign the cap is calibrated rather than g
    (6–12 tests).
 4. **Then the module-shaped gaps** — Titles Release / Remarketing / Remarketing-Titles, then
    Custodian / Doc Repository / Complaints. Sequenced and sized in
-   `planning/smoke-ui-api-db-chain-coverage.md`.
+   `planning/coverage/smoke-chain-coverage.md`.
 
 Do **not** tag a test that does not yet exist. A gate row reading `**GAP**` is the honest state; a
 tag on a placeholder is how a dead module hides inside a green build (§1.5).

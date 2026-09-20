@@ -9,6 +9,11 @@
 This ledger records what the current automation actually proves. It does not convert file counts,
 test titles, passing status, stubs, skips, or structural layers into product coverage.
 
+Those counts have their own page: [`smoke-chain-coverage.md`](./smoke-chain-coverage.md) holds the
+static per-layer, per-sub-module smoke inventory and the tiered work that closes each gap. It was
+kept out of this ledger on purpose, because folding an inventory in here would breach the rule
+directly above. Read it for what exists and what to build next; read this for what a run proved.
+
 Sources inspected:
 
 - sole product source: `Test-Case-Automation-Using-Claude-Agents/specs` — 41 active module
