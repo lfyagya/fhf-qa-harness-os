@@ -83,73 +83,183 @@ with `Set-Location` back to the workspace root; a plain `cd` is refused before i
 
 ## Getting set up
 
-You need Cursor or Claude, the engine clone, the workspace root, and the lane checkouts you will
-actually use. Connectors — Jira, Confluence, Cypress Cloud, Figma, TestRail — are optional and come
-later. Declaring that you have one is not the same as proving it works.
+Every command, path, prompt and output string below was executed or read from source on a working
+installation, not inferred from the configuration. Where a value is environment-specific it says so
+rather than guessing.
 
-First time, in order:
+### Step 0 — prerequisites
 
-**1. Clone the engine as a sibling of the workspace root.** `paths.consumerRoot` is `../FHF`, so
-`~/fhf-harness-os` and `~/FHF` side by side is the layout that needs no configuration. A different
-layout is fine if you export `FHF_CONSUMER_ROOT`.
+| Need | Verified value | Who needs it |
+| --- | --- | --- |
+| Node | v22.19.0 runs the whole harness. No minimum is declared in the control plane. | everyone |
+| Git for Windows | `C:\Program Files\Git\bin\bash.exe` must exist — see step 6 | Cypress lanes |
+| Python | `.python-version` pins `3.10.20`; any 3.10.x works (3.10.11 verified) | backend only |
+| Oracle client | `cx-Oracle==8.3.0` and `oracledb==3.4.0` come from `requirements.txt` | backend only |
+
+Connectors — Jira, Confluence, Cypress Cloud, Figma, TestRail — are optional and come later.
+Declaring you have one is not the same as proving it works.
+
+### Step 1 — clone the engine beside the workspace
+
+`paths.consumerRoot` is `../FHF`, so `fhf-harness-os` and `FHF` as siblings needs no configuration.
+A different layout works if you export `FHF_CONSUMER_ROOT`.
 
 ```bash
 git clone git@github.com:lfyagya/fhf-qa-harness-os.git fhf-harness-os
 ```
 
-**2. Create the workspace root and put the documentation payload in it.** This tree — `docs/` — lives
-on the `fhf-docs` branch of the same remote, whose history is unrelated to `main` (ADR-0035). Clone it
-into `FHF/`, then clone the lanes you need inside that folder: at minimum the lane you are proving in,
-plus `fhf-dashboards` and the application-spec checkout, each on its own branch. Never check out an
-engine branch in the workspace, and never check out `fhf-docs` in the engine clone.
+### Step 2 — clone the documentation payload as the workspace root
+
+This tree — the `docs/` you are reading — lives on the `fhf-docs` branch of the **same** remote, on a
+history unrelated to `main` (ADR-0035).
 
 ```bash
 git clone -b fhf-docs --single-branch git@github.com:lfyagya/fhf-qa-harness-os.git FHF
 ```
 
-**3. Generate the workspace configuration, from the engine.**
+Never check out an engine branch in the workspace, and never check out `fhf-docs` in the engine
+clone. Either removes the other tree's files (ADR-0026).
+
+### Step 3 — clone the lanes you need, inside `FHF/`
+
+**The E2E and Smoke lanes are one repository cloned twice**, at different branches and different
+folder names. This is the step that most often goes wrong, because nothing about the folder names
+says they share a remote.
+
+```bash
+git clone -b dev     git@github.com:treacyandcoventures/front-end-automation.git front-end-automation-e2e
+git clone -b staging git@github.com:treacyandcoventures/front-end-automation.git front-end-automation-smoke
+git clone -b master  git@github.com:treacyandcoventures/fhf-backend-automation.git
+git clone -b master  https://github.com/treacyandcoventures/fhf-dashboards.git
+git clone -b main    git@github.com:NikeshDev-LF/Test-Case-Automation-Using-Claude-Agents.git
+```
+
+The last one is the application-spec checkout. Step 5 asks for its path and does not treat it as
+optional, so clone it even if you are only proving one lane.
+
+`fhf-dashboards` is the read-only React application. The folder name is reused by each lane's Cypress
+suite at `<lane>/CypressFHF/fhf-dashboards/`, which **is** writable — resolve which one you mean by
+full path, never by folder name.
+
+Clone only the lanes you will use. A lane that is absent is reported as a warning, not a failure.
+
+### Step 4 — generate the workspace configuration, from the engine clone
 
 ```bash
 node scripts/harness/sync-loader-shims.mjs
 ```
 
 One unflagged run writes the generated `.claude/` and `.harness/` into the workspace root, and the
-lane marker plus execution tooling into each lane.
+lane marker into each lane. Run this from `fhf-harness-os`, not from `FHF`.
 
-**4. Run setup once, in the workspace root.** It asks only for folders — the workspace root, the
-application-spec checkout, and optionally the backend checkout — then records which connectors you
-claim to have. It never asks for a password or a token. Do not type one.
+### Step 5 — run setup once, in the workspace root
 
 ```bash
 node .harness/setup.mjs
 ```
 
-That writes `.harness/workspace.local.json`, which is gitignored because it contains your local paths.
+It asks exactly this, and nothing else:
 
-**5. Verify, in the workspace root.**
+1. `FHF workspace root`
+2. `Application specs repository root`
+3. `Backend automation repository root (optional; task-scoped writes/runs)`
+4. five y/N questions — Jira MCP, Confluence MCP, Cypress Cloud, Figma MCP, TestRail
+
+It prints `Paths are local configuration only. Do not enter credentials or tokens.` and it means it.
+There is no prompt that wants a secret. The result is `.harness/workspace.local.json`, gitignored
+because it holds your local paths.
+
+### Step 6 — create each Cypress lane's `.npmrc`
+
+Do this for every Cypress lane you cloned. `.npmrc` is gitignored, so a fresh clone has only the
+example, and Cypress fails with `Cannot find module 'C:\cypress\bin\cypress'` until you create it.
+
+```bash
+cd front-end-automation-e2e/CypressFHF/fhf-dashboards
+cp .npmrc.example .npmrc
+```
+
+The line that matters, already correct in the example:
+
+```text
+script-shell=C:\Program Files\Git\bin\bash.exe
+```
+
+It must be `Git\bin\bash.exe`, not `Git\usr\bin\bash.exe`. The `usr\bin` variant starts without
+coreutils, so the `node_modules/.bin` shims lose `sed` and `dirname`, resolve `$basedir` to `C:\`, and
+produce the error above.
+
+Leave the `cypress_record_key_*` lines blank unless you record runs. If you do,
+get your own from Cypress Cloud → project → Project Settings → Record Key. **Never copy a filled
+`.npmrc` from a teammate** — those are personal credentials, and the file is gitignored precisely so
+they are never shared.
+
+### Step 7 — backend lane only
+
+```bash
+cd fhf-backend-automation
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+`pytest.ini` already sets `--dist=loadfile`, `--order-scope=module` and `--alluredir allure-results`
+in `addopts`. Do not pass them again and do not override them. `tests/.env` and `config/config.ini`
+hold real credentials, are gitignored, and are never committed — copy `tests/example_env` and
+`config/example_config.ini` and fill them locally.
+
+### Step 8 — verify, in the workspace root
 
 ```bash
 node .harness/verify.mjs
 ```
 
-A pass prints `Consumer harness projection and workspace contract are complete.` If it fails, stop: a
-setup failure is not a product pass or fail.
+A pass prints exactly:
 
-**6. Open your assistant at the workspace root** — not in a lane — and state the ticket.
+```text
+Consumer harness projection and workspace contract are complete.
+```
+
+If it fails, stop. A setup failure is not a product pass or fail.
+
+### Step 9 — health check and version lock
+
+```bash
+node scripts/harness/doctor.mjs
+```
+
+One read-only pass over the workspace contract, lane markers, `.npmrc`, projection drift, the version
+lock and your active task's gates. Every failing line names the command that fixes it.
+`--fix` applies only the repairs that reconstruct a file from a committed source. Paste any block
+message you do not understand:
+
+```bash
+node scripts/harness/doctor.mjs --explain "<the message you got>"
+```
+
+The doctor also reports when the engine has moved on since your last sync — as a warning, never a
+block — with the two commands that bring you current.
+
+### Step 10 — open your assistant at the workspace root
+
+Not in a lane. State the ticket.
 
 ```mermaid
 flowchart TD
-  E[Engine: fhf-harness-os] -->|sync-loader-shims.mjs| W[Workspace root: FHF]
-  W --> S[setup.mjs once, paths only]
-  S --> V[verify.mjs before every session]
-  V -->|Pass| K[Open the session HERE, state the ticket]
+  E[Engine: fhf-harness-os] -->|"4. sync-loader-shims.mjs"| W[Workspace root: FHF]
+  W --> S["5. setup.mjs once, paths only"]
+  S --> N["6. .npmrc per Cypress lane"]
+  N --> B["7. venv + requirements, backend only"]
+  B --> V["8. verify.mjs before every session"]
+  V -->|Pass| D["9. doctor.mjs"]
+  D --> K["10. Open the session HERE, state the ticket"]
   V -->|Fail| F[Stop. This is not test evidence]
-  W --- L1[e2e lane]
-  W --- L2[smoke lane]
-  W --- L3[backend lane]
+  W --- L1["e2e lane — branch dev"]
+  W --- L2["smoke lane — branch staging"]
+  W --- L3["backend lane — branch master, task-scoped"]
 ```
 
-Every session after that is just step 5. After policy is regenerated,
+Every session after the first is steps 8 and 9. After policy is regenerated,
 `node .harness/verify.mjs change` rechecks the generated surfaces without repeating the full
 workspace preflight.
 
@@ -162,14 +272,31 @@ workspace preflight.
 
 In all four rows the session itself is opened at the workspace root.
 
-If you lack access, do not paste tokens and do not work around it:
+### If you get stuck
+
+**`WORKSPACE BLOCKED`** means the shell's directory has no workspace contract — almost always a `cd`
+into a lane or a worktree. A plain `cd` back cannot clear it, because the guard rejects the command
+before it runs. From the PowerShell tool:
+
+```powershell
+Set-Location <workspace-root>
+```
+
+That clears it for both shells. Inspect other checkouts with `git -C <path>` instead of changing
+directory.
+
+**A blocked capability** is yours to authenticate and the harness's to record, never to work around:
 
 ```bash
 node .harness/capability-doctor.mjs --capability <id> --subject <task-safe-label>
 ```
 
-You authenticate; the doctor only records whether the capability is ready, blocked, or unknown. A
-quality pass is forbidden while a required capability is blocked or unknown.
+Adding `--outcome <observed-outcome>` records a probe result; the valid outcomes come from that
+capability's own `outcomes` map, and passing a wrong one lists them. You authenticate; the doctor only
+records whether the capability is ready, blocked, or unknown. A quality pass is forbidden while a
+required capability is blocked or unknown.
+
+Do not paste tokens into a prompt, a spec, or a commit at any point in this guide.
 
 ## Choosing the workflow
 
