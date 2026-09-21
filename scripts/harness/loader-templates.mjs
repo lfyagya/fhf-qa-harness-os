@@ -91,9 +91,8 @@ export function workspaceExample(lane) {
     lane,
     consumerRoot: "",
     moduleSpecsRoot: "",
-    // Not optional: a QA task spans frontend and backend, so the backend checkout is part of
-    // every workspace. loadSetup() still reads a legacy optional.backendRoot, so a setup file
-    // written before this stays valid.
+    // Required on every lane (ADR-0032/0037). Cypress and Python are parallel
+    // test-development surfaces; loadSetup() still reads a legacy optional.backendRoot.
     backendRoot: "",
   };
   if (lane === "e2e") example.e2eRoot = "";

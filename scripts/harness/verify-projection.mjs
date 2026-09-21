@@ -99,14 +99,14 @@ if (issues.length) {
   process.exit(1);
 }
 
-if (!lane || !["root", "e2e", "smoke"].includes(lane.lane)) {
-  issues.push(".harness/lane.json must declare root, e2e, or smoke");
+if (!lane || !["root", "e2e", "smoke", "backend"].includes(lane.lane)) {
+  issues.push(".harness/lane.json must declare root, e2e, smoke, or backend");
 }
 if (!workspaceExample || workspaceExample.schema !== "fhf-harness/workspace-setup/v1") {
   issues.push(".harness/workspace.example.json has an invalid schema");
 }
 
-if ((lane?.lane === "e2e" || lane?.lane === "smoke") && config) {
+if ((lane?.lane === "e2e" || lane?.lane === "smoke" || lane?.lane === "backend") && config) {
   if (!fs.existsSync(workspaceContractPath)) {
     issues.push("Missing .claude/hooks/lib/workspace-contract.mjs");
   }
