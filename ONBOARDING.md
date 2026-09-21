@@ -7,6 +7,28 @@ governs them.
 credentials, their Cypress Cloud keys, `node_modules`, and 20 git repositories, and it has no way to
 receive updates. Everything below is cloned and regenerated instead, which is why it stays current.
 
+## One command
+
+Same command for a new machine and for an engine update. Run it from `fhf-harness-os`.
+It syncs the harness, then writes `.harness/workspace.local.json` for FHF **and** every
+testing lane (Cypress e2e, Cypress smoke, Python backend) from the standard folder names.
+No form.
+
+```bash
+node scripts/harness/bootstrap.mjs
+```
+
+| When | First do this | Then |
+|---|---|---|
+| **New** | Clone the engine + FHF lanes below | `node scripts/harness/bootstrap.mjs` |
+| **Updated** | `git -C ~/fhf-harness-os pull` | `node scripts/harness/bootstrap.mjs` |
+
+If sync says files changed since the last sync, stop and ask. Do not use `--force`.
+
+Open Cursor on **`FHF`**, not on a single lane folder. If a lane is still blocked,
+`node .harness/setup.mjs` inside that folder infers the same paths (use `--form` only
+when your folders are not the standard names).
+
 ## Layout
 
 The harness engine sits *beside* the workspace, not inside it. Clone every `treacyandcoventures`
@@ -77,6 +99,7 @@ names:
 git clone -b dev     git@github.com:treacyandcoventures/front-end-automation.git front-end-automation-e2e
 git clone -b staging git@github.com:treacyandcoventures/front-end-automation.git front-end-automation-smoke
 git clone -b master  git@github.com:treacyandcoventures/fhf-backend-automation.git fhf-backend-automation
+git clone            git@github.com:treacyandcoventures/Test-Case-Automation-Using-Claude-Agents.git
 ```
 
 Product and supporting clones — read-only after this. Use each repository's default working branch:
@@ -101,60 +124,17 @@ git clone -b master   git@github.com:treacyandcoventures/oracle-instantclient-de
 That is the full `treacyandcoventures` set: sixteen remotes, seventeen folders, because
 `front-end-automation` is cloned twice.
 
-## 3. Declare your local paths
+## 3. Local paths and harness files
 
-Create `FHF/.harness/workspace.local.json`. This file is local-only and never committed, because
-everyone's paths differ:
+`bootstrap.mjs` already did both: it synced generated harness files and wrote ignored
+`.harness/workspace.local.json` files. Do not hand-write that JSON unless your folders
+are not named `FHF`, `fhf-backend-automation`, and `Test-Case-Automation-Using-Claude-Agents`.
 
-```json
-{
-  "schema": "fhf-harness/workspace-setup/v1",
-  "consumerRoot": "~/FHF",
-  "moduleSpecsRoot": "~/FHF/Test-Case-Automation-Using-Claude-Agents",
-  "backendRoot": "~/FHF/fhf-backend-automation",
-  "optional": {
-    "jiraMcp": false,
-    "confluenceMcp": false,
-    "cypressCloud": false,
-    "figmaMcp": false,
-    "testRail": false
-  }
-}
-```
-
-Every value above is a **path**, not an answer — the setup prompt does not validate this, and a
-workspace holding `"yes"` where a path belongs passes setup and fails later in ways that are hard to
-trace.
-
-`backendRoot` is **required, not optional**. A QA ticket spans frontend and backend, so the backend
-checkout has to be reachable from whichever lane you are working in; without it the harness reports
-*"backend generation and evidence remain unavailable"* and end-to-end work silently loses its backend
-half.
-
-Leave the `optional` flags `false` until you have credentials for those services.
-
-Each testing lane — Cypress e2e, Cypress smoke, and Python backend — can also run
-`node .harness/setup.mjs` in that checkout. The form is the same; only the runner
-differs afterwards (Cypress vs pytest). The lane's own root field
-(`e2eRoot`, `smokeRoot`, or `backendRoot`) defaults to the current checkout.
-Confirm from the FHF workspace root with:
+Confirm from the FHF workspace root:
 
 ```bash
 node .harness/verify.mjs change
 ```
-
-## 4. Generate the harness
-
-```bash
-node ~/fhf-harness-os/scripts/harness/sync-loader-shims.mjs
-```
-
-This writes `.claude/` into the workspace and each lane — hooks, agents, rules, skills, and the
-config they read. **Run it from your own engine clone**, and never from a stale one: sync compares
-against the engine you invoke, so an out-of-date clone will report current files as hand-edited and
-offer `--force`, which would overwrite them with older policy.
-
-If it reports files "changed since the last sync", stop and ask — do not reach for `--force`.
 
 ## 5. Your own credentials
 
@@ -195,7 +175,7 @@ You never need another zip:
 
 ```bash
 git -C ~/fhf-harness-os pull
-node ~/fhf-harness-os/scripts/harness/sync-loader-shims.mjs
+node ~/fhf-harness-os/scripts/harness/bootstrap.mjs
 ```
 
 Pull the lane repos and the product clones on their own branches as normal. The harness updates

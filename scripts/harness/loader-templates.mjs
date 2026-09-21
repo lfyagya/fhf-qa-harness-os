@@ -586,7 +586,7 @@ export function geminiInstructions(lane) {
 }
 
 export function consumerVerifierReadme(lane = "root") {
-  const name = lane === "e2e" ? "E2E" : lane === "smoke" ? "Smoke" : "FHF root";
+  const name = lane === "e2e" ? "E2E" : lane === "smoke" ? "Smoke" : lane === "backend" ? "Backend" : "FHF root";
   const required = lane === "e2e" || lane === "smoke";
   const backendRunner = lane === "root"
     ? `For backend API/Oracle execution, validate the active task and run
@@ -604,9 +604,9 @@ ported upstream before any lane can receive it.
 
 This clone does not contain \`fhf-harness-os/scripts/harness/*\`.
 
-For the ${name} lane, run \`node .harness/setup.mjs\` once and provide the local FHF workspace root
-and the separate application-spec repository root. The generated \`.harness/workspace.example.json\`
-is the input form; \`.harness/workspace.local.json\` is ignored and must never contain credentials.
+For the ${name} lane, run \`node .harness/setup.mjs\` (or \`node scripts/harness/bootstrap.mjs\`
+from the engine). It infers the standard FHF folder layout and writes ignored
+\`.harness/workspace.local.json\`. Use \`--form\` only when folder names differ.
 Run \`node .harness/verify.mjs\` here before starting work. It validates the vendored projection,
 the selected branch, local ${name} documentation, the FHF workspace instructions, and every configured
 application-spec target.${required ? ` Missing required setup blocks ${name} work.` : ""} Canonical checks (\`test-hooks\`,
