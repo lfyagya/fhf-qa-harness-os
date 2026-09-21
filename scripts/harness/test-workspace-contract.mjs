@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { detectLane } from "../../.claude/hooks/lib/harness-config.mjs";
 import { formatWorkspacePreflight, workspacePreflight } from "../../.claude/hooks/lib/workspace-contract.mjs";
+
+const setupScript = path.join(path.dirname(fileURLToPath(import.meta.url)), "workspace-setup.mjs");
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "fhf-workspace-contract-"));
 const smoke = path.join(temp, "smoke");
@@ -198,6 +202,53 @@ try {
   });
   assert.equal(incompleteE2e.ready, false);
   assert.match(incompleteE2e.issues.join("\n"), /workspaceContract\.lanes\.e2e is missing/);
+
+  const backend = path.join(temp, "fhf-backend-automation");
+  write(path.join(backend, ".harness", "lane.json"), JSON.stringify({ lane: "backend" }));
+  write(path.join(backend, "CLAUDE.md"));
+  write(
+    path.join(backend, ".harness", "workspace.local.json"),
+    JSON.stringify({ consumerRoot: workspace, moduleSpecsRoot: specs, backendRoot: backend, optional: {} }),
+  );
+  const backendConfig = {
+    ...config,
+    workspaceContract: {
+      ...config.workspaceContract,
+      lanes: {
+        ...config.workspaceContract.lanes,
+        backend: {
+          required: true,
+          requireBranch: false,
+          moduleSpecsPathPrefix: "Test-Case-Automation-Using-Claude-Agents",
+          requiredInputs: [
+            { field: "consumerRoot", label: "FHF workspace root" },
+            { field: "moduleSpecsRoot", label: "Application specs repository root" },
+            { field: "backendRoot", label: "Backend automation repository root" },
+          ],
+          requiredWorkspacePaths: config.workspaceContract.lanes.smoke.requiredWorkspacePaths,
+        },
+      },
+    },
+  };
+  const backendReady = workspacePreflight({ root: backend, config: backendConfig });
+  assert.equal(backendReady.ready, true, backendReady.issues.join("\n"));
+
+  const setupSource = fs.readFileSync(setupScript, "utf8");
+  assert.match(setupSource, /backend:\s*\{\s*name:\s*"Backend"/);
+  assert.match(setupSource, /backendRoot:\s*await ask\(\s*"Backend automation repository root"/);
+  assert.doesNotMatch(setupSource, /optional:\s*\{\s*backendRoot/);
+
+  const isolatedEnv = { ...process.env };
+  for (const key of ["CLAUDE_PROJECT_DIR", "CURSOR_PROJECT_DIR"]) delete isolatedEnv[key];
+  const unknownLane = path.join(temp, "unknown-lane");
+  write(path.join(unknownLane, ".harness", "lane.json"), JSON.stringify({ lane: "unknown" }));
+  const rejected = spawnSync(process.execPath, [setupScript], {
+    cwd: unknownLane,
+    encoding: "utf8",
+    env: isolatedEnv,
+  });
+  assert.equal(rejected.status, 2);
+  assert.match(rejected.stderr, /root, e2e, smoke, or backend/);
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }

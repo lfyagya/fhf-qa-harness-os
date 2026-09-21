@@ -136,8 +136,11 @@ half.
 
 Leave the `optional` flags `false` until you have credentials for those services.
 
-Each lane repository needs its own copy of this file, naming that lane's root as well —
-`e2eRoot`, `smokeRoot`, or `backendRoot` respectively. Confirm with:
+Each testing lane — Cypress e2e, Cypress smoke, and Python backend — can also run
+`node .harness/setup.mjs` in that checkout. The form is the same; only the runner
+differs afterwards (Cypress vs pytest). The lane's own root field
+(`e2eRoot`, `smokeRoot`, or `backendRoot`) defaults to the current checkout.
+Confirm from the FHF workspace root with:
 
 ```bash
 node .harness/verify.mjs change

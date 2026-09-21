@@ -114,11 +114,19 @@ try {
   assert.equal(fs.existsSync(path.join(root, ".harness", "record-loop-event.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "portable-runtime-state.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "backend-task-runner.mjs")), true);
-  // ADR-0032: the generic runtime CLIs live only at the workspace root; a lane keeps its
-  // identity marker and (for the Cypress lanes) its own execution tooling.
+  // ADR-0037: testing lanes share setup.mjs; verify/task-protocol stay at the workspace root.
+  // Each lane keeps its own runner — Cypress prepare-execution or Python backend-task-runner.
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "verify.mjs")), false);
+  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "setup.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "prepare-execution.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "record-loop-event.mjs")), false);
+  const backendHarness = path.join(root, "fhf-backend-automation", ".harness");
+  assert.equal(fs.existsSync(path.join(backendHarness, "lane.json")), true);
+  assert.equal(fs.existsSync(path.join(backendHarness, "setup.mjs")), true);
+  assert.equal(fs.existsSync(path.join(backendHarness, "workspace.example.json")), true);
+  assert.equal(fs.existsSync(path.join(backendHarness, "backend-task-runner.mjs")), true);
+  assert.equal(fs.existsSync(path.join(backendHarness, "verify.mjs")), false);
+  assert.equal(fs.existsSync(path.join(backendHarness, "prepare-execution.mjs")), false);
   // The lane .npmrc is gitignored, so the key-less template is the only committed carrier of the
   // Windows script-shell line. Assert it ships per lane with that lane's record-key field.
   for (const [lane, laneKey] of [["e2e", "cypress_record_key_e2e"], ["smoke", "cypress_record_key_smoke"]]) {
@@ -199,6 +207,7 @@ try {
   assert.equal(linked.status, 0, linked.stderr);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "lane.json")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "verify.mjs")), false);
+  assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "setup.mjs")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "prepare-execution.mjs")), true);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "record-loop-event.mjs")), false);
   assert.equal(fs.existsSync(path.join(linkedE2e, ".harness", "portable-runtime-state.mjs")), false);

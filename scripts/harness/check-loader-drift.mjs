@@ -126,11 +126,13 @@ function dirsMatch(srcDir, destDir, prefix, lane) {
   }
 }
 
+function isTestingLane(lane) {
+  return lane === "e2e" || lane === "smoke" || lane === "backend";
+}
+
 function checkConsumerVerifier(repoPath, lane) {
-  // ADR-0032: verify what the consumer actually receives. A lane receives its identity marker
-  // and (for the Cypress lanes) its execution tooling; the generic runtime CLIs live only at
-  // the workspace root, so requiring them per lane would report drift against files that are
-  // deliberately absent.
+  // ADR-0037: testing lanes share setup.mjs + workspace.example.json and keep their own
+  // runner. Root-only CLIs still live only at the workspace root.
   requireFile(path.join(repoPath, ".harness", "lane.json"));
   checkExactText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
 
@@ -140,6 +142,18 @@ function checkConsumerVerifier(repoPath, lane) {
       requireFile(path.join(repoPath, pkg, ".npmrc.example"));
       checkExactText(path.join(repoPath, pkg, ".npmrc.example"), npmrcExample(lane));
     }
+  }
+
+  if (isTestingLane(lane)) {
+    requireFile(path.join(repoPath, ".harness", "setup.mjs"));
+    requireFile(path.join(repoPath, ".harness", "workspace.example.json"));
+    checkExactText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
+    checkExactText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
+  }
+
+  if (lane === "backend") {
+    requireFile(path.join(repoPath, ".harness", "backend-task-runner.mjs"));
+    checkExactText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
   }
 
   if (lane !== "root") return;
