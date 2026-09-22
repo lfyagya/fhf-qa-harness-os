@@ -1,6 +1,6 @@
 ---
 name: backend-test-author
-description: Routes backend API and Oracle automation authoring to the exact fhf-backend-automation rules, existing module patterns, and local generator skill needed by the active task. Use for creating, updating, reviewing, or debugging backend pytest coverage.
+description: Routes pytest to the REST, service, Oracle, or Python workflow gap that Cypress does not already cover. The sprint task selects the path. Ask for the SERV ticket and module when they are missing.
 allowed-tools: Read, Grep, Glob
 metadata:
   version: 1.0.0
@@ -8,7 +8,7 @@ metadata:
 
 # Backend Test Author
 
-Use this skill only after the active task manifest selects fhf-backend-automation.
+The sprint task selects this path when the gap is REST, service, Oracle, or a Python workflow that the Cypress spec does not already assert. If the SERV ticket or module is missing, ask for it. Do not start a second backend process, and do not re-author the UI check as pytest.
 
 ## Load in this order
 
@@ -45,5 +45,4 @@ example inside a generator skill.
   `.harness/backend-task-runner.mjs`. Its default is sequential; parallelism requires selected-file
   evidence of independent data, verified cleanup, and no cross-file state.
 
-The skill supplies repository knowledge; it does not grant write or shell authority. Hooks enforce
-the active manifest.
+The skill supplies repository knowledge; it does not grant write or shell authority. Routing continues from the sprint task. A write or pytest waits until that task records the selected non-production path.

@@ -39,6 +39,23 @@ export function formatBundleSlice(route, config) {
   return lines.join("\n");
 }
 
+export function formatCoverageBoundary(config) {
+  const boundary = config?.qualityAssurance?.coverageBoundary;
+  const front = boundary?.frontend;
+  const rest = boundary?.remainder;
+  if (!front?.owns || !rest?.owns || !rest?.rule) return "";
+  return [
+    `[coverage] Cypress on ${(front.automation ?? []).join(", ")} owns ${front.owns}. Application: ${front.application}.`,
+    `[coverage] Pytest on ${(rest.automation ?? []).join(", ")} owns ${rest.owns}. Sources: ${(rest.sources ?? []).join(", ")}.`,
+    `[coverage] ${rest.rule}`,
+  ].join("\n");
+}
+
+export function routeNeedsCoverage(route) {
+  const name = String(route?.invoke?.name ?? "");
+  return (route?.sourceBundles ?? []).length > 0 || /cypress|qa-automation/.test(name);
+}
+
 export function readLoopState(cwd, config) {
   const rel = config?.engineering?.context?.runtime?.stateFile;
   if (!rel) return { rel: "", state: null, error: "No loop state file is configured." };

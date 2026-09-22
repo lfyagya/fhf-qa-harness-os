@@ -25,7 +25,8 @@ const decision = authorizeAutomationWrite({
 });
 if (decision.applies && !decision.allowed) {
   console.error(`BLOCKED: ${decision.reason}`);
-  console.error("Set FHF_ACTIVE_TASK to a validated manifest that selects this backend automation path.");
+  console.error("Provide the sprint task: SERV ticket, module, and the pytest remainder Cypress does not already cover (REST, service, Oracle, or Python workflow).");
+  console.error("The task manifest records that choice. Routing continues from the task. This write waits until that manifest names the selected path and a non-production environment.");
   process.exit(2);
 }
 emitAllow(payload);

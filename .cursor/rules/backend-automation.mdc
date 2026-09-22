@@ -6,6 +6,8 @@ alwaysApply: false
 ---
 # Backend Automation Boundary
 
+Cypress owns the browser behavior of fhf-dashboards. This lane is the remainder: REST, service, Oracle, and Python workflow behavior that the Cypress spec for the sprint task does not already assert. The sprint task decides the path. A missing manifest is a request for the SERV ticket, module, and that gap. Routing continues. A write or pytest waits until the task records the selected non-production path.
+
 fhf-backend-automation is a task-scoped authoring and execution lane. It is a full harness sync
 consumer on equal footing with the E2E and Smoke lanes: `harness.config.json`, `settings.json`,
 hooks, agents, rules, and skills are all generated from the aggregation workspace. Backend-specific

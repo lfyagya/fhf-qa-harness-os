@@ -10,7 +10,7 @@ import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
 import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
 import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
 import { formatTaskGateContext, inspectActiveTaskGates } from './lib/task-protocol.mjs';
-import { formatBundleSlice, formatLoopState, promptForMatch } from './lib/route-context.mjs';
+import { formatBundleSlice, formatCoverageBoundary, formatLoopState, promptForMatch, routeNeedsCoverage } from './lib/route-context.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -92,6 +92,8 @@ function appendRoute(route) {
   if (route.invoke) lines.push(`[router] invoke: ${formatInvoke(route.invoke)}`);
   const slice = formatBundleSlice(route, config);
   if (slice) lines.push(slice);
+  const coverage = formatCoverageBoundary(config);
+  if (coverage && routeNeedsCoverage(route)) lines.push(coverage);
 }
 
 // 1. Topic drift — "one session = one job"

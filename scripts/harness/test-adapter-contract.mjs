@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { HARNESS_CONFIG_TEXT, baselineAgents, claudeSettings, codexHooks, copilotInstructions, cursorHooks, geminiInstructions } from "./loader-templates.mjs";
+import { ruleIndexText } from "../../.claude/hooks/lib/rule-index.mjs";
+import { HARNESS_CONFIG_TEXT, baselineAgents, claudeSettings, codexHooks, copilotInstructions, cursorHooks, geminiInstructions, parentAgents } from "./loader-templates.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, "config", "qa-control-plane.json"), "utf8"));
@@ -118,6 +119,9 @@ check(
     engineering.harness.adapters.codex.hookCapability === "hooks-json",
   "Codex must read AGENTS.md and project the hook list",
 );
+const sharedRuleIndex = ruleIndexText();
+check(fs.readFileSync(path.join(ROOT, "AGENTS.md"), "utf8").includes(sharedRuleIndex), "engine AGENTS.md carries the shared rule index");
+check(parentAgents().includes(sharedRuleIndex), "workspace AGENTS.md carries the same rule index");
 function codexCommands(event) {
   return (codex.hooks[event] ?? []).flatMap((group) => group.hooks ?? []).map((hook) => hook.command);
 }

@@ -863,6 +863,24 @@ if (!quality || typeof quality !== "object") {
   for (const [name, value] of Object.entries(quality.falseGreen ?? {})) {
     if (value !== false) issues.push(`qualityAssurance.falseGreen.${name} must remain false`);
   }
+  const boundary = quality.coverageBoundary;
+  const repoIds = new Set(Object.keys(config.productTopology?.repositories ?? {}));
+  if (boundary?.frontend?.runner !== "cypress" || boundary?.remainder?.runner !== "pytest") {
+    issues.push("qualityAssurance.coverageBoundary must map Cypress to the frontend and pytest to the remainder");
+  } else {
+    const ids = [
+      boundary.frontend.application,
+      ...(boundary.frontend.automation ?? []),
+      ...(boundary.remainder.automation ?? []),
+      ...(boundary.remainder.sources ?? []),
+    ];
+    for (const id of ids) {
+      if (!repoIds.has(id)) issues.push(`qualityAssurance.coverageBoundary references unknown repository ${id}`);
+    }
+    if (!boundary.remainder.rule) {
+      issues.push("qualityAssurance.coverageBoundary.remainder.rule must state the Cypress-then-pytest split");
+    }
+  }
 }
 if (!moduleSpecPaths || typeof moduleSpecPaths !== "object" || Array.isArray(moduleSpecPaths)) {
   issues.push("moduleSpecPaths must be a non-empty object");

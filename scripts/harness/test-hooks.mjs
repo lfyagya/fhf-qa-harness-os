@@ -397,8 +397,9 @@ expect("protect-app-source allows CypressFHF package write",
   run("protect-app-source.mjs", { tool_input: { file_path: "C:/x/CypressFHF/fhf-dashboards/cypress/tests/a.cy.js" } }), 0);
 expect("protect-app-source leaves backend automation to its scoped boundary",
   run("protect-app-source.mjs", { tool_input: { file_path: backendTestPath } }), 0);
-expect("protect-automation-scope blocks backend writes without an active task",
-  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
+expect("protect-automation-scope asks for the sprint task when no manifest is active",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, workspaceEnv),
+  (r) => r.code === 2 && r.stderr.includes("Provide the sprint task"));
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
@@ -416,7 +417,7 @@ expect("session-context names the pending gate for an active task",
     hook_event_name: "sessionStart",
     cwd: tmp,
   }, { ...ungatedTaskEnv, CLAUDE_CWD: tmp }),
-  (r) => r.code === 0 && r.stdout.includes("spec") && !r.stdout.includes("approve --manifest"));
+  (r) => r.code === 0 && r.stdout.includes("spec") && r.stdout.includes("Standing orders") && r.stdout.includes("rules/thin-tests.md") && r.stdout.includes("[coverage] Cypress") && !r.stdout.includes("approve --manifest"));
 expect("protect-automation-scope blocks stale task approval",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, staleTaskEnv), 2);
 expect("protect-automation-scope blocks a changed backend repository revision",
@@ -899,7 +900,7 @@ expect("prompt-router prioritizes test creation over generic documentation",
   (r) => r.code === 0 && r.stdout.includes("[router:new-test]") && !r.stdout.includes("[router:documentation]"));
 expect("prompt-router emits invoke for new-test",
   run("prompt-router.mjs", { prompt: "write a new cypress test" }),
-  (r) => r.code === 0 && r.stdout.includes("[router] invoke: spawn agent cypress-generator"));
+  (r) => r.code === 0 && r.stdout.includes("[router] invoke: spawn agent cypress-generator") && r.stdout.includes("Bundle frontend-change seeds:") && r.stdout.includes("[coverage] Cypress"));
 expect("prompt-router names every other match and injects the bundle slice",
   run("prompt-router.mjs", { prompt: "map the frontend to the backend and write a new test" }),
   (r) => r.code === 0 && r.stdout.includes("[router:cross-layer-test-generation]") && r.stdout.includes("Also matched:") && r.stdout.includes("cross-repository-change") && r.stdout.includes("Bundle full-stack-change seeds:") && r.stdout.includes("[loop]"));
@@ -917,12 +918,12 @@ expect("prompt-router routes backend automation generation to the cross-layer sp
     cwd: backendRoot,
     prompt: "write a new test for the backend API",
   }, workspaceEnv),
-  (r) => r.code === 0 && r.stdout.includes("[router:backend-test]") && r.stdout.includes("qa-automation-generator"));
+  (r) => r.code === 0 && r.stdout.includes("[router:backend-test]") && r.stdout.includes("qa-automation-generator") && r.stdout.includes("[coverage] Pytest") && r.stdout.includes("ask for it"));
 expect("prompt-router routes combined frontend and backend generation to one specialist",
   run("prompt-router.mjs", {
     prompt: "generate frontend Cypress and backend API pytest automation for this ticket",
   }),
-  (r) => r.code === 0 && r.stdout.includes("[router:cross-layer-test-generation]") && r.stdout.includes("qa-automation-generator"));
+  (r) => r.code === 0 && r.stdout.includes("[router:cross-layer-test-generation]") && r.stdout.includes("qa-automation-generator") && r.stdout.includes("[coverage] Pytest"));
 const externalBackendHandoff = path.join(tmp, "fhf-backend-automation", "cypress", "handoff", "session-latest.json");
 expect("prompt-router does not write a handoff in the external backend",
   run("prompt-router.mjs", {

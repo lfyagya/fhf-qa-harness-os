@@ -6,7 +6,8 @@ import { emitContext } from "./lib/hook-runtime.mjs";
 import { readFreshHandoff } from "./lib/memory-state.mjs";
 import { formatWorkspacePreflight, workspacePreflight } from "./lib/workspace-contract.mjs";
 import { formatTaskGateContext, inspectActiveTaskGates } from "./lib/task-protocol.mjs";
-import { formatLoopState } from "./lib/route-context.mjs";
+import { formatCoverageBoundary, formatLoopState } from "./lib/route-context.mjs";
+import { ruleIndexText } from "./lib/rule-index.mjs";
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, "utf8")); } catch { process.exit(0); }
@@ -17,6 +18,8 @@ const lane = detectLane(payload.cwd ?? process.cwd(), config);
 const workspace = workspacePreflight({ root: payload.cwd ?? process.cwd(), config });
 const handoff = readFreshHandoff(payload, memory);
 const lines = [
+  ruleIndexText(),
+  formatCoverageBoundary(config),
   "[fhf-harness] Tool-neutral runtime contract:",
   `- Authority: .claude/harness.config.json; context mode=${context.mode}; lane=${lane}.`,
   "- For each prompt, evaluate engineering.context.routes by highest priority; task intent breaks ties.",
@@ -39,4 +42,4 @@ if (handoff?.facts && Object.keys(handoff.facts).length > 0) {
 }
 
 lines.push(formatLoopState(payload.cwd ?? process.cwd(), config));
-emitContext(payload, "SessionStart", lines.join("\n").slice(0, 5000));
+emitContext(payload, "SessionStart", lines.filter(Boolean).join("\n").slice(0, 8000));

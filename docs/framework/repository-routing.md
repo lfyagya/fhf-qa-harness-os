@@ -192,8 +192,11 @@ flowchart LR
 
   E2E[E2E: Dev/QA\nfront-end-automation-e2e] -. native Cypress evidence .-> UI
   Smoke[Smoke: Production GET-only\nfront-end-automation-smoke] -. native Cypress evidence .-> UI
-  APIQA[API + Oracle QA\nfhf-backend-automation] -. native API / DB evidence .-> Internal
+  APIQA[API + Oracle QA
+fhf-backend-automation] -. native API / DB evidence .-> Internal
 ```
+
+Cypress owns the browser behavior of `fhf-dashboards`: the screen, its route, and the UI call that screen makes. Pytest owns the REST, service, Oracle, and Python workflow gap that the Cypress spec for the sprint task does not already assert. `qualityAssurance.coverageBoundary` is that split. The sprint task picks the path. A missing manifest asks for the SERV ticket, module, and the remainder. A backend write or pytest waits until the task records the selected non-production path.
 
 ## Selection rule
 

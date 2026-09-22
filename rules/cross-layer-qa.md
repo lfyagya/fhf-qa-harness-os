@@ -8,7 +8,7 @@ paths:
 # Cross-Layer QA Workflow
 
 One Jira family may select frontend and backend implementation evidence plus both automation lanes.
-Use one active manifest and one specialist:
+Cypress covers the fhf-dashboards screen and the UI call it makes. Pytest covers only the REST, service, Oracle, or Python workflow gap that spec does not already assert. Use one sprint task, one manifest, and one specialist:
 
 1. Map acceptance criteria to applicable UI, API, and Oracle outcomes.
 2. Freeze only selected source SHAs/paths and a reasoned one-hop dependency graph.

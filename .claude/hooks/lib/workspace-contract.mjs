@@ -283,6 +283,7 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
 export function formatWorkspacePreflight(result, config = loadHarnessConfig()) {
   const setupCommand = config.workspaceContract?.setupCommand ?? "node .harness/setup.mjs";
   const lines = [
+    `Provide the missing inputs for lane '${result.lane}'. Routing and reading continue. A write or run that needs a missing root waits until you supply it.`,
     `WORKSPACE BLOCKED: Harness configuration is incomplete for lane '${result.lane}'.`,
     `Setup file: ${result.setupFile ?? config.workspaceContract?.setupFile ?? ".harness/workspace.local.json"}`,
   ];

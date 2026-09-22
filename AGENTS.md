@@ -2,6 +2,29 @@
 
 This file is the instruction entry for every tool. `CLAUDE.md` imports it. Rule text lives in `rules/`. `.claude/rules/` symlinks to those files. `.cursor/rules/*.mdc` and `.codex/hooks.json` are generated projections. The only hook list is `engineering.harness.hooks`.
 
+Standing orders (one body in rules/, same index on every tool):
+- rules/agent-spawning-gate.md: Agent and Skill Router
+- rules/ai-pilot.md: AI Pilot Policy
+- rules/api-standards.md: API & Assertion Standards
+- rules/assertion-precision.md: Assertion Precision — Scope Before You Assert
+- rules/assertions.md: Assertion Standards
+- rules/backend-automation.md: Backend Automation Boundary
+- rules/cross-layer-qa.md: Cross-Layer QA Workflow
+- rules/failure-classification.md: Failure Classification — Actual vs False, and How to Actually Know
+- rules/jira-integration.md: Jira Integration — SERV Project, Real Fields, Approval-Gated Writes
+- rules/new-module.md: Adding a New Test Module — Checklist
+- rules/oracle-db.md: Oracle DB Rules
+- rules/pre-human-review.md: Pre-human review (every task, every QA member)
+- rules/prod-data-handling.md: Production Data Handling — Artifacts Are Layout Evidence, Not Data Sources
+- rules/security.md: Security Rules
+- rules/session-rules.md: Session Rules
+- rules/source-map.md: Source Map — App Evidence
+- rules/studio-ai-policy.md: Studio AI / cy.prompt — Constrained Discovery Only
+- rules/task-approval.md: Task-protocol approval (any AI)
+- rules/testing.md: Testing Rules
+- rules/thin-tests.md: Thin tests and framework reuse
+- rules/ui-config-hierarchy.md: Contract-First Cypress Architecture
+
 This repo is the **harness**: the scaffolding that compensates for what a model can't do reliably on its own — deterministic hooks, role-separated agents (generator vs evaluator), skills, and the routing rules that tie them together. Full topology: `docs/framework/harness-engineering.md`.
 
 It is not a QA test suite. It contains no Cypress specs, no application docs, no coverage data. Those are payload, and payload lives in the configured consumer workspace:

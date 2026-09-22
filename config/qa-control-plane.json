@@ -1213,6 +1213,22 @@
   },
   "qualityAssurance": {
     "coverageUnit": "approved-scenario",
+    "coverageBoundary": {
+      "frontend": {
+        "runner": "cypress",
+        "application": "fhf-dashboards",
+        "owns": "the browser behavior of fhf-dashboards: the screen, its route, and the UI call that screen makes",
+        "automation": ["front-end-automation-e2e", "front-end-automation-smoke"],
+        "connectedThrough": ["ui-to-internal-api"]
+      },
+      "remainder": {
+        "runner": "pytest",
+        "owns": "the REST, service, Oracle, and Python workflow behavior that the Cypress spec for this task does not already assert",
+        "automation": ["fhf-backend-automation"],
+        "sources": ["fhf-rest-internal", "fhf-rest-service", "fhf-rest-external", "fhf_documents", "fhf-letters", "fhf-reposession"],
+        "rule": "The sprint task picks the path. Name the Cypress coverage first. Pytest covers only the remaining gap. Do not re-author a UI check as pytest, and do not treat a Cypress pass as proof of the service or Oracle remainder."
+      }
+    },
     "requiredEvidenceChain": [
       "productIntent",
       "applicationImplementation",
@@ -2789,7 +2805,7 @@
           "sourceBundles": [
             "full-stack-change"
           ],
-          "hint": "Cross-layer automation generation → create or refresh the active task manifest, freeze the Jira family plus selected FE/BE source and automation paths, then spawn qa-automation-generator as the one specialist. It may author both Cypress and fhf-backend-automation pytest coverage, but only selected automation paths are writable; application source stays read-only.",
+          "hint": "Cross-layer automation → one sprint task. Cypress covers the fhf-dashboards screen and its UI call. Pytest covers only the remaining REST, service, Oracle, or Python workflow gap. Create or refresh that task manifest, then spawn qa-automation-generator as the one specialist. If the SERV ticket or module is missing, ask for it. Application source stays read-only.",
           "invoke": {
             "kind": "agent",
             "name": "qa-automation-generator"
@@ -2920,7 +2936,7 @@
           "sourceBundles": [
             "backend-api-change"
           ],
-          "hint": "Backend automation generation → create or refresh the active task manifest, then spawn qa-automation-generator. Read fhf-backend-automation/CLAUDE.md and only the backend-test-author resources selected for the task. Writes and pytest runs require manifest-selected paths, the backend-api-oracle runner, and a non-production environment.",
+          "hint": "Backend remainder → the sprint task names the REST, service, Oracle, or Python workflow gap Cypress does not already assert. Create or refresh the task manifest from that ticket, then spawn qa-automation-generator. If the SERV ticket or module is missing, ask for it. Writes and pytest wait for the selected non-production path.",
           "invoke": {
             "kind": "agent",
             "name": "qa-automation-generator"
@@ -2980,7 +2996,10 @@
           "id": "new-test",
           "priority": 95,
           "match": "\\b(write|create|add|new|generate)\\b.*\\b(test|spec|suite)\\b",
-          "hint": "New test → spawn cypress-generator. cypress-author may auto-fire first: treat it as Cypress conventions only; it must not Write FHF specs.",
+          "sourceBundles": [
+            "frontend-change"
+          ],
+          "hint": "New test → Cypress owns fhf-dashboards browser behavior. Spawn cypress-generator. Pytest is the remainder route, not a second copy of the UI check. cypress-author may auto-fire first: conventions only; it must not Write FHF specs.",
           "invoke": {
             "kind": "agent",
             "name": "cypress-generator"
