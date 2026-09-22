@@ -1,5 +1,31 @@
 export function hookInput(payload) {
-  return payload?.tool_input ?? payload?.input ?? {};
+  let input = payload?.tool_input ?? payload?.input ?? payload?.arguments ?? {};
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {
+      return input;
+    }
+  }
+  return input;
+}
+
+export function hookReadLimit(payload) {
+  const input = hookInput(payload);
+  const candidates = [
+    input?.limit,
+    input?.head_limit,
+    input?.maxLines,
+    input?.max_lines,
+    input?.line_limit,
+    payload?.limit,
+  ];
+  for (const candidate of candidates) {
+    const limit = Number(candidate);
+    if (Number.isInteger(limit) && limit > 0) return limit;
+  }
+  return null;
 }
 
 export function hookFilePath(payload) {

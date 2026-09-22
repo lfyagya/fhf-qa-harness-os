@@ -35,6 +35,35 @@ const repos = [
   "front-end-automation-e2e",
   "front-end-automation-smoke",
   "fhf-backend-automation",
+  "fhf-rest-internal",
+  "fhf-rest-service",
+  "fhf-rest-external",
+];
+const topologyBundles = {
+  "full-stack-change": {
+    seedRepositories: [
+      "Test-Case-Automation-Using-Claude-Agents",
+      "fhf-dashboards",
+      "fhf-rest-internal",
+      "front-end-automation-e2e",
+    ],
+    expandBy: ["matched-service-call", "backend-automation-coverage", "production-smoke-impact"],
+  },
+  "frontend-change": {
+    seedRepositories: ["fhf-dashboards", "front-end-automation-e2e"],
+    expandBy: ["matched-api-call", "regression-impact", "production-smoke-impact"],
+  },
+  "backend-api-change": {
+    seedRepositories: ["fhf-rest-internal", "fhf-rest-service", "fhf-backend-automation"],
+    expandBy: ["matched-third-party-call", "matched-oracle-contract", "frontend-consumer"],
+  },
+};
+const topologyEdges = [
+  { from: "fhf-dashboards", to: "fhf-rest-internal" },
+  { from: "fhf-rest-internal", to: "fhf-rest-service" },
+  { from: "fhf-rest-service", to: "fhf-rest-external" },
+  { from: "fhf-backend-automation", to: "fhf-rest-internal" },
+  { from: "front-end-automation-e2e", to: "fhf-dashboards" },
 ];
 // frontend-change is routed by nothing and selected only by a manifest - keep it in the fixture.
 const bundles = ["full-stack-change", "frontend-change", "backend-api-change"];
@@ -68,7 +97,7 @@ function fixture() {
       module: "contracts",
       graphNodes: ["jira:SERV-12356", "repo:fhf-dashboards", "repo:front-end-automation-e2e"],
       sourceBundles: ["full-stack-change"],
-      expansionReasons: ["linked frontend and backend implementation tickets"],
+      expansionReasons: [],
     },
     plan: {
       executionBudget: {
@@ -166,6 +195,8 @@ const frontendTestData = {
 const options = {
   repoIds: repos,
   bundleIds: bundles,
+  bundles: topologyBundles,
+  edges: topologyEdges,
   runnerIds,
   runners,
   executionBudget,
@@ -174,6 +205,19 @@ const options = {
   frontendTestData,
 };
 assert.deepEqual(validateTaskManifest(fixture(), options), []);
+const badReason = fixture();
+badReason.selection.expansionReasons = ["because it seemed related"];
+assert.match(validateTaskManifest(badReason, options).join("\n"), /expandBy/);
+const tooFar = fixture();
+tooFar.grounding.repositories.push({
+  id: "fhf-rest-external",
+  baseSha: SHA,
+  headSha: SHA,
+  selectedPaths: ["src/main"],
+});
+tooFar.selection.graphNodes.push("repo:fhf-rest-external");
+tooFar.selection.expansionReasons = ["matched-service-call"];
+assert.match(validateTaskManifest(tooFar, options).join("\n"), /one topology hop/);
 const forbiddenFrontendData = fixture();
 forbiddenFrontendData.plan.tests[1].testData.source = "production-pii";
 assert.match(validateTaskManifest(forbiddenFrontendData, options).join("\n"), /source must be allowed/);
@@ -194,6 +238,8 @@ invalidBudget.plan.executionBudget.maxRecordedToolResults = 101;
 assert.match(validateTaskManifest(invalidBudget, options).join("\n"), /hard ceiling/);
 const crossLayer = fixture();
 crossLayer.selection.routeId = "cross-layer-test-generation";
+crossLayer.selection.expansionReasons = ["backend-automation-coverage"];
+crossLayer.selection.graphNodes.push("repo:fhf-backend-automation");
 crossLayer.grounding.repositories.push({
   id: "fhf-backend-automation",
   baseSha: SHA,

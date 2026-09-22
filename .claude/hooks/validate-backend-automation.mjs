@@ -44,6 +44,7 @@ print(json.dumps(issues))
 function pythonCheck(source) {
   const commands = [
     ["python", ["-c", PYTHON_CHECK]],
+    ["python3", ["-c", PYTHON_CHECK]],
     ["py", ["-3", "-c", PYTHON_CHECK]],
   ];
   for (const [command, args] of commands) {

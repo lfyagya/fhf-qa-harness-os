@@ -303,6 +303,8 @@ function protocolOptions(config) {
   return {
     repoIds: Object.keys(config.productTopology?.repositories ?? {}),
     bundleIds: Object.keys(config.productTopology?.sourceBundles ?? {}),
+    bundles: config.productTopology?.sourceBundles ?? {},
+    edges: config.productTopology?.edges ?? [],
     runnerIds: Object.keys(runners),
     runners,
     approvalFields: config.engineering?.taskProtocol?.approval?.boundFields,

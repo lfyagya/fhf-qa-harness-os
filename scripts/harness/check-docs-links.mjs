@@ -23,6 +23,33 @@ function walk(dir, extensions) {
 // is invoked, and one with no description cannot be matched by intent routing at all. Nine
 // skills were in exactly that state on 2026-09-16 - the whole backend authoring family - and
 // every existing check passed, because nothing verified that "exists" implies "usable".
+
+function checkHookClassOrder(issues, config) {
+  const harness = config.engineering?.harness ?? {};
+  const classes = harness.hookClasses;
+  if (!Array.isArray(classes?.order) || !classes.members || typeof classes.members !== "object") {
+    issues.push("engineering.harness.hookClasses must declare order and members");
+    return;
+  }
+  const rank = new Map(classes.order.map((name, index) => [name, index]));
+  for (const [phase, scripts] of Object.entries(harness.hooks ?? {})) {
+    if (!Array.isArray(scripts)) continue;
+    let previous = -1;
+    for (const script of scripts) {
+      const name = classes.members[script];
+      const current = rank.get(name);
+      if (current === undefined) {
+        issues.push(`engineering.harness.hooks.${phase} script ${script} has no hook class`);
+        continue;
+      }
+      if (current < previous) {
+        issues.push(`engineering.harness.hooks.${phase} lists ${script} (${name}) after a higher class`);
+      }
+      previous = Math.max(previous, current);
+    }
+  }
+}
+
 function checkSkillsAreUsable(issues, config) {
   const skillsDir = path.join(HARNESS_ROOT, ".claude", "skills");
   if (!fs.existsSync(skillsDir)) return;
@@ -58,6 +85,7 @@ try {
   documentation = config.documentation;
   engineering = config.engineering;
   checkSkillsAreUsable(issues, config);
+  checkHookClassOrder(issues, config);
 } catch (error) {
   issues.push(`Invalid harness config: ${error.message}`);
 }

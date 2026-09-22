@@ -120,7 +120,7 @@ if (/^(?:bash|shell|powershell)$/i.test(toolName) || payload?.tool_input?.comman
   if (new RegExp(`\\b${OVERRIDE_ENV}\\s*=\\s*1\\b`).test(cmd)) process.exit(0);
   const normalised = cmd.replaceAll("\\", "/");
   const hit = PROTECTED.find((entry) => normalised.includes(entry.replace(/\/$/, "")));
-  if (hit && !isReadOnlyCommand(cmd)) {
+  if (hit && !isReadOnlyCommand(cmd) && !isReadOnlyGit(cmd)) {
     deny(hit, "that command", `Command: ${cmd.slice(0, 200)}`);
   }
 }
@@ -134,9 +134,22 @@ process.exit(0);
 //
 // The allowlist holds UNAMBIGUOUS readers only. Deliberately excluded, because each can write
 // the very file it is pointed at: sed (-i), node (-e with fs), python (-c with open(...,'w')),
-// and git (apply, checkout --). An interpreter that merely happens to be reading is
-// indistinguishable here from one that is rewriting, so it is denied and the operator supplies
-// the inline opt-in instead.
+// and git write subcommands (apply, checkout --). Read-only git subcommands are allowed:
+// diff, status, log, show, blame, grep, ls-files, rev-parse. An interpreter that merely
+// happens to be reading is indistinguishable here from one that is rewriting, so it is denied
+// and the operator supplies the inline opt-in instead.
+function isReadOnlyGit(command) {
+  const value = command.trim();
+  if (!value || /[\r\n;&|><`$]/.test(value)) return false;
+  const match = value.match(/^git(?:\.exe)?\s+([a-z0-9-]+)\b(.*)$/i);
+  if (!match) return false;
+  const subcommand = match[1].toLowerCase();
+  const rest = match[2];
+  const readers = new Set(["blame", "diff", "grep", "log", "ls-files", "rev-parse", "show", "status"]);
+  if (!readers.has(subcommand)) return false;
+  return !/(?:^|\s)(?:--output|-o|--write)\b/.test(rest);
+}
+
 function isReadOnlyCommand(command) {
   const value = command.trim();
   if (!value || /[\r\n;&|><`$]/.test(value)) return false;

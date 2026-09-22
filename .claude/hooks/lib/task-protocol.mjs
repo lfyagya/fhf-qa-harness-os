@@ -78,7 +78,13 @@ export function inspectActiveTaskGates(config, env = process.env, payload = {}) 
     source,
     manifest,
     block: pending && !isActiveTaskManifestWrite(filePath, source) ? pending : null,
-    next: nextStep(manifest, { ...gateOptions(config), repoIds: Object.keys(config.productTopology?.repositories ?? {}) }),
+    next: nextStep(manifest, {
+      ...gateOptions(config),
+      repoIds: Object.keys(config.productTopology?.repositories ?? {}),
+      bundleIds: Object.keys(config.productTopology?.sourceBundles ?? {}),
+      bundles: config.productTopology?.sourceBundles ?? {},
+      edges: config.productTopology?.edges ?? [],
+    }),
   };
 }
 

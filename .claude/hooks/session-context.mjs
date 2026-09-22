@@ -6,6 +6,7 @@ import { emitContext } from "./lib/hook-runtime.mjs";
 import { readFreshHandoff } from "./lib/memory-state.mjs";
 import { formatWorkspacePreflight, workspacePreflight } from "./lib/workspace-contract.mjs";
 import { formatTaskGateContext, inspectActiveTaskGates } from "./lib/task-protocol.mjs";
+import { formatLoopState } from "./lib/route-context.mjs";
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, "utf8")); } catch { process.exit(0); }
@@ -37,4 +38,5 @@ if (handoff?.facts && Object.keys(handoff.facts).length > 0) {
   lines.push(`- Fresh handoff facts: ${JSON.stringify(handoff.facts)}`);
 }
 
+lines.push(formatLoopState(payload.cwd ?? process.cwd(), config));
 emitContext(payload, "SessionStart", lines.join("\n").slice(0, 5000));

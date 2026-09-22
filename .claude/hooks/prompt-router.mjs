@@ -10,11 +10,12 @@ import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
 import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
 import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
 import { formatTaskGateContext, inspectActiveTaskGates } from './lib/task-protocol.mjs';
+import { formatBundleSlice, formatLoopState, promptForMatch } from './lib/route-context.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
 
-const prompt = (payload.prompt ?? '').toLowerCase();
+const prompt = promptForMatch(payload.prompt ?? '').toLowerCase();
 const lines = [];
 let engineering;
 let config;
@@ -41,7 +42,8 @@ if (!workspace.ready) {
   emitContext(payload, "UserPromptSubmit", formatWorkspacePreflight(workspace, config));
   process.exit(0);
 }
-const ticket = ticketKeyFromPrompt(payload.prompt ?? "");
+const ticket = ticketKeyFromPrompt(promptForMatch(payload.prompt ?? ""));
+let jiraUnread = false;
 if (ticket) {
   let access;
   try {
@@ -58,6 +60,7 @@ if (ticket) {
     const ask = access.ownerAction
       ? `Ask the owner in this turn to authenticate, authorize, or choose a declared fallback.`
       : `Use the active connector to authenticate if needed, then complete the live probe.`;
+    jiraUnread = true;
     lines.push(`[jira] ${ticket} is not ready (${access.status}). ${ask} Do not invent ticket contents or pick a fallback unprompted.`);
   }
 }
@@ -87,9 +90,8 @@ function formatInvoke(invoke) {
 function appendRoute(route) {
   lines.push(`[router:${route.id}] ${route.hint}`);
   if (route.invoke) lines.push(`[router] invoke: ${formatInvoke(route.invoke)}`);
-  if (Array.isArray(route.sourceBundles) && route.sourceBundles.length > 0) {
-    lines.push(`[router] Source bundle seed: ${route.sourceBundles.join(", ")}. Expand only with a recorded topology reason.`);
-  }
+  const slice = formatBundleSlice(route, config);
+  if (slice) lines.push(slice);
 }
 
 // 1. Topic drift — "one session = one job"
@@ -111,11 +113,16 @@ if (explicitRoute && routeApplies(explicitRoute)) {
   if (overlay?.session?.routeId) {
     lines.push(`[router] Session route override '${overlay.session.routeId}' was not applicable to lane '${lane}'.`);
   }
+  const matched = [];
   for (const route of routes) {
     if (!routeApplies(route)) continue;
-    if (new RegExp(route.match, 'i').test(prompt)) {
-      appendRoute(route);
-      break;
+    if (new RegExp(route.match, 'i').test(prompt)) matched.push(route);
+  }
+  if (matched.length > 0) {
+    appendRoute(matched[0]);
+    if (matched.length > 1) {
+      const rest = matched.slice(1).map((route) => `${route.id}@${route.priority}`).join(", ");
+      lines.push(`[router] Also matched: ${rest}. The candidate is not proof. Follow task intent when it names one of these.`);
     }
   }
 }
@@ -133,6 +140,10 @@ if (overlay?.session?.ticket || overlay?.session?.module) {
 const isCreate = /\b(create|write|add|new|generate)\b.*(config|command|spec|test|hook)/i.test(prompt);
 const moduleMatch = prompt.match(/(?:for|command for|config for|spec for)\s+([\w-]+)/);
 const gateContext = formatTaskGateContext(inspectActiveTaskGates(config));
+if (jiraUnread) {
+  lines.push("[jira] The ticket was not read. Use the bundle seeds, moduleSpecPaths, and productTopology edges in this turn as configured product context. They do not fill ticket fields. Unread ticket fields stay UNKNOWN.");
+}
+lines.push(formatLoopState(cwd, config));
 if (gateContext) lines.push(gateContext);
 
 if (isCreate && moduleMatch) {

@@ -555,9 +555,53 @@ function validateCrossRepositorySeams(changeUnits, policy) {
   return issues;
 }
 
+function validateSelectionGraph(manifest, { bundles = null, edges = null } = {}) {
+  const issues = [];
+  if (!bundles || typeof bundles !== "object" || Array.isArray(bundles)) return issues;
+  const selected = manifest.selection?.sourceBundles ?? [];
+  const known = selected.filter((id) => bundles[id] && typeof bundles[id] === "object");
+  if (known.length === 0) return issues;
+
+  const seeds = new Set(known.flatMap((id) => bundles[id].seedRepositories ?? []));
+  const allowedReasons = new Set(known.flatMap((id) => bundles[id].expandBy ?? []));
+  const reasons = manifest.selection?.expansionReasons ?? [];
+  for (const reason of reasons) {
+    if (typeof reason !== "string" || !allowedReasons.has(reason)) {
+      issues.push(`expansion reason '${reason}' is not in the selected bundles' expandBy`);
+    }
+  }
+
+  const hop = new Set(seeds);
+  for (const edge of edges ?? []) {
+    if (seeds.has(edge?.from)) hop.add(edge.to);
+    if (seeds.has(edge?.to)) hop.add(edge.from);
+  }
+
+  const selectedRepos = new Set();
+  for (const node of manifest.selection?.graphNodes ?? []) {
+    if (typeof node === "string" && node.startsWith("repo:")) selectedRepos.add(node.slice("repo:".length));
+  }
+  for (const repo of manifest.grounding?.repositories ?? []) {
+    if (repo?.id) selectedRepos.add(repo.id);
+  }
+  const outside = [...selectedRepos].filter((id) => !seeds.has(id));
+  if (outside.length === 0 && reasons.length > 0) {
+    issues.push("expansionReasons must be empty when every selected repository is a bundle seed");
+  }
+  if (outside.length > 0 && reasons.filter((reason) => allowedReasons.has(reason)).length === 0) {
+    issues.push("a repository outside the bundle seeds requires an expandBy reason");
+  }
+  for (const id of outside) {
+    if (!hop.has(id)) issues.push(`${id} is not a seed or one topology hop from the selected bundles`);
+  }
+  return issues;
+}
+
 export function validateTaskManifest(manifest, {
   repoIds = [],
   bundleIds = [],
+  bundles = null,
+  edges = null,
   runnerIds = [],
   runners = {},
   executionBudget,
@@ -598,6 +642,7 @@ export function validateTaskManifest(manifest, {
       if (!bundleIds.includes(bundleId)) issues.push(`unknown source bundle: ${bundleId}`);
     }
   }
+  issues.push(...validateSelectionGraph(manifest, { bundles, edges }));
   const changeUnits = manifest.plan?.changeUnits ?? [];
   if (!Array.isArray(changeUnits) || changeUnits.length === 0) {
     issues.push("plan.changeUnits must not be empty");
@@ -678,7 +723,10 @@ export function nextStep(manifest, options = {}) {
     return { action: "ground-task", stage: "intake", blocked: false };
   }
   if (manifest.stage === "grounded") {
-    const groundingIssues = validateGrounding(manifest, options.repoIds);
+    const groundingIssues = [
+      ...validateGrounding(manifest, options.repoIds),
+      ...validateSelectionGraph(manifest, options),
+    ];
     if (!Array.isArray(manifest.selection?.graphNodes) || manifest.selection.graphNodes.length === 0) groundingIssues.push("selected graph nodes are missing");
     if (groundingIssues.length) {
       return { action: "repair-task-manifest", stage: "grounded", blocked: true, issues: groundingIssues };

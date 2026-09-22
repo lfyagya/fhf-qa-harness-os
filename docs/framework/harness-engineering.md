@@ -106,15 +106,21 @@ change -> regenerated projection -> canary verification.
 - `moduleSpecPaths` identifies product-contract context per module under the configured consumer workspace.
 - Root instructions stay thin; detailed context is loaded on demand.
 - Claude uses its adaptive auto-compact window unless `autoCompact.windowTokens` explicitly overrides it.
-- Read output is bounded before it enters context; large files must be read in configured line chunks.
+- Read output is bounded before it enters context, except paths in `readOutput.fullContextPaths` (`docs/framework/`, `docs/adr/`), which are the correct context and load in full. Every other large file stays in configured line chunks. The router injects the matched bundle slice, so the control plane does not have to be dumped into the turn.
 - Cursor receives the same routing contract at session start because its prompt hook cannot inject
   arbitrary context per prompt.
 
-The runtime sequence is: classify prompt → select the highest-priority route → honour that
-route's `invoke` → read the minimum owner/contract → perform the job. Prompt keywords are
-advisory; task intent remains authoritative. The router prints `invoke` for the parent to
-follow. The skill hook blocks names off the allow-list and `skillLanes` misses; it does not
-re-score the prompt. `spawnBudget` and `modelTiers` are parent policy, not hook gates.
+The runtime sequence is: classify prompt → select the highest-priority route as a candidate →
+name every other match → honour task intent, then that route's `invoke` → read the injected
+bundle seeds, legal `expandBy` reasons, and one topology hop → perform the job. Text inside
+`chat_selection` is not part of the match. Prompt keywords are advisory; task intent remains
+authoritative, and a single regex is not proof when another route also matched. The same
+`prompt-router.mjs` is the decision for every host that can deliver `additionalContext`.
+Cursor-native `beforeSubmitPrompt` still cannot, so `session-context.mjs` repeats the same
+loop-state and routing rule at session start. The skill hook blocks names off the allow-list
+and `skillLanes` misses; it does not re-score the prompt. `spawnBudget` and `modelTiers` are
+parent policy, not hook gates. A manifest that names an expansion reason outside the bundle's
+`expandBy`, or a repository that is not a seed or one hop from those seeds, is invalid.
 
 ### Product topology and Jira grounding
 

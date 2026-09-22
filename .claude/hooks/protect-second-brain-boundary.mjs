@@ -5,7 +5,6 @@
 // ingest ever fires with the wrong cwd, this stops it from scaffolding a stray vault
 // inside the QA harness itself. exit 2 = BLOCK.
 import { readFileSync } from 'fs';
-import path from 'node:path';
 import { hookFilePath } from './lib/hook-payload.mjs';
 import { emitAllow } from './lib/hook-runtime.mjs';
 import { workspaceRoot } from './lib/memory-state.mjs';
@@ -19,9 +18,15 @@ try {
 }
 
 const filePath = hookFilePath(payload);
-const root = workspaceRoot(payload);
-const normalizedRoot = root.replace(/\\/g, '/').replace(/\/$/, '');
-const absolutePath = path.resolve(root, filePath).replace(/\\/g, '/');
+const requestedRoot = payload?.cwd ?? payload?.workspace_roots?.[0] ?? process.env.CLAUDE_CWD ?? "";
+const root = /^[A-Za-z]:[\\/]/.test(requestedRoot) || requestedRoot.startsWith("/") || requestedRoot.startsWith("\\")
+  ? requestedRoot
+  : workspaceRoot(payload);
+const normalizedRoot = root.replace(/\\/g, "/").replace(/\/$/, "");
+const normalizedFile = filePath.replace(/\\/g, "/");
+const absolutePath = /^[A-Za-z]:\//.test(normalizedFile) || normalizedFile.startsWith("/")
+  ? normalizedFile
+  : `${normalizedRoot}/${normalizedFile}`.replace(/\/+/g, "/");
 const isWorkspaceScaffold = ['wiki', '.raw'].some((directory) =>
   absolutePath === `${normalizedRoot}/${directory}` ||
   absolutePath.startsWith(`${normalizedRoot}/${directory}/`));

@@ -2692,7 +2692,11 @@
       },
       "readOutput": {
         "maxLines": 120,
-        "unboundedReadMaxBytes": 2048
+        "unboundedReadMaxBytes": 2048,
+        "fullContextPaths": [
+          "docs/framework/",
+          "docs/adr/"
+        ]
       },
       "skillListing": {
         "maxDescriptionChars": 240,
@@ -3425,6 +3429,37 @@
           }
         }
       },
+      "hookClasses": {
+        "order": ["boundary", "scope", "content", "ergonomic"],
+        "members": {
+          "protect-harness-governance.mjs": "boundary",
+          "protect-app-source.mjs": "boundary",
+          "protect-second-brain-boundary.mjs": "boundary",
+          "protect-prod-data.mjs": "boundary",
+          "block-generic-agents.mjs": "boundary",
+          "block-forbidden-skills.mjs": "boundary",
+          "protect-automation-scope.mjs": "scope",
+          "enforce-task-gates.mjs": "scope",
+          "manual-task-guard.mjs": "scope",
+          "pre-validate-cypress-rules.mjs": "content",
+          "validate-backend-automation.mjs": "content",
+          "validate-cypress-rules.mjs": "content",
+          "scenario-file-guard.mjs": "content",
+          "scenario-content-guard.mjs": "content",
+          "artifact-duplication-guard.mjs": "content",
+          "coverage-strategy-guard.mjs": "content",
+          "validate-spec-linkage.mjs": "content",
+          "failure-loop-guard.mjs": "content",
+          "spec-sweep-stop-hook.mjs": "content",
+          "verify-subagent-citations.mjs": "content",
+          "sync-reminder.mjs": "ergonomic",
+          "context-read-guard.mjs": "ergonomic",
+          "memory-checkpoint.mjs": "ergonomic",
+          "session-context.mjs": "ergonomic",
+          "prompt-router.mjs": "ergonomic",
+          "session-end-reminder.mjs": "ergonomic"
+        }
+      },
       "hooks": {
         "sessionStart": [
           "session-context.mjs"
@@ -3435,9 +3470,9 @@
         "preWrite": [
           "protect-harness-governance.mjs",
           "protect-app-source.mjs",
+          "protect-second-brain-boundary.mjs",
           "protect-automation-scope.mjs",
           "enforce-task-gates.mjs",
-          "protect-second-brain-boundary.mjs",
           "pre-validate-cypress-rules.mjs"
         ],
         "preShell": [
@@ -3469,8 +3504,8 @@
           "scenario-content-guard.mjs",
           "artifact-duplication-guard.mjs",
           "coverage-strategy-guard.mjs",
-          "sync-reminder.mjs",
-          "validate-spec-linkage.mjs"
+          "validate-spec-linkage.mjs",
+          "sync-reminder.mjs"
         ],
         "postToolFailure": [
           "failure-loop-guard.mjs"
@@ -3482,8 +3517,8 @@
           "memory-checkpoint.mjs"
         ],
         "stop": [
-          "session-end-reminder.mjs",
-          "spec-sweep-stop-hook.mjs"
+          "spec-sweep-stop-hook.mjs",
+          "session-end-reminder.mjs"
         ]
       },
       "adapters": {

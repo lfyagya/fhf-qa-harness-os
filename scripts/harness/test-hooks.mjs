@@ -377,6 +377,10 @@ expect("context read guard blocks unbounded large reads",
   run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: largeRead } }), 2);
 expect("context read guard allows bounded reads",
   run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: largeRead, limit: 120 } }), 0);
+expect("context read guard accepts a stringified bounded read",
+  run("context-read-guard.mjs", { tool_name: "Read", tool_input: JSON.stringify({ file_path: largeRead, limit: 40 }) }), 0);
+expect("context read guard allows a declared framework document in full",
+  run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: path.join(HARNESS_ROOT, "docs/framework/harness-engineering.md") } }), 0);
 expect("context read guard allows small reads",
   run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: smallRead } }), 0);
 expect("context read guard emits runtime-neutral JSON",
@@ -895,6 +899,12 @@ expect("prompt-router prioritizes test creation over generic documentation",
 expect("prompt-router emits invoke for new-test",
   run("prompt-router.mjs", { prompt: "write a new cypress test" }),
   (r) => r.code === 0 && r.stdout.includes("[router] invoke: spawn agent cypress-generator"));
+expect("prompt-router names every other match and injects the bundle slice",
+  run("prompt-router.mjs", { prompt: "map the frontend to the backend and write a new test" }),
+  (r) => r.code === 0 && r.stdout.includes("[router:cross-layer-test-generation]") && r.stdout.includes("Also matched:") && r.stdout.includes("cross-repository-change") && r.stdout.includes("Bundle full-stack-change seeds:") && r.stdout.includes("[loop]"));
+expect("prompt-router ignores acceptance criteria quoted from a chat selection",
+  run("prompt-router.mjs", { prompt: "fix the hook class order\n```chat_selection\nAcceptance Criteria\n```" }),
+  (r) => r.code === 0 && !r.stdout.includes("[router:work-item-intake]") && r.stdout.includes("[loop]"));
 expect("prompt-router emits invoke for hookify on the root lane",
   run("prompt-router.mjs", { prompt: "write a hook rule" }),
   (r) => r.code === 0 && r.stdout.includes("[router:hookify]") && r.stdout.includes("[router] invoke: stay in parent; read skill hookify"));
@@ -931,9 +941,9 @@ expect("prompt-router loads deep test docs only on demand",
 expect("prompt-router doesn't fire Jira hint on meta-discussion that only mentions Jira",
   run("prompt-router.mjs", { prompt: "this harness turns jira tickets into cypress specs — is that the right layer for a compliance linter?" }),
   (r) => r.code === 0 && !r.stdout.includes("Jira ticket → spawn cypress-generator"));
-expect("prompt-router emits neutral JSON on plain prompts",
+expect("prompt-router injects loop state when no route matches",
   run("prompt-router.mjs", { prompt: "hello" }),
-  cursorEmitsNeutral);
+  (r) => r.code === 0 && r.stdout.includes("[loop] No loop state") && r.stdout.includes("first pass"));
 expect("prompt-router consumes the central route table",
   run("prompt-router.mjs", { prompt: "custom control signal" }, {
     FHF_HARNESS_CONFIG: customConfigPath,
@@ -1091,6 +1101,12 @@ expect("governance guard blocks an interpreter pointed at a gate",
 expect("governance guard allows reading a gate",
   run("protect-harness-governance.mjs",
     { tool_name: "Bash", tool_input: { command: "cat config/qa-control-plane.json" } }), 0);
+expect("governance guard allows git diff of a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "Bash", tool_input: { command: "git diff -- config/qa-control-plane.json" } }), 0);
+expect("governance guard blocks git checkout of a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "Bash", tool_input: { command: "git checkout -- config/qa-control-plane.json" } }), 2);
 expect("governance guard accepts the inline shell opt-in",
   run("protect-harness-governance.mjs",
     { tool_name: "Bash", tool_input: { command: "FHF_ALLOW_HARNESS_EDIT=1 sed -i s/a/b/ config/qa-control-plane.json" } }), 0);

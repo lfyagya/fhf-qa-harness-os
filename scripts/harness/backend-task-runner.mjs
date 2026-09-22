@@ -133,6 +133,8 @@ export function buildBackendRunPlan({
   const issues = validateTaskManifest(manifest, {
     repoIds: Object.keys(config.productTopology?.repositories ?? {}),
     bundleIds: Object.keys(config.productTopology?.sourceBundles ?? {}),
+    bundles: config.productTopology?.sourceBundles ?? {},
+    edges: config.productTopology?.edges ?? [],
     runnerIds: Object.keys(runners),
     runners,
     executionBudget: config.engineering?.taskProtocol?.executionBudget,

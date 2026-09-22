@@ -2,7 +2,7 @@
 // PreToolUse:Read — keep a single file read from refilling the conversation.
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { engineeringConfig } from "./lib/harness-config.mjs";
-import { hookFilePath, hookInput } from "./lib/hook-payload.mjs";
+import { hookFilePath, hookReadLimit } from "./lib/hook-payload.mjs";
 import { emitAllow } from "./lib/hook-runtime.mjs";
 
 let payload = {};
@@ -14,18 +14,21 @@ try {
 }
 process.on("exit", (code) => code === 0 && emitAllow(payload));
 
-const input = hookInput(payload);
 const filePath = hookFilePath(payload);
 const policy = engineeringConfig().context.readOutput;
-const limit = Number(input?.limit);
-const isBounded =
-  Number.isInteger(limit) && limit > 0 && limit <= policy.maxLines;
+const limit = hookReadLimit(payload);
+const isBounded = limit !== null && limit <= policy.maxLines;
 const isSmall =
   filePath &&
   existsSync(filePath) &&
   statSync(filePath).size <= policy.unboundedReadMaxBytes;
+const normalizedPath = String(filePath ?? "").replaceAll("\\", "/");
+const fullContextPaths = policy.fullContextPaths ?? ["docs/framework/", "docs/adr/"];
+const isDeclaredContext = fullContextPaths.some((entry) =>
+  normalizedPath.includes(String(entry).replaceAll("\\", "/")),
+);
 
-if (isBounded || isSmall) process.exit(0);
+if (isBounded || isSmall || isDeclaredContext) process.exit(0);
 
 console.error(
   `BLOCKED: bound this Read to ${policy.maxLines} lines or fewer to prevent context thrashing. ` +
