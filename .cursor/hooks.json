@@ -75,7 +75,7 @@
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-prod-data.mjs\"",
-        "matcher": "Read|Bash|read|bash",
+        "matcher": "Read|Bash|read|bash|Shell|shell",
         "failClosed": true
       }
     ],
@@ -95,42 +95,42 @@
     "postToolUse": [
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-backend-automation.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-cypress-rules.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-file-guard.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-content-guard.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"artifact-duplication-guard.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"coverage-strategy-guard.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-spec-linkage.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"sync-reminder.mjs\"",
-        "matcher": "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "failClosed": true
       },
       {

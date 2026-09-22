@@ -136,6 +136,36 @@ check(
     codexCommands("PostToolUse").some((command) => command.includes("repeat-tool-guard.mjs")),
   "Codex must compare the next tool call with the last recorded output",
 );
+
+function pairKey(matcher, command) {
+  const script = command.match(/"([^"]+\.mjs)"/)?.[1] ?? command;
+  return `${matcher ?? "*"} ${script}`;
+}
+function claudePairs(event) {
+  return (claude.hooks[event] ?? []).flatMap((group) =>
+    (group.hooks ?? []).map((hook) => pairKey(group.matcher, hook.command))).sort();
+}
+function cursorPairs(event) {
+  return (cursor.hooks[event] ?? []).map((hook) => pairKey(hook.matcher, hook.command)).sort();
+}
+function codexPairs(event) {
+  return (codex.hooks[event] ?? []).flatMap((group) =>
+    (group.hooks ?? []).map((hook) => pairKey(group.matcher, hook.command))).sort();
+}
+for (const [cursorEvent, claudeEvent] of [
+  ["preToolUse", "PreToolUse"],
+  ["postToolUse", "PostToolUse"],
+  ["subagentStart", "SubagentStart"],
+]) {
+  const claudeSet = claudePairs(claudeEvent);
+  check(JSON.stringify(cursorPairs(cursorEvent)) === JSON.stringify(claudeSet), `${cursorEvent} matchers must match Claude`);
+  check(JSON.stringify(codexPairs(claudeEvent)) === JSON.stringify(claudeSet), `${claudeEvent} matchers must match on Codex`);
+}
+check(
+  JSON.stringify(Object.keys(codex.hooks).sort()) ===
+    JSON.stringify(Object.keys(claude.hooks).filter((event) => event !== "PostToolUseFailure").sort()),
+  "Codex projects every Claude hook event except the one Codex does not have",
+);
 check(
   codex.hooks.PreToolUse.flatMap((group) => group.hooks).every((hook) => hook.commandWindows?.includes('FHF_HOOK_HOST=codex')),
   "Codex Windows commands must set the same host marker",

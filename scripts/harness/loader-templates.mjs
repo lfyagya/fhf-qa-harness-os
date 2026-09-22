@@ -123,8 +123,23 @@ export function npmrcExample(lane) {
 
 export const VENDORED_HOOKS = "project-hooks";
 
-const cursorWriteMatcher = "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch";
-const cursorPostWriteMatcher = "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch";
+const TOOL_MATCH = {
+  write: "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
+  shell: "Shell|Bash|shell|bash",
+  read: "Read|read",
+  readShell: "Read|Bash|read|bash|Shell|shell",
+  skill: "Skill|skill",
+  task: "Task|Agent",
+};
+
+function forbiddenSubagentMatcher() {
+  return ENGINEERING.harness.forbiddenAgents.flatMap((name) =>
+    name === "general-purpose"
+      ? [name, "generalPurpose"]
+      : name === "explore"
+        ? [name, "Explore"]
+        : [name]).join("|");
+}
 
 function hookCommand(root, script, args = "", host = "") {
   if (root === VENDORED_HOOKS) {
@@ -149,14 +164,14 @@ function cursorCommand(root, script, { matcher, failClosed, loopLimit, args = ""
 export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
   const contextReadGuard = HOOKS.preRead.map((script) =>
     cursorCommand(HARNESS_HOOKS, script, {
-      matcher: "Read|read",
+      matcher: TOOL_MATCH.read,
       failClosed: true,
     }));
   const productionArtifactGuard = lane === "e2e"
     ? []
     : HOOKS.preReadExceptE2e.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, {
-          matcher: "Read|Bash|read|bash",
+          matcher: TOOL_MATCH.readShell,
           failClosed: true,
         }));
 
@@ -172,7 +187,7 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
           cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
         ...HOOKS.preWrite.map((script) =>
           cursorCommand(HARNESS_HOOKS, script, {
-            matcher: cursorWriteMatcher,
+            matcher: TOOL_MATCH.write,
             failClosed: true,
           })),
         ...HOOKS.preShell.map((script) =>
@@ -195,12 +210,7 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
       ],
       subagentStart: HOOKS.subagentStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, {
-          matcher: ENGINEERING.harness.forbiddenAgents.flatMap((name) =>
-            name === "general-purpose"
-              ? [name, "generalPurpose"]
-              : name === "explore"
-                ? [name, "Explore"]
-                : [name]).join("|"),
+          matcher: forbiddenSubagentMatcher(),
           failClosed: true,
           args: "--deny-matched-subagent",
         })),
@@ -209,7 +219,7 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
       postToolUse: [
         ...HOOKS.postWrite.map((script) =>
           cursorCommand(HARNESS_HOOKS, script, {
-            matcher: cursorPostWriteMatcher,
+            matcher: TOOL_MATCH.write,
             failClosed: true,
           })),
         ...HOOKS.postAny.map((script) =>
@@ -245,15 +255,15 @@ function claudeGroup(root, scripts) {
 export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
   const preToolUse = [
     { hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preAny) },
-    { matcher: "Edit|Write", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
-    { matcher: "Bash", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
-    { matcher: "Task|Agent", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
-    { matcher: "Skill", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSkill) },
-    { matcher: "Read", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preRead) },
+    { matcher: TOOL_MATCH.write, hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
+    { matcher: TOOL_MATCH.shell, hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
+    { matcher: TOOL_MATCH.task, hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
+    { matcher: TOOL_MATCH.skill, hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSkill) },
+    { matcher: TOOL_MATCH.read, hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preRead) },
   ];
   if (lane !== "e2e") {
     preToolUse.push({
-      matcher: "Read|Bash",
+      matcher: TOOL_MATCH.readShell,
       hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preReadExceptE2e),
     });
   }
@@ -273,14 +283,14 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
       SessionStart: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionStart) }],
       UserPromptSubmit: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.prompt) }],
       PreToolUse: preToolUse,
-      SubagentStart: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.subagentStart) }],
+      SubagentStart: [{ matcher: forbiddenSubagentMatcher(), hooks: claudeGroup(HARNESS_HOOKS, HOOKS.subagentStart) }],
       SubagentStop: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.subagentStop) }],
       Stop: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.stop) }],
       PreCompact: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preCompact) }],
       SessionEnd: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionEnd) }],
       PostToolUse: [
         {
-          matcher: "Edit|Write",
+          matcher: TOOL_MATCH.write,
           hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postWrite),
         },
         { hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postAny) },

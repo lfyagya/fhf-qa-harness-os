@@ -33,7 +33,7 @@
         ]
       },
       {
-        "matcher": "Edit|Write",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "hooks": [
           {
             "type": "command",
@@ -62,7 +62,7 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Shell|Bash|shell|bash",
         "hooks": [
           {
             "type": "command",
@@ -84,7 +84,7 @@
         ]
       },
       {
-        "matcher": "Skill",
+        "matcher": "Skill|skill",
         "hooks": [
           {
             "type": "command",
@@ -93,7 +93,7 @@
         ]
       },
       {
-        "matcher": "Read",
+        "matcher": "Read|read",
         "hooks": [
           {
             "type": "command",
@@ -102,7 +102,7 @@
         ]
       },
       {
-        "matcher": "Read|Bash",
+        "matcher": "Read|Bash|read|bash|Shell|shell",
         "hooks": [
           {
             "type": "command",
@@ -113,6 +113,7 @@
     ],
     "SubagentStart": [
       {
+        "matcher": "general-purpose|generalPurpose|explore|Explore|documentation-writer|test-execution-planner|cypress-bug-hunter|cypress-cloud-investigator|cypress-e2e-automation|cypress-explorer|cypress-performance-auditor|cypress-runner|cypress-test-automation|cypress-ui-coverage-analyst|pr-creator|pre-merge-qa-gate|qa-ticket-router|spec-generation-loop|test-design-reviewer",
         "hooks": [
           {
             "type": "command",
@@ -167,7 +168,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch",
         "hooks": [
           {
             "type": "command",

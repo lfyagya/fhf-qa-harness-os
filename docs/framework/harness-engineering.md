@@ -107,7 +107,7 @@ change -> regenerated projection -> canary verification.
 - Root instructions stay thin; detailed context is loaded on demand.
 - Claude uses its adaptive auto-compact window unless `autoCompact.windowTokens` explicitly overrides it.
 - Read output is bounded before it enters context, except paths in `readOutput.fullContextPaths` (`docs/framework/`, `docs/adr/`), which are the correct context and load in full. Every other large file stays in configured line chunks. The router injects the matched bundle slice, so the control plane does not have to be dumped into the turn.
-- `engineering.harness.hooks` is the only hook list. Claude settings, Cursor hooks, and `.codex/hooks.json` are projections of it.
+- `engineering.harness.hooks` is the only hook list. Claude settings, Cursor hooks, and `.codex/hooks.json` are projections of it. Each action uses one matcher string, the union of the tool names those hosts use.
   `emitPrompt` writes one payload. Codex omits the fields its parser rejects. Rule text lives in `rules/`.
 
 The runtime sequence is: classify prompt → select the highest-priority route as a candidate →
