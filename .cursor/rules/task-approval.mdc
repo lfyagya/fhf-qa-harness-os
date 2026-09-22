@@ -1,8 +1,7 @@
 ---
-description: In-chat human stamp for the earliest missing gate — Jira status is not a stamp
+description: "In-chat human stamp for the earliest missing gate. Jira status is not a stamp"
 alwaysApply: true
 ---
-
 # Task-protocol approval (any AI)
 
 This applies to every task and every QA member using the harness.

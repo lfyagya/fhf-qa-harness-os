@@ -107,8 +107,8 @@ change -> regenerated projection -> canary verification.
 - Root instructions stay thin; detailed context is loaded on demand.
 - Claude uses its adaptive auto-compact window unless `autoCompact.windowTokens` explicitly overrides it.
 - Read output is bounded before it enters context, except paths in `readOutput.fullContextPaths` (`docs/framework/`, `docs/adr/`), which are the correct context and load in full. Every other large file stays in configured line chunks. The router injects the matched bundle slice, so the control plane does not have to be dumped into the turn.
-- `engineering.harness.hooks` is the only hook list. Claude settings and Cursor hooks are projections of it.
-  `emitPrompt` writes one payload for both prompt events. Rule text stays in `.claude/rules`.
+- `engineering.harness.hooks` is the only hook list. Claude settings, Cursor hooks, and `.codex/hooks.json` are projections of it.
+  `emitPrompt` writes one payload. Codex omits the fields its parser rejects. Rule text lives in `rules/`.
 
 The runtime sequence is: classify prompt → select the highest-priority route as a candidate →
 name every other match → honour task intent, then that route's `invoke` → read the injected
@@ -197,7 +197,7 @@ Compaction shortens the current session. A handoff starts a fresh session from d
 application-source boundary, runtime adapters, projection path, and verification commands.
 
 Hook scripts remain executable engine code. The config owns which scripts participate; adapter
-code maps those groups to Claude Code and Cursor lifecycle events. This separates policy from
+code maps those groups to Claude Code, Cursor, and Codex lifecycle events. This separates policy from
 vendor-specific syntax without duplicating policy.
 
 The harness drives each tool through verified capabilities:
@@ -205,8 +205,8 @@ The harness drives each tool through verified capabilities:
 - Claude Code: generated settings, dynamic prompt routing, guards, memory, and bounded loops.
 - Cursor: generated native hooks, session-start routing, guards, memory, and bounded loops. Commands
   shared with Claude are byte-identical so Cursor compatibility mode deduplicates them.
-- Codex: `AGENTS.md` instruction adapter only; no unsupported hook projection is invented.
-- Copilot and Gemini: generated instruction overlays only.
+- Codex: `AGENTS.md` plus `.codex/hooks.json`, the same scripts. `PostToolUseFailure` is omitted because Codex has no such event.
+- Copilot and Gemini: generated instruction overlays that point at `AGENTS.md`.
 
 Pre-tool allow paths emit Claude's nested `hookSpecificOutput.permissionDecision: allow` format,
 which Cursor officially supports for compatible hooks. Metadata-less Cursor capability probes
@@ -240,9 +240,9 @@ Confirmed correct, no change warranted:
 - Cursor defaults to fail-open on hook crash or timeout. Every protective `preToolUse` entry and the
   `subagentStart` entry set `failClosed: true`. Post-write validators also fail closed, so a validator
   crash cannot be reported as a clean pass.
-- `codex.instructionFile: AGENTS.md` with `hookCapability: instruction-only` matches the standard:
-  plain Markdown, no frontmatter, no hook surface, nearest-file precedence.
-- Cursor rules ship as `.mdc`. Plain `.md` in `.cursor/rules/` is ignored by Cursor.
+- `codex.instructionFile: AGENTS.md` with `hookCapability: hooks-json` matches the current Codex hook surface.
+  `AGENTS.md` stays plain Markdown. `.codex/hooks.json` is generated. `PreToolUse` output does not include `continue`.
+- Cursor rules ship as generated `.mdc` wrappers of `rules/`. Plain `.md` in `.cursor/rules/` is ignored by Cursor.
 - Agent `maxTurns` is pinned by `engineering.harness.agentRuntime` and checked before projection.
   Backend and cross-layer agents preload `backend-test-author` through native `skills` frontmatter;
   projection fails when either guarantee drifts from policy.

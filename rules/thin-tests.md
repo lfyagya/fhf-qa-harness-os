@@ -1,0 +1,21 @@
+# Thin tests and framework reuse
+
+Implementation (Cypress spec or pytest) starts only after **spec**, **scenarios**, **plan**, and **test-cases** are stamped. Classification (frontend / backend / both / manual) is already on the plan.
+
+## Cypress
+
+Specs stay thin: `describe` / `it`, existing custom commands, assertions on values those commands expose. They are not a second selector layer.
+
+1. **No selector literals in `*.cy.js`.** No CSS, `data-cy`, `aria-*`, `role=`, `input[name=…]`, `button:contains`, or `cy.contains` used as a locator. Those belong in `cypress/configs/ui/**` only.
+2. **API routes live in `cypress/configs/api/**`.** Specs call `cy.apiIntercept` / `cy.apiWait` / module intercept commands with those objects. Do not inline URLs.
+3. **Search before adding.** Reuse the existing UI config, API config, filter config, tags, and `cypress/support/commands` for that module. Titles already has `titlesNavigateToMissingTitles`, `titlesInterceptAll`, `filterOpenPanel` / `filterApply` / `filterClose`, and `MISSING_TITLES_UI` / `TITLES_API` / `TITLES_MISSING_TITLES_FILTER_CONFIG`. Pattern: `missing-titles.cy.js` (SERV-12211).
+4. **If a selector or flow is missing**, add it to the existing config or command module, then call it from the spec. Do not invent a parallel helper and do not keep it in the spec.
+5. **Gate BLOCK** if a new or changed spec contains a selector string or duplicates a command that already exists.
+
+## Backend
+
+Reuse the existing API client and schema for that module. Do not inline endpoints or payload shapes in the test file. Add a client method or schema next to the existing ones, then call them.
+
+## Manual rows
+
+Stay in spec, plan, and test-cases. No Cypress or pytest file. Verification is by hand.

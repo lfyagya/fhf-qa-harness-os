@@ -1,8 +1,7 @@
 ---
-description: Thin Cypress/pytest — reuse existing config and commands; no selectors in specs
+description: "Thin Cypress/pytest. Reuse existing config and commands. No selectors in specs"
 alwaysApply: true
 ---
-
 # Thin tests and framework reuse
 
 Implementation (Cypress spec or pytest) starts only after **spec**, **scenarios**, **plan**, and **test-cases** are stamped. Classification (frontend / backend / both / manual) is already on the plan.

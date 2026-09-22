@@ -8,6 +8,9 @@ import {
   laneAllows,
   HARNESS_CONFIG_TEXT,
   claudeSettingsText,
+  codexHooksText,
+  cursorPolicyRules,
+  parentClaudeInstructions,
   cursorHooks,
   VENDORED_HOOKS,
   portableSettings,
@@ -169,6 +172,21 @@ function checkHarnessRoot() {
     path.join(HARNESS_ROOT, ".claude", "settings.json"),
     claudeSettingsText(),
   );
+  checkExactText(path.join(HARNESS_ROOT, ".codex", "hooks.json"), codexHooksText());
+  checkExactText(path.join(HARNESS_ROOT, "CLAUDE.md"), parentClaudeInstructions());
+  for (const rule of cursorPolicyRules()) {
+    checkExactText(path.join(HARNESS_ROOT, ".cursor", "rules", rule.name), rule.text);
+  }
+  const ruleDir = path.join(HARNESS_ROOT, "rules");
+  for (const name of fs.readdirSync(ruleDir)) {
+    if (!name.endsWith(".md")) continue;
+    const link = path.join(HARNESS_ROOT, ".claude", "rules", name);
+    let target = "";
+    try { target = fs.readlinkSync(link); } catch { target = ""; }
+    if (target !== path.join("..", "..", "rules", name)) {
+      issues.push(`.claude/rules/${name} must symlink to rules/${name}`);
+    }
+  }
 }
 
 // FHF root: full generated .claude tree must match this repo's canonical .claude/ exactly.
@@ -191,7 +209,12 @@ function checkFhfRoot() {
     dirsMatch(path.join(HARNESS_ROOT, ".claude", sub), path.join(claudeDir, sub), `.claude/${sub}`);
   }
   checkExactText(cursorHooksPath, `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  checkExactText(path.join(FHF_ROOT, ".codex", "hooks.json"), codexHooksText());
+  checkExactText(path.join(FHF_ROOT, "CLAUDE.md"), parentClaudeInstructions());
   checkExactText(path.join(FHF_ROOT, "AGENTS.md"), parentAgents());
+  for (const rule of cursorPolicyRules()) {
+    checkExactText(path.join(FHF_ROOT, ".cursor", "rules", rule.name), rule.text);
+  }
   checkExactText(copilotPath, parentCopilotInstructions());
   checkExactText(geminiPath, parentGeminiInstructions());
   checkConsumerVerifier(FHF_ROOT, "root");

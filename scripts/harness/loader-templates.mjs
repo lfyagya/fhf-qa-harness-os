@@ -25,8 +25,8 @@ if (ADAPTERS.cursor.promptRouting !== "before-submit-prompt") {
 if (ADAPTERS.cursor.compatibleHookDeduplication !== "identical-command") {
   throw new Error("Cursor/Claude compatible hooks must deduplicate by identical command");
 }
-if (ADAPTERS.codex.instructionFile !== "AGENTS.md" || ADAPTERS.codex.hookCapability !== "instruction-only") {
-  throw new Error("Codex must use the verified AGENTS.md instruction-only adapter");
+if (ADAPTERS.codex.instructionFile !== "AGENTS.md" || ADAPTERS.codex.hookCapability !== "hooks-json") {
+  throw new Error("Codex must read AGENTS.md and project engineering.harness.hooks to .codex/hooks.json");
 }
 
 const agentRuntime = ENGINEERING.harness.agentRuntime;
@@ -126,10 +126,13 @@ export const VENDORED_HOOKS = "project-hooks";
 const cursorWriteMatcher = "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch";
 const cursorPostWriteMatcher = "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch";
 
-function hookCommand(root, script, args = "") {
+function hookCommand(root, script, args = "", host = "") {
   if (root === VENDORED_HOOKS) {
-    const loader = "const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)";
-    return `node -e "${loader}" "${script}"${args ? ` ${args}` : ""}`;
+    const loader = "const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)";
+    const node = `node -e "${loader}" "${script}"${args ? ` ${args}` : ""}`;
+    if (host === "codex") return `FHF_HOOK_HOST=codex ${node}`;
+    if (host === "codex-windows") return `set "FHF_HOOK_HOST=codex" && ${node}`;
+    return node;
   }
   return `node "${root}/${script}"${args ? ` ${args}` : ""}`;
 }
@@ -307,6 +310,73 @@ export function portableSettings(lane) {
   return claudeSettingsText(VENDORED_HOOKS, lane);
 }
 
+export function codexHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
+  const settings = claudeSettings(HARNESS_HOOKS, lane);
+  const hooks = {};
+  for (const [event, groups] of Object.entries(settings.hooks)) {
+    if (event === "PostToolUseFailure") continue;
+    hooks[event] = groups.map((group) => ({
+      ...(group.matcher ? { matcher: group.matcher } : {}),
+      hooks: group.hooks.map((hook) => ({
+        type: "command",
+        command: hook.command.startsWith("node ") ? `FHF_HOOK_HOST=codex ${hook.command}` : hook.command,
+        commandWindows: hook.command.startsWith("node ")
+          ? `set "FHF_HOOK_HOST=codex" && ${hook.command}`
+          : hook.command,
+      })),
+    }));
+  }
+  return {
+    description: "Projection of engineering.harness.hooks. Codex has no PostToolUseFailure event.",
+    hooks,
+  };
+}
+
+export function codexHooksText(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
+  return `${JSON.stringify(codexHooks(HARNESS_HOOKS, lane), null, 2)}\n`;
+}
+
+const CURSOR_RULE_DESCRIPTION = {
+  "task-approval.md": "In-chat human stamp for the earliest missing gate. Jira status is not a stamp",
+  "thin-tests.md": "Thin Cypress/pytest. Reuse existing config and commands. No selectors in specs",
+  "pre-human-review.md": "Every task. Compare spec, scenario, planned test, and frozen source before a stamp",
+};
+
+export function cursorPolicyRuleText(markdown, name) {
+  let body = String(markdown).replace(/^\uFEFF/, "");
+  let globs = [];
+  const fence = body.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  if (fence && /^paths:\s*$/m.test(fence[1])) {
+    globs = [...fence[1].matchAll(/^\s+-\s+"([^"]+)"/gm)].map((match) => match[1]);
+    body = body.slice(fence[0].length);
+  }
+  const heading = body.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? name.replace(/\.md$/, "");
+  const description = CURSOR_RULE_DESCRIPTION[name] ?? heading;
+  const lines = ["---", `description: ${JSON.stringify(description)}`];
+  if (globs.length) {
+    lines.push("globs:");
+    for (const glob of globs) lines.push(`  - ${JSON.stringify(glob)}`);
+    lines.push("alwaysApply: false");
+  } else {
+    lines.push("alwaysApply: true");
+  }
+  lines.push("---", "");
+  const prose = body.replace(/^\n/, "");
+  return `${lines.join("\n")}${prose.endsWith("\n") ? prose : `${prose}\n`}`;
+}
+
+export function cursorPolicyRules() {
+  const dir = path.join(HARNESS_ROOT, "rules");
+  return fs.readdirSync(dir)
+    .filter((name) => name.endsWith(".md"))
+    .sort()
+    .map((name) => ({
+      name: name.replace(/\.md$/, ".mdc"),
+      text: cursorPolicyRuleText(fs.readFileSync(path.join(dir, name), "utf8"), name),
+    }));
+}
+
+
 export function parentAgents() {
   const spawn = ENGINEERING.harness.spawnBudget ?? { maxSpecialists: 1, maxDepth: 1, concurrent: 1 };
   const tiers = ENGINEERING.harness.modelTiers ?? { default: "standard" };
@@ -319,11 +389,15 @@ export function parentAgents() {
     : "";
   return `# FHF Agent Entry
 
-Read \`CLAUDE.md\` first; it is the shared workspace router.
+This file is the instruction entry for every tool. \`CLAUDE.md\` imports it. Copilot and Gemini instructions point here. Codex and Cursor read it directly.
+
+This is the local aggregation workspace, not a project. It holds the lane repositories, the application specs checkout, and the generated harness projection. \`.claude/\`, \`.cursor/hooks.json\`, and \`.codex/hooks.json\` are generated by \`fhf-harness-os/scripts/harness/sync-loader-shims.mjs\`.
+
+Rule text lives in \`rules/\`. \`.claude/rules/\` symlinks to those files. \`.cursor/rules/*.mdc\` is a generated wrapper with the same body. Load the rule whose path matches the file being edited. Do not preload every rule.
 
 Then read only:
 
-1. the selected repository's \`CLAUDE.md\` (pointer);
+1. the selected repository's \`AGENTS.md\` when it has one, otherwise its \`CLAUDE.md\`;
 2. that package's \`docs/*-STANDARDS.md\` or guide named by the pointer;
 3. the exact document selected by \`.claude/harness.config.json\` → \`engineering.context.routes\`.
 
@@ -361,24 +435,6 @@ Backend writes and pytest runs require a validated active manifest selected by \
 application source remains read-only.
 Root \`.claude/\`, Cursor, Copilot, and Gemini loaders are generated from \`fhf-harness-os\`; never
 hand-edit generated copies. Agent changes stay uncommitted for owner review.
-`;
-}
-
-// The FHF workspace root needs its own CLAUDE.md: workspaceContract.lanes.<lane>.requiredWorkspacePaths
-// declares consumerRoot/CLAUDE.md, and every lane hook goes WORKSPACE BLOCKED without it. It was
-// never generated because the engine used to be checked out AT the workspace root, so the engine's
-// own CLAUDE.md satisfied the check by accident. Separating the trees (ADR-0026) removed it and
-// blocked both Cypress lanes. This is a router, not a copy of the engine's CLAUDE.md - the
-// workspace is an aggregation point, not the harness.
-export function parentClaudeInstructions() {
-  return `# FHF Workspace
-
-This is the local aggregation workspace, not a project. It holds the lane repositories, the
-application specs checkout, and the generated harness projection. Everything in \`.claude/\` here is
-generated by \`fhf-harness-os/scripts/harness/sync-loader-shims.mjs\` and is local-only.
-
-Read this file, then the selected repository's own \`CLAUDE.md\`. Do not preload FHF documentation;
-\`.claude/harness.config.json\` -> \`engineering.context.routes\` selects the one document a task needs.
 
 | Work | Repository | Branch |
 | --- | --- | --- |
@@ -387,7 +443,7 @@ Read this file, then the selected repository's own \`CLAUDE.md\`. Do not preload
 | Backend API / Oracle | \`fhf-backend-automation\` | \`master\`, task-scoped |
 
 Application source is read-only. Production smoke must never mutate, submit, export, download, or
-send. Backend writes and pytest runs require an active, validated \`FHF_ACTIVE_TASK\` manifest.
+send.
 
 Two unrelated repositories are named \`fhf-dashboards\`, and both declare \`"name": "fhf-dashboards"\`
 in \`package.json\`: \`fhf-dashboards/\` at the workspace root is the React application and is
@@ -406,42 +462,42 @@ engine branch here removes every payload-only file (ADR-0026). To obtain it on a
 git clone -b fhf-docs --single-branch git@github.com:lfyagya/fhf-qa-harness-os.git FHF
 \`\`\`
 
-Payload access is repository-scoped, so it also grants the engine on \`main\`. If someone needs the
-documentation without the harness internals, that is a hosting question, not a checkout trick.
+Payload access is repository-scoped, so it also grants the engine on \`main\`.
 `;
 }
 
+// The FHF workspace root needs CLAUDE.md because requiredWorkspacePaths checks for it.
+// The file imports AGENTS.md so Claude Code loads the shared entry (ADR-0039).
+export function parentClaudeInstructions() {
+  return `@AGENTS.md\n`;
+}
 
 export function parentCopilotInstructions() {
-  return `# Copilot Instructions â€” FHF Parent Workspace
+  return `# Copilot Instructions - FHF Parent Workspace
 
-Read the workspace-root \`CLAUDE.md\`, then the selected lane's
+Read the workspace-root \`AGENTS.md\`, then the selected lane's
 \`.github/copilot-instructions.md\`. Do not preload FHF documentation.
 `;
 }
 
 export function parentGeminiInstructions() {
-  return `# Gemini Instructions â€” FHF Parent Workspace
+  return `# Gemini Instructions - FHF Parent Workspace
 
-Read the workspace-root \`CLAUDE.md\`, then the selected lane's \`GEMINI.md\`.
+Read the workspace-root \`AGENTS.md\`, then the selected lane's \`GEMINI.md\`.
 Do not preload FHF documentation.
 `;
 }
 
 export function baselineClaude() {
-  return `# Frontend Automation Harness
-
-This is the shared, clone-ready harness baseline. For E2E work, checkout \`dev\`; for production
-smoke work, checkout \`staging\`. The selected branch provides the lane-specific instructions and
-execution boundaries. \`fhf-backend-automation\` is task-scoped: use the active manifest for
-selected writes and Dev/QA pytest runs; application source remains read-only.
-`;
+  return `@AGENTS.md\n`;
 }
 
 export function baselineAgents() {
   return `# Frontend Automation Harness
 
-Read \`CLAUDE.md\`. Choose the branch that matches the work before editing tests:
+This file is the instruction entry. \`CLAUDE.md\` imports it. This is the shared, clone-ready harness baseline. For E2E work, checkout \`dev\`; for production smoke work, checkout \`staging\`. \`fhf-backend-automation\` is task-scoped: use the active manifest for selected writes and Dev/QA pytest runs; application source remains read-only.
+
+Choose the branch that matches the work before editing tests:
 
 | Work | Branch | Agent |
 | --- | --- | --- |
@@ -494,7 +550,7 @@ This branch contains the shared harness baseline. Lane-specific documentation is
 export function baselineCopilotInstructions() {
   return `# Copilot Instructions - Frontend Automation Baseline
 
-Read \`CLAUDE.md\`. Checkout \`dev\` for E2E work or \`staging\` for Smoke work before editing or
+Read \`AGENTS.md\`. Checkout \`dev\` for E2E work or \`staging\` for Smoke work before editing or
 executing tests.
 `;
 }
@@ -502,7 +558,7 @@ executing tests.
 export function baselineGeminiInstructions() {
   return `# Gemini Instructions - Frontend Automation Baseline
 
-Read \`CLAUDE.md\`. Checkout \`dev\` for E2E work or \`staging\` for Smoke work before editing or
+Read \`AGENTS.md\`. Checkout \`dev\` for E2E work or \`staging\` for Smoke work before editing or
 executing tests.
 `;
 }
@@ -528,7 +584,7 @@ export function rootReadme(lane) {
   const isE2e = lane === "e2e";
   return `# FHF ${isE2e ? "E2E" : "Smoke"} Lane
 
-Read \`CLAUDE.md\`, then \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
+Read the workspace \`AGENTS.md\`, then \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
 Path: \`CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/${isE2e ? "e2e" : "smoke"}/\`.
 ${isE2e
   ? "Dev/QA mutations require synthetic data and cleanup; never run against production."
@@ -539,7 +595,7 @@ ${isE2e
 export function architectureOverlay(lane) {
   return `# ${lane === "e2e" ? "E2E" : "Smoke"} Architecture Pointer
 
-Read \`CLAUDE.md\` and \`docs/framework/testing-standards/TESTS.md\`.
+Read the workspace \`AGENTS.md\` and \`docs/framework/testing-standards/TESTS.md\`.
 
 ## Policy placement
 
@@ -578,17 +634,17 @@ export function executionProfileExample(lane) {
 export function contributingOverlay(lane) {
   return `# Contributing (${lane === "e2e" ? "E2E" : "Smoke"})
 
-Run \`node .harness/verify.mjs\`, then read \`CLAUDE.md\` and
+Run \`node .harness/verify.mjs\`, then read the workspace \`AGENTS.md\` and
 \`docs/framework/testing-standards/TESTS.md\` before changing tests.
 `;
 }
 
 function toolInstructions(tool, lane) {
   const isE2e = lane === "e2e";
-  const sharedRouter = "CLAUDE.md";
+  const sharedRouter = "AGENTS.md";
   return `# ${tool} Instructions â€” ${isE2e ? "E2E" : "Smoke"}
 
-Read \`${sharedRouter}\`, then the repository's \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
+Read the workspace \`${sharedRouter}\`, then the repository's \`CypressFHF/fhf-dashboards/CLAUDE.md\`.
 ${isE2e
   ? "Use Dev/QA only. Mutations require synthetic data and cleanup; never run against production."
   : "Production smoke is GET-only. Never mutate, submit, export, download, upload, or send."}

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 // The drift check compares the projection against parentAgents(). Hand-writing the expected
 // roster here made the fixture rot the moment the real roster changed - which it did when the
 // route-mapped skills landed. Generate it from the same source the check uses.
-import { parentAgents } from "./loader-templates.mjs";
+import { codexHooksText, parentAgents } from "./loader-templates.mjs";
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), "sync-loader-shims.mjs");
 const driftScript = path.join(path.dirname(fileURLToPath(import.meta.url)), "check-loader-drift.mjs");
@@ -47,14 +47,11 @@ try {
   assert.equal(fs.readFileSync(guarded, "utf8"), "owner content\n");
   assert.equal(fs.existsSync(manifest), false);
 
-  const legacyCodexDirs = [
-    path.join(root, ".codex"),
-    path.join(root, "front-end-automation-smoke", ".codex"),
-  ];
-  legacyCodexDirs.forEach((directory) => fs.mkdirSync(directory, { recursive: true }));
+  fs.mkdirSync(path.join(root, "front-end-automation-smoke", ".codex"), { recursive: true });
   const initialized = run(["--force"]);
   assert.equal(initialized.status, 0, initialized.stderr);
-  legacyCodexDirs.forEach((directory) => assert.equal(fs.existsSync(directory), false));
+  assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".codex")), false);
+  assert.equal(fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"), codexHooksText());
   const initializedManifest = JSON.parse(fs.readFileSync(manifest, "utf8"));
   assert.ok(Object.keys(initializedManifest).every((key) => !/^(?:[A-Za-z]:[\\/]|[\\/])/.test(key)));
   assert.ok(Object.keys(initializedManifest).every((key) => /^(?:harness|consumer)\//.test(key)));

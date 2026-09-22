@@ -1,8 +1,7 @@
 ---
-description: Every task — compare spec, scenario, planned test, and frozen source before a stamp; source-proven defects notify Dev before a run
+description: "Every task. Compare spec, scenario, planned test, and frozen source before a stamp"
 alwaysApply: true
 ---
-
 # Pre-human review (every task, every QA member)
 
 Harness policy. Not ticket-specific.

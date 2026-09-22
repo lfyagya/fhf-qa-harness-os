@@ -737,8 +737,8 @@ if (engineering) {
   if (adapters?.cursor?.compatibleHookDeduplication !== "identical-command") {
     issues.push("Cursor compatible hooks must deduplicate by identical command");
   }
-  if (adapters?.codex?.instructionFile !== "AGENTS.md" || adapters?.codex?.hookCapability !== "instruction-only") {
-    issues.push("Codex must use the verified AGENTS.md instruction-only adapter");
+  if (adapters?.codex?.instructionFile !== "AGENTS.md" || adapters?.codex?.hookCapability !== "hooks-json") {
+    issues.push("Codex must read AGENTS.md and project engineering.harness.hooks to .codex/hooks.json");
   }
   if (engineering.harness?.skillOverrides || engineering.harness?.permissions) {
     issues.push("Tool-specific settings must live under engineering.harness.adapters");

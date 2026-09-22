@@ -1,0 +1,33 @@
+---
+description: "Oracle DB Rules"
+alwaysApply: true
+---
+# Oracle DB Rules
+
+## DAO Layer Usage
+- Use `dao/oracle_dao.py` for ALL database operations — never write raw DB calls in test files
+- `oracle_dao.get(query, params)` → returns `(columns, results)` where `results` is a list of dicts
+- `oracle_dao.set(query, params)` → for INSERT / UPDATE operations
+- `oracle_dao.batch(query, list_of_params)` → for bulk INSERT / UPDATE operations
+- Always pass params as a tuple or dict — never use f-strings or string formatting to inject values into SQL
+
+## DB Column Name Constants
+- ALL DB column name references MUST use constants from `tests/constants.py` — never hardcode column name strings
+- If a new column is needed in a test, add its constant to `tests/constants.py` first, then use it
+- Status values and key strings also live in `tests/constants.py` — use them everywhere
+
+## Schema Constants Dataclasses
+- Each feature module defines its DB schema/table/view names in `tests/commons/db_schema.py` and wraps db_schema constant in local `@dataclass` in its `conftest.py`
+- Group table/views in the `tests/commons/db_schema.py` file by domain (e.g. RepoInvoiceTables, ACDViews) for organization, and import from there in the module's `conftest.py` to create the dataclass's attributes
+- These are exposed as module-scoped fixtures (e.g. `acd_schema`) — inject them into tests that need schema names
+- Never hardcode schema or table name strings directly in queries
+
+## Connection Management
+- `BaseDB` manages the Oracle connection lifecycle via `setup_class`/`teardown_class` — never open/close connections manually in tests
+- The DB layer (`db/oracle.py`) uses a Singleton pattern — one connection per test session
+- To change the Oracle driver (e.g. `cx_Oracle` → `oracledb`), update `db/oracle.py` only — test files must not change
+
+## Query Organisation
+- Reusable queries shared across modules belong in `tests/commons/queries.py`
+- Module-specific queries can live in the module's `conftest.py` or a local `queries.py`
+- Use `util/path_utils.py` → `PathUtils` to resolve paths and load `config/config.ini`

@@ -1,0 +1,17 @@
+# Task-protocol approval (any AI)
+
+This applies to every task and every QA member using the harness.
+
+QA harness gates and developer Jira status run in parallel. A story may stay In Development
+while QA stamps spec or scenarios. Jira status is never a stamp.
+
+When `.harness/tasks/<id>.json` is created or updated and the earliest required gate is not stamped:
+
+1. Stop. Do not generate tests, spawn a generator, or write automation until spec, scenarios, plan, and test-cases stamps are current.
+2. Do not ask the owner to type `node .harness/task-protocol.mjs approve` in a terminal. The CLI refuses every agent process (`CURSOR_AGENT`, `CLAUDECODE`, `CLAUDE_CODE`, and equivalents).
+3. Before the confirm UI, write `review.<gate>` in the task JSON (pre-human pack). For each AC quote four artefacts already on the task: spec (`grounding.intentVsBuilt`), scenario (`plan.tests[].scenarioRef`), planned test (`plan.tests[].assertion`), built (selected source at frozen SHA). MATCH only if they do not contradict; otherwise name overlay, defect, parked, or manual with file:sha. `defect` + readable source is a Dev notice *before* any run. Runtime-only claims wait for evidence. Protocol `validate` only checks that a group name exists; it is not this review. Do not present the stamp until that pack exists.
+4. Present that client's confirmation UI for that single gate: id, label, bound fields, who will be recorded (`git config user.name`), and the review verdicts. Cursor uses AskQuestion; Claude / Codex / others use their native confirm. Never dump a CLI command.
+5. If they approve **in this same turn**: persist the stamp with `stampGate` (approvedBy = git user.name, approvedAt = now), run `node .harness/task-protocol.mjs next`, and present the next missing gate. A yes from an earlier turn, a delayed shell, or a notification is not a stamp. Ask again.
+6. If they decline: leave the gate unstamped and wait.
+7. Set `FHF_ACTIVE_TASK` to the absolute manifest path once a task exists so write hooks can block. Lane is not a second control plane.
+8. A later Jira refresh that changes a bound digest invalidates those stamps. Update the JSON only, stop, and present the confirm again. Do not edit product YAML on that path.

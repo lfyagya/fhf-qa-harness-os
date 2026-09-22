@@ -17,4 +17,4 @@ ADR-0037 left two gaps. An identical retry was a sentence in the loop digest, so
 
 ## Consequences
 
-A repeated tool call is refused and the previous output is the text the agent already has. The first call in a session has no record, so it proceeds and is recorded after it returns. Cursor and Claude deliver one router script through the field each host accepts. Docs verification runs the ADR-0030 check. Gate edits still require `FHF_ALLOW_HARNESS_EDIT=1`.
+A repeated tool call is refused and the previous output is the text the agent already has. The first call in a session has no record, so it proceeds and is recorded after it returns. Cursor and Claude deliver one router script through the field each host accepts. Docs verification runs the ADR-0030 check. Gate edits still require `FHF_ALLOW_HARNESS_EDIT=1`. ADR-0039 moves the instruction entry to `AGENTS.md`, moves rule text to `rules/`, and projects the same hook list to Codex.

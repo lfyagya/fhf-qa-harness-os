@@ -10,7 +10,8 @@ try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); 
 const filePath = (payload.tool_input?.file_path ?? '').replace(/\\/g, '/');
 
 // Only fire when agents, rules, or framework files change
-const isFramework = filePath.includes('.claude/agents/') || filePath.includes('.claude/rules/') ||
+const isFramework = filePath.includes('.claude/agents/') || filePath.includes('/rules/') ||
+                    filePath.endsWith('/AGENTS.md') || filePath.endsWith('/CLAUDE.md') ||
                     filePath.includes('docs/framework/');
 if (!isFramework) {
   emitEmpty(payload);

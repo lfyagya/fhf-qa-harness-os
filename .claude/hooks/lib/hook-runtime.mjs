@@ -16,14 +16,16 @@ export function emitEmpty() {
 // The text in those fields is the same.
 export function emitContext(payload, claudeEvent, context) {
   if (!context) return emitEmpty(payload);
-  process.stdout.write(`${JSON.stringify({
-    continue: true,
-    additional_context: context,
+  const codex = process.env.FHF_HOOK_HOST === "codex";
+  const output = {
     hookSpecificOutput: {
       hookEventName: claudeEvent,
       additionalContext: context,
     },
-  })}\n`);
+  };
+  if (claudeEvent !== "PreToolUse" && claudeEvent !== "PermissionRequest") output.continue = true;
+  if (!codex) output.additional_context = context;
+  process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
 export function emitPrompt(payload, context) {
@@ -32,15 +34,19 @@ export function emitPrompt(payload, context) {
   if (!text && event !== "beforeSubmitPrompt") return emitEmpty(payload);
   const original = String(payload?.prompt ?? payload?.user_message ?? "");
   const delivered = text ? (original ? `${original}\n\n${text}` : text) : original;
-  process.stdout.write(`${JSON.stringify({
+  const codex = process.env.FHF_HOOK_HOST === "codex";
+  const output = {
     continue: true,
-    user_message: delivered,
-    additional_context: text,
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit",
       additionalContext: text,
     },
-  })}\n`);
+  };
+  if (!codex) {
+    output.user_message = delivered;
+    output.additional_context = text;
+  }
+  process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
 export function emitStopFollowup(_payload, message) {

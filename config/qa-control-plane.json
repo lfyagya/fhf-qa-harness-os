@@ -3568,7 +3568,7 @@
         },
         "codex": {
           "instructionFile": "AGENTS.md",
-          "hookCapability": "instruction-only"
+          "hookCapability": "hooks-json"
         }
       },
       "genericAgents": [

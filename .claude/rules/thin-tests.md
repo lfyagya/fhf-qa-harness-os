@@ -1,0 +1,1 @@
+../../rules/thin-tests.md

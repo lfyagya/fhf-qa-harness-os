@@ -7,6 +7,8 @@ import { withFileLock } from "./evidence-export-policy.mjs";
 import {
   CURSOR_HOOKS,
   HARNESS_CONFIG_TEXT,
+  codexHooksText,
+  cursorPolicyRules,
   harnessConfigTextForLane,
   laneAllows,
   claudeSettingsText,
@@ -364,6 +366,10 @@ function harnessSettings() {
 
 function syncHarnessRoot() {
   writeText(path.join(HARNESS_ROOT, ".claude", "settings.json"), harnessSettings());
+  writeText(path.join(HARNESS_ROOT, ".codex", "hooks.json"), codexHooksText());
+  for (const rule of cursorPolicyRules()) {
+    writeText(path.join(HARNESS_ROOT, ".cursor", "rules", rule.name), rule.text);
+  }
 }
 
 function syncRuntimeEvidence(repoPath, lane) {
@@ -402,11 +408,8 @@ function syncRuntimeEvidence(repoPath, lane) {
 }
 
 function syncCursorPolicyRules(repoPath) {
-  const dir = path.join(HARNESS_ROOT, ".cursor", "rules");
-  if (!fs.existsSync(dir)) return;
-  for (const name of fs.readdirSync(dir)) {
-    if (!name.endsWith(".mdc")) continue;
-    writeText(path.join(repoPath, ".cursor", "rules", name), fs.readFileSync(path.join(dir, name), "utf8"));
+  for (const rule of cursorPolicyRules()) {
+    writeText(path.join(repoPath, ".cursor", "rules", rule.name), rule.text);
   }
 }
 
@@ -417,6 +420,7 @@ function syncFhfRoot() {
   writeText(path.join(FHF_ROOT, ".claude", "settings.json"), harnessSettings());
   writeText(path.join(FHF_ROOT, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(path.join(FHF_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  writeText(path.join(FHF_ROOT, ".codex", "hooks.json"), codexHooksText());
   syncCursorPolicyRules(FHF_ROOT);
   writeText(path.join(FHF_ROOT, ".github", "copilot-instructions.md"), parentCopilotInstructions());
   writeText(path.join(FHF_ROOT, "CLAUDE.md"), parentClaudeInstructions());
@@ -435,6 +439,8 @@ function syncBaseline() {
   writeText(path.join(BASELINE_ROOT, ".claude", "settings.json"), portableSettings("root"));
   writeText(path.join(BASELINE_ROOT, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT);
   writeText(path.join(BASELINE_ROOT, ".cursor", "hooks.json"), `${JSON.stringify(CURSOR_HOOKS, null, 2)}\n`);
+  writeText(path.join(BASELINE_ROOT, ".codex", "hooks.json"), codexHooksText());
+  syncCursorPolicyRules(BASELINE_ROOT);
   writeText(path.join(BASELINE_ROOT, ".github", "copilot-instructions.md"), baselineCopilotInstructions());
   writeText(path.join(BASELINE_ROOT, "GEMINI.md"), baselineGeminiInstructions());
   writeText(path.join(BASELINE_ROOT, "CLAUDE.md"), baselineClaude());
@@ -574,9 +580,6 @@ withFileLock(MANIFEST_PATH, () => {
       removeEmptyLegacyCodexDirectory(FHF_ROOT);
       if (!SKIP_E2E) removeEmptyLegacyCodexDirectory(SUB_REPOS.e2e);
       removeEmptyLegacyCodexDirectory(SUB_REPOS.smoke);
-    }
-    for (const file of Object.keys(manifest)) {
-      if (/[\\/]\.codex[\\/]hooks\.json$/i.test(file)) delete manifest[file];
     }
     publishSync();
     console.log(

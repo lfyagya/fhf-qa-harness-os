@@ -949,6 +949,24 @@ expect("prompt-router consumes the central route table",
     FHF_HARNESS_CONFIG: customConfigPath,
   }),
   (r) => r.code === 0 && r.stdout.includes("configured-control-route"));
+expect("prompt-router omits fields Codex rejects",
+  run("prompt-router.mjs", {
+    hook_event_name: "UserPromptSubmit",
+    turn_id: "codex-turn",
+    prompt: "write a new smoke test",
+  }, { FHF_HOOK_HOST: "codex" }),
+  (r) => {
+    try {
+      const output = JSON.parse(r.stdout);
+      return r.code === 0 &&
+        output.continue === true &&
+        output.user_message === undefined &&
+        output.additional_context === undefined &&
+        output.hookSpecificOutput?.additionalContext.includes("New test");
+    } catch {
+      return false;
+    }
+  });
 expect("prompt-router appends the same route text on Cursor beforeSubmitPrompt",
   run("prompt-router.mjs", {
     hook_event_name: "beforeSubmitPrompt",

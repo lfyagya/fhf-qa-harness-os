@@ -1,0 +1,18 @@
+# Pre-human review (every task, every QA member)
+
+Harness policy. Not ticket-specific.
+
+Before the in-chat stamp for **spec**, **scenarios**, **plan**, or **test-cases**:
+
+1. Write `review.<gate>` on `.harness/tasks/<id>.json`.
+2. For each AC quote four artefacts already on that task:
+   - spec — `grounding.intentVsBuilt`
+   - scenario — `plan.tests[].scenarioRef` (YAML rule text, not only the group name)
+   - planned test — `plan.tests[].assertion`
+   - built — selected source at the frozen SHA
+3. `MATCH` only when those four do not contradict. Otherwise name overlay, defect, parked, or manual with file:sha.
+4. `defect` + readable source → `review.proactiveDefects` and notify Dev **before** Cypress or pytest.
+5. Not a bug: accepted overlay vs YAML, parked, runtime-only claims.
+6. Protocol `validate` is not this review. Do not present the stamp until the pack exists.
+
+Canonical policy: `engineering.taskProtocol.preHumanReview` (harness config).

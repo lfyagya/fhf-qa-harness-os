@@ -2,13 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { HARNESS_CONFIG_TEXT, baselineAgents, claudeSettings, copilotInstructions, cursorHooks, geminiInstructions } from "./loader-templates.mjs";
+import { HARNESS_CONFIG_TEXT, baselineAgents, claudeSettings, codexHooks, copilotInstructions, cursorHooks, geminiInstructions } from "./loader-templates.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, "config", "qa-control-plane.json"), "utf8"));
 const engineering = config.engineering;
 const claude = claudeSettings();
 const cursor = cursorHooks();
+const codex = codexHooks();
 const failures = [];
 const projections = JSON.stringify({ claude, cursor });
 const sharedArtifacts = `${projections}\n${HARNESS_CONFIG_TEXT}`;
@@ -114,8 +115,30 @@ check(
 );
 check(
   engineering.harness.adapters.codex.instructionFile === "AGENTS.md" &&
-    engineering.harness.adapters.codex.hookCapability === "instruction-only",
-  "Codex must degrade explicitly to its verified instruction-only capability",
+    engineering.harness.adapters.codex.hookCapability === "hooks-json",
+  "Codex must read AGENTS.md and project the hook list",
+);
+function codexCommands(event) {
+  return (codex.hooks[event] ?? []).flatMap((group) => group.hooks ?? []).map((hook) => hook.command);
+}
+check(!codex.hooks.PostToolUseFailure, "Codex has no PostToolUseFailure event");
+const codexScripts = new Set(Object.keys(codex.hooks).flatMap((event) => hookScripts(codexCommands(event))));
+for (const script of claudeScripts) {
+  if (script === "failure-loop-guard.mjs") continue;
+  check(codexScripts.has(script), `Codex is missing hook ${script}`);
+}
+check(
+  codexCommands("UserPromptSubmit").some((command) => command.startsWith("FHF_HOOK_HOST=codex ") && command.includes("prompt-router.mjs")),
+  "Codex UserPromptSubmit must run the shared prompt router",
+);
+check(
+  codexCommands("PreToolUse").some((command) => command.includes("repeat-tool-guard.mjs")) &&
+    codexCommands("PostToolUse").some((command) => command.includes("repeat-tool-guard.mjs")),
+  "Codex must compare the next tool call with the last recorded output",
+);
+check(
+  codex.hooks.PreToolUse.flatMap((group) => group.hooks).every((hook) => hook.commandWindows?.includes('FHF_HOOK_HOST=codex')),
+  "Codex Windows commands must set the same host marker",
 );
 for (const [name, text] of [
   ["Codex baseline", baselineAgents()],
