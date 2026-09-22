@@ -3,6 +3,12 @@
   "atlassian": {
     "siteUrl": "https://firsthelpfinancial.atlassian.net",
     "projectKey": "SERV",
+    "projectKeys": [
+      { "key": "SERV", "name": "Services Team Scrum" },
+      { "key": "GEARS", "name": "GEARS: SharedTech" },
+      { "key": "LOS", "name": "Loan Team Scrum" },
+      { "key": "SDX", "name": "Spark Dealer Experience" }
+    ],
     "serviceApp": "Callcenter",
     "currentSprintJql": "project = SERV AND sprint in openSprints() ORDER BY updated DESC",
     "confluenceSpaces": [
@@ -2805,7 +2811,7 @@
           "sourceBundles": [
             "full-stack-change"
           ],
-          "hint": "Cross-layer automation → one sprint task. Cypress covers the fhf-dashboards screen and its UI call. Pytest covers only the remaining REST, service, Oracle, or Python workflow gap. Create or refresh that task manifest, then spawn qa-automation-generator as the one specialist. If the SERV ticket or module is missing, ask for it. Application source stays read-only.",
+          "hint": "Cross-layer automation → one sprint task. Cypress covers the fhf-dashboards screen and its UI call. Pytest covers only the remaining REST, service, Oracle, or Python workflow gap. Create or refresh that task manifest, then spawn qa-automation-generator as the one specialist. If the FirstHelp ticket (SERV, GEARS, LOS, or SDX) or module is missing, ask for it. Application source stays read-only.",
           "invoke": {
             "kind": "agent",
             "name": "qa-automation-generator"
@@ -2936,7 +2942,7 @@
           "sourceBundles": [
             "backend-api-change"
           ],
-          "hint": "Backend remainder → the sprint task names the REST, service, Oracle, or Python workflow gap Cypress does not already assert. Create or refresh the task manifest from that ticket, then spawn qa-automation-generator. If the SERV ticket or module is missing, ask for it. Writes and pytest wait for the selected non-production path.",
+          "hint": "Backend remainder → the sprint task names the REST, service, Oracle, or Python workflow gap Cypress does not already assert. Create or refresh the task manifest from that ticket, then spawn qa-automation-generator. If the FirstHelp ticket (SERV, GEARS, LOS, or SDX) or module is missing, ask for it. Writes and pytest wait for the selected non-production path.",
           "invoke": {
             "kind": "agent",
             "name": "qa-automation-generator"
@@ -3198,7 +3204,7 @@
       "factExtractors": [
         {
           "name": "ticket-ids",
-          "match": "\\bSERV-\\d+\\b",
+          "match": "\\b(?:GEARS|SERV|LOS|SDX)-\\d+\\b",
           "flags": "gi"
         },
         {
@@ -3596,8 +3602,6 @@
         "explore"
       ],
       "forbiddenAgents": [
-        "general-purpose",
-        "explore",
         "documentation-writer",
         "test-execution-planner",
         "cypress-bug-hunter",

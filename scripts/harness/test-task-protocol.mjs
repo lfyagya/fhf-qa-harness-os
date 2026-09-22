@@ -20,6 +20,8 @@ import {
   sha256,
   stampGate,
   validateTaskManifest,
+  isAcceptedTicket,
+  ticketKeyFromValue,
 } from "./task-protocol-lib.mjs";
 
 const SHA = "a".repeat(40);
@@ -555,4 +557,11 @@ const afterApprove = spawnSync(process.execPath, [path.join(HERE, "task-protocol
 assert.equal(JSON.parse(afterApprove.stdout).gate, "scenarios");
 rmSync(cliRoot, { recursive: true, force: true });
 
+assert.equal(isAcceptedTicket("GEARS-10"), true);
+assert.equal(isAcceptedTicket("LOS-3"), true);
+assert.equal(isAcceptedTicket("sdx-7"), true);
+assert.equal(isAcceptedTicket("SALES-1"), false);
+assert.equal(isAcceptedTicket("NLOS-10"), false);
+assert.equal(ticketKeyFromValue("see NLOS-10 and los-2"), "LOS-2");
+assert.equal(ticketKeyFromValue("nlos-10"), null);
 console.log("Task protocol tests passed.");

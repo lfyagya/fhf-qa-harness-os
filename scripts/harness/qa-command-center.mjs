@@ -8,6 +8,7 @@ import {
   withFileLock,
   writeBundleAtomic,
 } from "./evidence-export-policy.mjs";
+import { ticketScanPattern } from "./task-protocol-lib.mjs";
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DEFAULT_CONFIG = path.join(HARNESS_ROOT, "config", "qa-control-plane.json");
@@ -390,7 +391,7 @@ function repositoryTicketEvidence(config) {
       const relative = path.relative(root, file).replace(/\\/g, "/");
       if (!/cypress\/(configs|support|tests)\/|^tests\/|^api\//.test(relative)) continue;
       const content = fs.readFileSync(file, "utf8");
-      for (const match of content.matchAll(/\bSERV-\d+\b/g)) {
+      for (const match of content.matchAll(ticketScanPattern(config.atlassian?.projectKeys))) {
         const evidence = index.get(match[0]) ?? { configured: [], implemented: [] };
         const stage = /cypress\/configs\//.test(relative) ? "configured" : "implemented";
         evidence[stage].push(`${lane}:${relative}`);

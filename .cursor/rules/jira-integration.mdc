@@ -1,11 +1,11 @@
 ---
-description: "Jira Integration — SERV Project, Real Fields, Approval-Gated Writes"
+description: "Jira Integration — FirstHelp projects, Real Fields, Approval-Gated Writes"
 globs:
   - ".claude/agents/cypress-debugger.md"
   - ".claude/agents/cypress-shipper.md"
 alwaysApply: false
 ---
-# Jira Integration — SERV Project, Real Fields, Approval-Gated Writes
+# Jira Integration — FirstHelp projects, Real Fields, Approval-Gated Writes
 
 Grounded against the live `firsthelpfinancial.atlassian.net` instance (queried 2026-07-20) — not
 invented. Re-verify against live Jira if these values are ever suspected stale; this file is a
@@ -13,10 +13,14 @@ reference, the Jira instance is the source of truth.
 
 ## Scope
 
-Project: **SERV** ("Services Team Scrum") — the only project this harness's tickets belong to
-(confirmed via every `SERV-XXXXX` reference across generator/gate/shipper). Issue types relevant
-to QA automation work: **Bug**, **Task**, **Sub-task**. This harness never touches any of the
-other 52 projects in this Jira instance.
+Project **SERV** ("Services Team Scrum") is the services sprint this harness queries.
+Task identity also accepts these FirstHelp projects, confirmed on `firsthelpfinancial.atlassian.net` on 2026-09-22:
+
+- **GEARS** ("GEARS: SharedTech") — infrastructure
+- **LOS** ("Loan Team Scrum") — LOS
+- **SDX** ("Spark Dealer Experience") — Spark
+
+There is no Jira project key `SPARK`. New LOS keys (`NLOS`, `NLOSF`, `NLOSI`, `NLCP`, `NLDX`) stay off this list until a task uses them. Issue types relevant to QA automation work: **Bug**, **Task**, **Sub-task**. The create-field recipes below were verified on SERV. Do not copy those screens onto GEARS, LOS, or SDX without checking that project.
 
 ## Write policy — explicit approval before every mutation
 

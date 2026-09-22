@@ -314,6 +314,7 @@ function protocolOptions(config) {
     crossRepositorySeam: config.engineering?.taskProtocol?.crossRepositorySeam,
     frontendTestData: config.qualityAssurance?.frontendTestData,
     capabilityControl: config.engineering?.capabilityControl,
+    projectKeys: config.atlassian?.projectKeys ?? [config.atlassian?.projectKey].filter(Boolean),
   };
 }
 

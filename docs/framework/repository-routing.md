@@ -196,7 +196,7 @@ flowchart LR
 fhf-backend-automation] -. native API / DB evidence .-> Internal
 ```
 
-Cypress owns the browser behavior of `fhf-dashboards`: the screen, its route, and the UI call that screen makes. Pytest owns the REST, service, Oracle, and Python workflow gap that the Cypress spec for the sprint task does not already assert. `qualityAssurance.coverageBoundary` is that split. The sprint task picks the path. A missing manifest asks for the SERV ticket, module, and the remainder. A backend write or pytest waits until the task records the selected non-production path.
+Cypress owns the browser behavior of `fhf-dashboards`: the screen, its route, and the UI call that screen makes. Pytest owns the REST, service, Oracle, and Python workflow gap that the Cypress spec for the sprint task does not already assert. `qualityAssurance.coverageBoundary` is that split. The sprint task picks the path. A missing manifest asks for the FirstHelp ticket (SERV, GEARS, LOS, or SDX), module, and the remainder. A backend write or pytest waits until the task records the selected non-production path.
 
 ## Selection rule
 

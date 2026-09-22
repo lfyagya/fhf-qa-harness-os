@@ -12,7 +12,7 @@ import {
   wilsonInterval,
 } from "./evals/reliability.mjs";
 import { readTraceFile, repairOutcomesFromTrace } from "./evals/runtime-evidence.mjs";
-import { recordJiraTicketAccessOutcome } from "../../.claude/hooks/lib/jira-ticket-access.mjs";
+import { recordJiraTicketAccessOutcome, ticketKeyFromPrompt } from "../../.claude/hooks/lib/jira-ticket-access.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CONFIG_PATH = path.join(ROOT, "config", "qa-control-plane.json");
@@ -30,7 +30,7 @@ function routeFromOutput(stdout) {
 }
 
 function runRouter(prompt, env = {}) {
-  const ticket = String(prompt).match(/\b(SERV-\d+)\b/i)?.[1]?.toUpperCase();
+  const ticket = ticketKeyFromPrompt(prompt, config);
   if (ticket) {
     // A ticket key trips the jira-ticket-read capability gate, which would block before any
     // route hint is emitted. Record an observed read through the harness's own writer rather

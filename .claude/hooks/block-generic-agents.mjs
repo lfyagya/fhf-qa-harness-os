@@ -1,18 +1,14 @@
 #!/usr/bin/env node
-// PreToolUse:Task — block forbidden agent types (Explore, general-purpose, deleted agents).
-// exit 2 = BLOCK the Task spawn.
-//
-// Also wired to SubagentStart (settings.json) to catch Workflow-tool-spawned agents, which
-// bypass this same check under PreToolUse (matcher is Task-only; Workflow's internal agent()
-// calls don't go through Task at all — see agent-spawning-gate.md). SubagentStart's real field
-// is `agent_type` (confirmed via Claude Code docs 2026-07-24 — NOT `subagent_type`, which this
-// script's fallback chain used to omit, meaning an earlier wiring attempt would have silently
-// matched nothing forever). Verified via the same docs: SubagentStart is non-blocking — exit 2
-// only "shows stderr to user", the subagent starts regardless. Don't claim BLOCKED when running
-// under SubagentStart; say what actually happened.
+// PreToolUse:Task and SubagentStart.
+// genericAgents (general-purpose, explore, and the Cursor aliases) start inside
+// the one sprint task. The hook states that scope and exits 0.
+// Retired names in forbiddenAgents still exit 2. SubagentStart cannot stop a
+// spawn, so a retired name is a warning there.
 import { readFileSync } from "fs";
-import { engineeringConfig } from "./lib/harness-config.mjs";
+import { engineeringConfig, loadHarnessConfig } from "./lib/harness-config.mjs";
 import { enforceWorkspaceReady } from "./lib/workspace-contract.mjs";
+import { emitScopedAllow } from "./lib/hook-runtime.mjs";
+import { describeTaskScope } from "./lib/task-scope.mjs";
 
 let payload = {};
 try {
@@ -40,24 +36,25 @@ const subagentType = canonicalAgent(
   "",
 );
 const harness = engineeringConfig().harness;
-const GENERIC = new Set(harness.genericAgents.map((name) => name.toLowerCase()));
-const FORBIDDEN = harness.forbiddenAgents.map((name) => canonicalAgent(name));
+const GENERIC = new Set((harness.genericAgents ?? []).map((name) => canonicalAgent(name)));
+const FORBIDDEN = (harness.forbiddenAgents ?? []).map((name) => canonicalAgent(name));
 
-for (const name of FORBIDDEN) {
-  if (subagentType === name) {
-    const verb = isSubagentStart
-      ? `WARNING: agent "${name}" is forbidden by the FHF routing roster — spawned via Workflow, so this hook cannot block it (SubagentStart is non-blocking). Flagging only.`
-      : `BLOCKED: agent "${name}" is forbidden.`;
-    console.error(verb);
-    if (GENERIC.has(name))
-      console.error(
-        "Use Grep/Glob/Read for lookups. See .claude/rules/agent-spawning-gate.md.",
-      );
-    else
-      console.error(
-        `"${name}" no longer exists. Use cypress-generator, cypress-gate, cypress-debugger, or cypress-shipper — see .claude/rules/agent-spawning-gate.md.`,
-      );
-    process.exit(2);
-  }
+if (FORBIDDEN.includes(subagentType)) {
+  const verb = isSubagentStart
+    ? `WARNING: agent "${subagentType}" is retired — spawned via Workflow, so this hook cannot block it (SubagentStart is non-blocking). Flagging only.`
+    : `BLOCKED: agent "${subagentType}" is retired.`;
+  console.error(verb);
+  console.error(
+    `"${subagentType}" no longer exists. Use cypress-generator, cypress-gate, cypress-debugger, cypress-shipper, or qa-automation-generator — see rules/agent-spawning-gate.md.`,
+  );
+  process.exit(2);
 }
+
+if (GENERIC.has(subagentType)) {
+  const config = loadHarnessConfig();
+  const scope = describeTaskScope(config, process.env, payload.cwd ?? process.cwd());
+  console.error(scope);
+  emitScopedAllow(payload, scope);
+}
+
 process.exit(0);

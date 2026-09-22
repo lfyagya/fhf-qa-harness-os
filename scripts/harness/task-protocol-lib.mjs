@@ -26,6 +26,54 @@ export const INTENT_VS_BUILT_CLASSIFICATIONS = Object.freeze([
 ]);
 export const TEST_HONESTY = Object.freeze(["live", "stubbed", "seeded"]);
 
+const DEFAULT_PROJECT_KEYS = Object.freeze(["SERV", "GEARS", "LOS", "SDX"]);
+
+export function listedProjectKeys(projectKeys) {
+  const listed = Array.isArray(projectKeys) ? projectKeys : [];
+  const keys = [];
+  for (const item of listed) {
+    const key = String(item?.key ?? item ?? "").trim().toUpperCase();
+    if (/^[A-Z][A-Z0-9]+$/.test(key) && !keys.includes(key)) keys.push(key);
+  }
+  return keys.length ? keys : [...DEFAULT_PROJECT_KEYS];
+}
+
+export function normalizeProjectKeys(projectKeys) {
+  return [...listedProjectKeys(projectKeys)].sort((left, right) =>
+    right.length - left.length || left.localeCompare(right));
+}
+
+export function ticketLabel(projectKeys) {
+  return `FirstHelp ticket (${listedProjectKeys(projectKeys).join(", ")})`;
+}
+
+export function isAcceptedTicket(value, projectKeys) {
+  const keys = normalizeProjectKeys(projectKeys);
+  return new RegExp(`^(?:${keys.join("|")})-\\d+$`, "i").test(String(value ?? "").trim());
+}
+
+export function containsAcceptedTicket(value, projectKeys) {
+  const keys = normalizeProjectKeys(projectKeys);
+  return new RegExp(`\\b(?:${keys.join("|")})-\\d+\\b`, "i").test(String(value ?? ""));
+}
+
+export function ticketKeyFromValue(value, projectKeys) {
+  const keys = normalizeProjectKeys(projectKeys);
+  const match = String(value ?? "").match(new RegExp(`\\b((?:${keys.join("|")})-\\d+)\\b`, "i"));
+  return match?.[1].toUpperCase() ?? null;
+}
+
+export function ticketScanPattern(projectKeys) {
+  const keys = normalizeProjectKeys(projectKeys);
+  return new RegExp(`\\b(?:${keys.join("|")})-\\d+\\b`, "gi");
+}
+
+export function jiraIdCountPattern(projectKeys) {
+  const keys = normalizeProjectKeys(projectKeys);
+  return new RegExp(`\\bjiraId\\s*:\\s*['"\`](?:${keys.join("|")})-\\d+`, "g");
+}
+
+
 const DEFAULT_APPROVAL_FIELDS = Object.freeze([
   "ticketFamily",
   "grounding.jira.issueDigest",
@@ -245,7 +293,7 @@ function validateGrounding(manifest, repoIds = []) {
   return issues;
 }
 
-export function validateIntentVsBuilt(manifest, { allowAskProduct = false } = {}) {
+export function validateIntentVsBuilt(manifest, { allowAskProduct = false, projectKeys } = {}) {
   const issues = [];
   const classification = manifest?.grounding?.intentVsBuilt;
   if (!classification || typeof classification !== "object" || Array.isArray(classification)) {
@@ -268,8 +316,8 @@ export function validateIntentVsBuilt(manifest, { allowAskProduct = false } = {}
     if (row.classification === "accepted" && (typeof row.acceptedBy !== "string" || !row.acceptedBy.trim())) {
       issues.push(`${label} accepted rows must record acceptedBy`);
     }
-    if (row.classification === "parked" && !/^SERV-\d+$/.test(row.parkedOn ?? "")) {
-      issues.push(`${label} parked rows must name parkedOn SERV ticket`);
+    if (row.classification === "parked" && !isAcceptedTicket(row.parkedOn, projectKeys)) {
+      issues.push(`${label} parked rows must name parkedOn FirstHelp ticket`);
     }
     if (!allowAskProduct && row.classification === "ask-product") {
       issues.push(`${label} ask-product rows block planning until product classifies the delta`);
@@ -609,6 +657,7 @@ export function validateTaskManifest(manifest, {
   crossRepositorySeam,
   frontendTestData,
   gates = [],
+  projectKeys,
 } = {}) {
   const issues = [];
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
@@ -617,11 +666,11 @@ export function validateTaskManifest(manifest, {
   if (manifest.schema !== TASK_SCHEMA) issues.push(`schema must be ${TASK_SCHEMA}`);
   if (typeof manifest.id !== "string" || !manifest.id) issues.push("id must be a non-empty string");
   if (!TASK_STAGES.includes(manifest.stage)) issues.push("stage is not recognized");
-  if (!/^SERV-\d+$/.test(manifest.ticketFamily?.primary ?? "")) {
-    issues.push("ticketFamily.primary must be a SERV ticket");
+  if (!isAcceptedTicket(manifest.ticketFamily?.primary, projectKeys)) {
+    issues.push(`ticketFamily.primary must be a ${ticketLabel(projectKeys)}`);
   }
   issues.push(...validateGrounding(manifest, repoIds));
-  issues.push(...validateIntentVsBuilt(manifest));
+  issues.push(...validateIntentVsBuilt(manifest, { projectKeys }));
 
   const graphNodes = manifest.selection?.graphNodes;
   if (!Array.isArray(graphNodes) || graphNodes.length === 0) {
@@ -715,7 +764,7 @@ export function nextStep(manifest, options = {}) {
   if (manifest?.schema !== TASK_SCHEMA) identityIssues.push(`schema must be ${TASK_SCHEMA}`);
   if (typeof manifest?.id !== "string" || !manifest.id) identityIssues.push("id must be a non-empty string");
   if (!TASK_STAGES.includes(manifest?.stage)) identityIssues.push("stage is not recognized");
-  if (!/^SERV-\d+$/.test(manifest?.ticketFamily?.primary ?? "")) identityIssues.push("ticketFamily.primary must be a SERV ticket");
+  if (!isAcceptedTicket(manifest?.ticketFamily?.primary, options.projectKeys)) identityIssues.push(`ticketFamily.primary must be a ${ticketLabel(options.projectKeys)}`);
   if (identityIssues.length) {
     return { action: "repair-task-manifest", stage: manifest?.stage ?? null, blocked: true, issues: identityIssues };
   }
@@ -731,7 +780,7 @@ export function nextStep(manifest, options = {}) {
     if (groundingIssues.length) {
       return { action: "repair-task-manifest", stage: "grounded", blocked: true, issues: groundingIssues };
     }
-    const classifyIssues = validateIntentVsBuilt(manifest);
+    const classifyIssues = validateIntentVsBuilt(manifest, { projectKeys: options.projectKeys });
     return classifyIssues.length
       ? { action: "classify-intent-vs-built", stage: "grounded", blocked: true, issues: classifyIssues }
       : { action: "plan-cross-repository-change", stage: "grounded", blocked: false };

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { humanApprovalBlock } from "./task-protocol.mjs";
+import { humanApprovalBlock, isAcceptedTicket, ticketLabel } from "./task-protocol.mjs";
 
 function normalized(value) {
   if (Array.isArray(value)) return value.map(normalized);
@@ -145,10 +145,47 @@ function taskDirectory(cwd, config) {
   return path.resolve(cwd || process.cwd(), path.dirname(pattern.replace(/<[^>]+>/g, "task")));
 }
 
-function manifestTicket(file) {
+
+function selectedScopePaths(manifest) {
+  const fromRepos = (manifest?.grounding?.repositories ?? [])
+    .flatMap((repo) => (repo.selectedPaths ?? []).map((item) => `${repo.id}:${item}`));
+  const fromUnits = (manifest?.plan?.changeUnits ?? [])
+    .flatMap((unit) => (unit.paths ?? []).map((item) => `${unit.repoId}:${item}`));
+  return [...new Set([...fromRepos, ...fromUnits])];
+}
+
+export function describeTaskScope(config, env = process.env, cwd = process.cwd()) {
+  const protocol = config.engineering?.taskProtocol ?? {};
+  const envName = protocol.activeManifestEnv ?? "FHF_ACTIVE_TASK";
+  const label = ticketLabel(config?.atlassian?.projectKeys);
+  let source = String(env[envName] ?? "").trim();
+  if (!source) {
+    const located = locateSprintTask(cwd, config);
+    if (!located.source) return `One sprint task owns this subagent. ${located.ask}`;
+    source = located.source;
+  }
+  if (!path.isAbsolute(source)) {
+    return `One sprint task owns this subagent. ${envName} must be an absolute path.`;
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(source, "utf8"));
+  } catch (error) {
+    return `One sprint task owns this subagent. The task file ${source} is unavailable: ${error.message}`;
+  }
+  const ticket = String(manifest.ticketFamily?.primary ?? "").trim();
+  if (!isAcceptedTicket(ticket, config?.atlassian?.projectKeys)) {
+    return `This subagent starts under ${source}. Provide a ${label}, the module, and the pytest remainder Cypress does not already cover. Writes and pytest wait until that task records the selected path and a non-production environment.`;
+  }
+  const paths = selectedScopePaths(manifest);
+  const scopeText = paths.length ? paths.join(", ") : "selected paths are not recorded yet";
+  return `Task scope: ${ticket.toUpperCase()} at ${source}. This subagent works inside that one task. Scope: ${scopeText}. Writes and pytest stay on the recorded non-production paths.`;
+}
+
+function manifestTicket(file, config) {
   try {
     const ticket = String(JSON.parse(fs.readFileSync(file, "utf8"))?.ticketFamily?.primary ?? "");
-    return /^SERV-\d+$/.test(ticket) ? ticket : "";
+    return isAcceptedTicket(ticket, config?.atlassian?.projectKeys) ? ticket.toUpperCase() : "";
   } catch {
     return "";
   }
@@ -162,14 +199,14 @@ function locateSprintTask(cwd, config) {
   } catch {
     files = [];
   }
-  const ready = files.filter((file) => manifestTicket(file));
+  const ready = files.filter((file) => manifestTicket(file, config));
   if (ready.length === 1) return { source: ready[0] };
   if (ready.length > 1) {
-    return { ask: `Sprint tasks already exist. Set FHF_ACTIVE_TASK to the absolute path of this task: ${ready.join(", ")}. Provide the SERV ticket, module, and pytest remainder if none of these is the task.` };
+    return { ask: `Sprint tasks already exist. Set FHF_ACTIVE_TASK to the absolute path of this task: ${ready.join(", ")}. Provide a ${ticketLabel(config?.atlassian?.projectKeys)}, the module, and the pytest remainder if none of these is the task.` };
   }
   if (files.length === 1) return { source: files[0] };
   if (files.length > 1) {
-    return { ask: `Sprint task files exist but none has a SERV ticket. Set FHF_ACTIVE_TASK to one path and provide the SERV ticket, module, and pytest remainder: ${files.join(", ")}.` };
+    return { ask: `Sprint task files exist but none has a ${ticketLabel(config?.atlassian?.projectKeys)}. Set FHF_ACTIVE_TASK to one path and provide the ticket, module, and pytest remainder: ${files.join(", ")}.` };
   }
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -179,11 +216,11 @@ function locateSprintTask(cwd, config) {
       schema,
       stage: "intake",
       ticketFamily: { primary: "UNKNOWN" },
-      ask: ["SERV ticket", "module", "pytest remainder Cypress does not already cover"],
+      ask: ["FirstHelp ticket", "module", "pytest remainder Cypress does not already cover"],
     }, null, 2)}\n`);
     return { source: created, created: true };
   } catch (error) {
-    return { ask: `Provide the sprint task: SERV ticket, module, and the pytest remainder Cypress does not already cover (REST, service, Oracle, or Python workflow). The task file could not be created at ${dir}: ${error.message}` };
+    return { ask: `Provide the sprint task: ${ticketLabel(config?.atlassian?.projectKeys)}, module, and the pytest remainder Cypress does not already cover (REST, service, Oracle, or Python workflow). The task file could not be created at ${dir}: ${error.message}` };
   }
 }
 
@@ -211,10 +248,10 @@ function activeTask(config, env, stages, cwd = process.cwd()) {
   if (manifest.schema !== protocol?.schema) {
     return { ok: false, reason: `active task manifest schema must be ${protocol?.schema}` };
   }
-  if (!/^SERV-\d+$/.test(manifest.ticketFamily?.primary ?? "")) {
+  if (!isAcceptedTicket(manifest.ticketFamily?.primary, config?.atlassian?.projectKeys)) {
     return {
       ok: false,
-      reason: `Provide the sprint task: SERV ticket, module, and the pytest remainder Cypress does not already cover (REST, service, Oracle, or Python workflow). Task file: ${source}. This write or pytest waits until that task records the selected path and a non-production environment.`,
+      reason: `Provide the sprint task: ${ticketLabel(config?.atlassian?.projectKeys)}, module, and the pytest remainder Cypress does not already cover (REST, service, Oracle, or Python workflow). Task file: ${source}. This write or pytest waits until that task records the selected path and a non-production environment.`,
     };
   }
   if (!stages.includes(manifest.stage)) {

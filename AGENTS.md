@@ -11,7 +11,7 @@ Standing orders (one body in rules/, same index on every tool):
 - rules/backend-automation.md: Backend Automation Boundary
 - rules/cross-layer-qa.md: Cross-Layer QA Workflow
 - rules/failure-classification.md: Failure Classification — Actual vs False, and How to Actually Know
-- rules/jira-integration.md: Jira Integration — SERV Project, Real Fields, Approval-Gated Writes
+- rules/jira-integration.md: Jira Integration — FirstHelp projects, Real Fields, Approval-Gated Writes
 - rules/new-module.md: Adding a New Test Module — Checklist
 - rules/oracle-db.md: Oracle DB Rules
 - rules/pre-human-review.md: Pre-human review (every task, every QA member)

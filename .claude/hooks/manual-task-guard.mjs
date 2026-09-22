@@ -54,7 +54,7 @@ if (isExternalBackend && !readOnlyBackendCommand.test(cmd)) {
   const decision = authorizeAutomationRun({ command, cwd: workingDirectory, config });
   if (!decision.allowed) {
     console.error(`BASH BLOCKED: ${decision.reason}`);
-    console.error('The sprint task under .harness/tasks is the record. Provide any missing SERV ticket, module, or selected non-production path.');
+    console.error('The sprint task under .harness/tasks is the record. Provide any missing FirstHelp ticket (SERV, GEARS, LOS, or SDX), module, or selected non-production path.');
     process.exit(2);
   }
 }

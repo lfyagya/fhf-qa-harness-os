@@ -1,6 +1,6 @@
 ---
 name: backend-test-author
-description: Routes pytest to the REST, service, Oracle, or Python workflow gap that Cypress does not already cover. The sprint task selects the path. Ask for the SERV ticket and module when they are missing.
+description: Routes pytest to the REST, service, Oracle, or Python workflow gap that Cypress does not already cover. The sprint task selects the path. Ask for the FirstHelp ticket (SERV, GEARS, LOS, or SDX) and module when they are missing.
 allowed-tools: Read, Grep, Glob
 metadata:
   version: 1.0.0
@@ -8,7 +8,7 @@ metadata:
 
 # Backend Test Author
 
-The sprint task selects this path when the gap is REST, service, Oracle, or a Python workflow that the Cypress spec does not already assert. If the SERV ticket or module is missing, ask for it. Do not start a second backend process, and do not re-author the UI check as pytest.
+The sprint task selects this path when the gap is REST, service, Oracle, or a Python workflow that the Cypress spec does not already assert. If the FirstHelp ticket (SERV, GEARS, LOS, or SDX) or module is missing, ask for it. Do not start a second backend process, and do not re-author the UI check as pytest.
 
 ## Load in this order
 

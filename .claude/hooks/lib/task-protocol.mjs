@@ -16,6 +16,11 @@ const protocol = await import(pathToFileURL(selected).href);
 
 export const firstPendingGate = protocol.firstPendingGate;
 export const nextStep = protocol.nextStep;
+export const isAcceptedTicket = protocol.isAcceptedTicket;
+export const containsAcceptedTicket = protocol.containsAcceptedTicket;
+export const ticketKeyFromValue = protocol.ticketKeyFromValue;
+export const ticketLabel = protocol.ticketLabel;
+export const listedProjectKeys = protocol.listedProjectKeys;
 
 export function gateOptions(config) {
   const approval = config.engineering?.taskProtocol?.approval ?? {};

@@ -134,12 +134,20 @@ const TOOL_MATCH = {
 };
 
 function forbiddenSubagentMatcher() {
-  return ENGINEERING.harness.forbiddenAgents.flatMap((name) =>
-    name === "general-purpose"
+  const names = [
+    ...(ENGINEERING.harness.genericAgents ?? []),
+    ...(ENGINEERING.harness.forbiddenAgents ?? []),
+  ];
+  const seen = new Set();
+  return names.flatMap((name) => {
+    if (seen.has(name)) return [];
+    seen.add(name);
+    return name === "general-purpose"
       ? [name, "generalPurpose"]
       : name === "explore"
         ? [name, "Explore"]
-        : [name]).join("|");
+        : [name];
+  }).join("|");
 }
 
 function hookCommand(root, script, args = "") {
@@ -420,7 +428,7 @@ Allowed Cypress AI Toolkit skills stay in the parent (do not spawn). Read
 - \`cypress-docs\` — official Cypress documentation lookup
 - \`cypress-tap\` — drive a live \`cypress open\` session (Cypress 15.21+, Chromium; not headless \`cypress run\`)
 - \`cypress-author\` — Cypress-native conventions only on FHF work; must not Write specs. Parent spawns \`cypress-generator\`
-- \`backend-test-author\` — pytest remainder after Cypress: REST, service, Oracle, or Python workflow. The sprint task selects the path. Ask for the SERV ticket and module when they are missing
+- \`backend-test-author\` — pytest remainder after Cypress: REST, service, Oracle, or Python workflow. The sprint task selects the path. Ask for the FirstHelp ticket (SERV, GEARS, LOS, or SDX) and module when they are missing
 ${extraLines ? `${extraLines}\n` : ""}
 \`cypress-author\` may load; on FHF work it must not write specs. New Cypress specs spawn
 \`cypress-generator\`.

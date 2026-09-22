@@ -404,6 +404,45 @@ mkdirSync(path.join(backendRoot, ".harness", "tasks"), { recursive: true });
 writeFileSync(path.join(backendRoot, ".harness", "tasks", "SERV-12360.json"), JSON.stringify(activeTask));
 expect("protect-automation-scope uses the sprint task stored in .harness/tasks",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, workspaceEnv), 0);
+const gearsTaskPath = path.join(tmp, "GEARS-42.json");
+const losTaskPath = path.join(tmp, "LOS-3.json");
+const sdxTaskPath = path.join(tmp, "SDX-7.json");
+const rejectedTaskPath = path.join(tmp, "SALES-1.json");
+const nlosTaskPath = path.join(tmp, "NLOS-10.json");
+for (const [file, primary] of [
+  [gearsTaskPath, "GEARS-42"],
+  [losTaskPath, "LOS-3"],
+  [sdxTaskPath, "SDX-7"],
+  [rejectedTaskPath, "SALES-1"],
+  [nlosTaskPath, "NLOS-10"],
+]) {
+  writeFileSync(file, JSON.stringify({
+    schema: "fhf-harness/task/v1",
+    stage: "intake",
+    ticketFamily: { primary },
+  }));
+}
+function taskEnv(file) {
+  return { ...workspaceEnv, FHF_ACTIVE_TASK: file };
+}
+function acceptsTicket() {
+  return (result) => result.code === 2 && result.stderr.includes("Provide the module") && !result.stderr.includes("Provide the sprint task");
+}
+expect("protect-automation-scope accepts a GEARS infrastructure ticket",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, taskEnv(gearsTaskPath)),
+  acceptsTicket());
+expect("protect-automation-scope accepts an LOS ticket",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, taskEnv(losTaskPath)),
+  acceptsTicket());
+expect("protect-automation-scope accepts a Spark SDX ticket",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, taskEnv(sdxTaskPath)),
+  acceptsTicket());
+expect("protect-automation-scope asks again for a ticket outside the FirstHelp allowlist",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, taskEnv(rejectedTaskPath)),
+  (result) => result.code === 2 && result.stderr.includes("Provide the sprint task"));
+expect("protect-automation-scope does not treat NLOS as LOS",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, taskEnv(nlosTaskPath)),
+  (result) => result.code === 2 && result.stderr.includes("Provide the sprint task"));
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
@@ -621,20 +660,45 @@ expect("manual-task-guard consumes central Cloud CLI credential policy",
   }), 2);
 expect("manual-task-guard allows git status",
   run("manual-task-guard.mjs", { tool_input: { command: "git status" } }), 0);
-expect("block-generic-agents blocks general-purpose",
-  run("block-generic-agents.mjs", { tool_input: { subagent_type: "general-purpose" } }), 2);
+expect("block-generic-agents starts general-purpose inside the sprint task",
+  run("block-generic-agents.mjs", { cwd: backendRoot, tool_input: { subagent_type: "general-purpose" } }, workspaceEnv),
+  (r) => r.code === 0 && r.stderr.includes("Task scope: SERV-12360") && !r.stderr.includes("BLOCKED"));
+expect("block-generic-agents scopes general-purpose to a GEARS task",
+  run("block-generic-agents.mjs", { cwd: backendRoot, tool_input: { subagent_type: "general-purpose" } }, taskEnv(gearsTaskPath)),
+  (r) => {
+    if (r.code !== 0 || r.stderr.includes("BLOCKED") || !r.stderr.includes("Task scope: GEARS-42")) return false;
+    const output = JSON.parse(r.stdout);
+    return output.hookSpecificOutput?.permissionDecision === "allow"
+      && output.hookSpecificOutput?.additionalContext?.includes("GEARS-42")
+      && output.additional_context?.includes("GEARS-42");
+  });
+expect("block-generic-agents starts explore inside the sprint task",
+  run("block-generic-agents.mjs", { cwd: backendRoot, tool_input: { subagent_type: "Explore" } }, workspaceEnv),
+  (r) => r.code === 0 && r.stderr.includes("Task scope: SERV-12360") && !r.stderr.includes("BLOCKED"));
 expect("block-generic-agents allows cypress-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-generator" } }), 0);
 expect("block-generic-agents allows qa-automation-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "qa-automation-generator" } }), 0);
 expect("block-generic-agents blocks retired agent names",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-runner" } }), 2);
-expect("block-generic-agents denies Cursor generalPurpose on SubagentStart",
-  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", subagent_type: "generalPurpose" }),
+expect("block-generic-agents warns when a retired agent_type starts",
+  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "cypress-runner" }),
   (r) => r.code === 2 && r.stderr.includes("WARNING") && !r.stderr.includes("BLOCKED"));
-expect("block-generic-agents warns (not BLOCKED) on a forbidden agent_type via SubagentStart",
-  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "general-purpose" }),
-  (r) => r.code === 2 && r.stderr.includes("WARNING") && !r.stderr.includes("BLOCKED"));
+expect("block-generic-agents starts Cursor generalPurpose inside the sprint task",
+  run("block-generic-agents.mjs", { cwd: backendRoot, hook_event_name: "SubagentStart", subagent_type: "generalPurpose" }, workspaceEnv),
+  (r) => r.code === 0 && r.stderr.includes("Task scope: SERV-12360") && !r.stderr.includes("BLOCKED") && !r.stderr.includes("WARNING"));
+expect("block-generic-agents starts a general-purpose agent_type inside the sprint task",
+  run("block-generic-agents.mjs", { cwd: backendRoot, hook_event_name: "SubagentStart", agent_type: "general-purpose" }, workspaceEnv),
+  (r) => r.code === 0 && r.stderr.includes("Task scope: SERV-12360") && !r.stderr.includes("BLOCKED"));
+expect("block-generic-agents omits Cursor-only fields for a Codex general-purpose spawn",
+  run("block-generic-agents.mjs", { cwd: backendRoot, turn_id: "codex-turn", tool_input: { subagent_type: "general-purpose" } }, workspaceEnv),
+  (r) => {
+    const output = JSON.parse(r.stdout);
+    return r.code === 0
+      && output.additional_context === undefined
+      && output.hookSpecificOutput?.additionalContext?.includes("SERV-12360")
+      && output.hookSpecificOutput?.permissionDecision === "allow";
+  });
 expect("block-generic-agents allows an approved agent_type via SubagentStart",
   run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "cypress-generator" }), 0);
 expect("block-generic-agents consumes the central roster",
@@ -996,13 +1060,15 @@ expect("prompt-router appends the same route text on Cursor beforeSubmitPrompt",
 recordCapabilityOutcome({ id: "jira-ticket-read", subject: "SERV-12345", root: tmp, config: loadHarnessConfig(), outcome: "ready" });
 const memoryPrompt = run("prompt-router.mjs", {
   session_id: "memory-session",
-  prompt: "Work SERV-12345 in insurance.cy.js using [data-cy=\"save-button\"] and /api/insurance; keep docs/evidence/run.json",
+  prompt: "Work SERV-12345 and GEARS-9 and NLOS-3 in insurance.cy.js using [data-cy=\"save-button\"] and /api/insurance; keep docs/evidence/run.json",
 }, { CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" });
 expect("prompt-router persists only configured exact facts", memoryPrompt, (r) => {
   try {
     const handoff = JSON.parse(readFileSync(path.join(tmp, "cypress", "handoff", "session-latest.json"), "utf8"));
     return r.code === 0 &&
       handoff.facts["ticket-ids"].includes("SERV-12345") &&
+      handoff.facts["ticket-ids"].includes("GEARS-9") &&
+      !handoff.facts["ticket-ids"].includes("NLOS-3") &&
       handoff.facts.selectors.includes("[data-cy=\"save-button\"]") &&
       handoff.facts.endpoints.includes("/api/insurance");
   } catch {

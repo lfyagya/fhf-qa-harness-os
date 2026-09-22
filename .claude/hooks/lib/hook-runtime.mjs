@@ -11,6 +11,22 @@ export function emitEmpty() {
   process.stdout.write("{}\n");
 }
 
+export function emitScopedAllow(payload, context) {
+  const codex = hostRejectsCursorFields(payload);
+  const event = String(payload?.hook_event_name ?? payload?.hookEventName ?? "");
+  const claudeEvent = event === "SubagentStart" ? "SubagentStart" : "PreToolUse";
+  const output = {
+    hookSpecificOutput: {
+      hookEventName: claudeEvent,
+      additionalContext: context,
+    },
+  };
+  if (claudeEvent === "PreToolUse") output.hookSpecificOutput.permissionDecision = "allow";
+  else output.continue = true;
+  if (!codex) output.additional_context = context;
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
 // One object for every host. Claude reads additionalContext. Cursor reads
 // user_message on beforeSubmitPrompt and additional_context on session start.
 // Codex rejects those two extra fields, which its payload marks with turn_id

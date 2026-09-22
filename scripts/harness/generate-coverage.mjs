@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveConsumerRoot } from "./workspace-paths.mjs";
+import { jiraIdCountPattern } from "./task-protocol-lib.mjs";
 import {
   publishEvidenceBundle,
 } from "./evidence-export-policy.mjs";
@@ -154,7 +155,7 @@ for (const [lane, cy] of Object.entries(LANES)) {
     const s = state[mod][lane];
     s.scenarios = (s.scenarios ?? 0) + (content.match(/\bid\s*:\s*['"`]/g) ?? []).length;
     s.jiraMapped = (s.jiraMapped ?? 0) +
-      (content.match(/\bjiraId\s*:\s*['"`]SERV-\d+/g) ?? []).length;
+      (content.match(jiraIdCountPattern(CONTROL_PLANE.atlassian?.projectKeys)) ?? []).length;
   }
 }
 

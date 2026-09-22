@@ -20,7 +20,7 @@ Detail the changes made in this PR.
 
 ## Jira ticket
 
-Link to the SERV ticket.
+Link to the FirstHelp ticket (SERV, GEARS, LOS, or SDX).
 
 ## Checklist before requesting a review
 
