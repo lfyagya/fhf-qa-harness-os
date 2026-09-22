@@ -624,8 +624,9 @@ expect("block-generic-agents allows qa-automation-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "qa-automation-generator" } }), 0);
 expect("block-generic-agents blocks retired agent names",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-runner" } }), 2);
-expect("block-generic-agents denies a Cursor-matched subagent",
-  run("block-generic-agents.mjs", {}, {}, ["--deny-matched-subagent"]), 2);
+expect("block-generic-agents denies Cursor generalPurpose on SubagentStart",
+  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", subagent_type: "generalPurpose" }),
+  (r) => r.code === 2 && r.stderr.includes("WARNING") && !r.stderr.includes("BLOCKED"));
 expect("block-generic-agents warns (not BLOCKED) on a forbidden agent_type via SubagentStart",
   run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "general-purpose" }),
   (r) => r.code === 2 && r.stderr.includes("WARNING") && !r.stderr.includes("BLOCKED"));
@@ -954,7 +955,7 @@ expect("prompt-router omits fields Codex rejects",
     hook_event_name: "UserPromptSubmit",
     turn_id: "codex-turn",
     prompt: "write a new smoke test",
-  }, { FHF_HOOK_HOST: "codex" }),
+  }),
   (r) => {
     try {
       const output = JSON.parse(r.stdout);
@@ -1049,6 +1050,14 @@ const failurePayload = {
   error_message: "same deterministic failure",
   failure_type: "error",
 };
+expect("failure loop ignores a successful tool result",
+  run("failure-loop-guard.mjs", {
+    hook_event_name: "PostToolUse",
+    conversation_id: `success-${path.basename(tmp)}`,
+    tool_name: "Shell",
+    tool_response: { exit_code: 0, output: "ok" },
+  }),
+  (r) => r.code === 0 && r.stdout.trim() === "{}");
 expect("failure loop records first failure",
   run("failure-loop-guard.mjs", failurePayload, {
     FHF_HARNESS_CONFIG: customConfigPath,
@@ -1063,6 +1072,29 @@ expect("failure loop reaches configured limit",
       return r.code === 0 &&
         output.hookSpecificOutput?.hookEventName === "PostToolUseFailure" &&
         output.hookSpecificOutput?.additionalContext.includes("limit reached");
+    } catch {
+      return false;
+    }
+  });
+const codexFailure = {
+  hook_event_name: "PostToolUse",
+  turn_id: "codex-turn",
+  conversation_id: `codex-failure-${path.basename(tmp)}`,
+  tool_name: "Bash",
+  tool_response: { exit_code: 1, stderr: "same deterministic failure" },
+};
+expect("failure loop records a Codex tool_response failure",
+  run("failure-loop-guard.mjs", codexFailure, { FHF_HARNESS_CONFIG: customConfigPath }),
+  cursorEmitsNeutral);
+expect("failure loop escalates a repeated Codex tool_response failure",
+  run("failure-loop-guard.mjs", codexFailure, { FHF_HARNESS_CONFIG: customConfigPath }),
+  (r) => {
+    try {
+      const output = JSON.parse(r.stdout);
+      return r.code === 0 &&
+        output.hookSpecificOutput?.hookEventName === "PostToolUse" &&
+        output.hookSpecificOutput?.additionalContext.includes("same Bash failure") &&
+        output.user_message === undefined;
     } catch {
       return false;
     }

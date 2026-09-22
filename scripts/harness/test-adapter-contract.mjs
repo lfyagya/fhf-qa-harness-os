@@ -124,12 +124,19 @@ function codexCommands(event) {
 check(!codex.hooks.PostToolUseFailure, "Codex has no PostToolUseFailure event");
 const codexScripts = new Set(Object.keys(codex.hooks).flatMap((event) => hookScripts(codexCommands(event))));
 for (const script of claudeScripts) {
-  if (script === "failure-loop-guard.mjs") continue;
   check(codexScripts.has(script), `Codex is missing hook ${script}`);
 }
 check(
-  codexCommands("UserPromptSubmit").some((command) => command.startsWith("FHF_HOOK_HOST=codex ") && command.includes("prompt-router.mjs")),
-  "Codex UserPromptSubmit must run the shared prompt router",
+  JSON.stringify(codexCommands("UserPromptSubmit")) === JSON.stringify(claudeCommands("UserPromptSubmit")),
+  "Codex UserPromptSubmit must run the same command as Claude",
+);
+check(
+  JSON.stringify(codexCommands("PreToolUse")) === JSON.stringify(claudeCommands("PreToolUse")),
+  "Codex PreToolUse commands must match Claude",
+);
+check(
+  codexCommands("PostToolUse").some((command) => command.includes("failure-loop-guard.mjs")),
+  "Codex PostToolUse must run the failure loop",
 );
 check(
   codexCommands("PreToolUse").some((command) => command.includes("repeat-tool-guard.mjs")) &&
@@ -165,10 +172,6 @@ check(
   JSON.stringify(Object.keys(codex.hooks).sort()) ===
     JSON.stringify(Object.keys(claude.hooks).filter((event) => event !== "PostToolUseFailure").sort()),
   "Codex projects every Claude hook event except the one Codex does not have",
-);
-check(
-  codex.hooks.PreToolUse.flatMap((group) => group.hooks).every((hook) => hook.commandWindows?.includes('FHF_HOOK_HOST=codex')),
-  "Codex Windows commands must set the same host marker",
 );
 for (const [name, text] of [
   ["Codex baseline", baselineAgents()],

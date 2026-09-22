@@ -18,29 +18,30 @@ let payload = {};
 try {
   payload = JSON.parse(readFileSync(0, "utf8"));
 } catch {
-  if (!process.argv.includes("--deny-matched-subagent")) process.exit(0);
+  process.exit(0);
 }
 
 enforceWorkspaceReady({ root: payload.cwd ?? process.cwd() });
 
 const isSubagentStart = payload.hook_event_name === "SubagentStart";
-const subagentType = String(
+function canonicalAgent(name) {
+  const compact = String(name).toLowerCase().replace(/[_\s-]/g, "");
+  if (compact === "generalpurpose") return "general-purpose";
+  if (compact === "explore") return "explore";
+  return String(name).toLowerCase();
+}
+
+const subagentType = canonicalAgent(
   payload.agent_type ??
   payload.tool_input?.subagent_type ??
-    payload.subagent_type ??
-    payload.subagentType ??
-    "",
-).toLowerCase();
+  payload.tool_input?.subagentType ??
+  payload.subagent_type ??
+  payload.subagentType ??
+  "",
+);
 const harness = engineeringConfig().harness;
 const GENERIC = new Set(harness.genericAgents.map((name) => name.toLowerCase()));
-const FORBIDDEN = harness.forbiddenAgents.map((name) => name.toLowerCase());
-
-// Cursor's subagentStart matcher has already selected a forbidden type. Keep the
-// roster in one place above while sharing this hook with Claude Code's Task event.
-if (process.argv.includes("--deny-matched-subagent")) {
-  console.error("BLOCKED: this subagent type is forbidden by the FHF routing roster.");
-  process.exit(2);
-}
+const FORBIDDEN = harness.forbiddenAgents.map((name) => canonicalAgent(name));
 
 for (const name of FORBIDDEN) {
   if (subagentType === name) {

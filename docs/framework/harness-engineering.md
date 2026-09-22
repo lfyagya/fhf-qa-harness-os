@@ -205,7 +205,7 @@ The harness drives each tool through verified capabilities:
 - Claude Code: generated settings, dynamic prompt routing, guards, memory, and bounded loops.
 - Cursor: generated native hooks, session-start routing, guards, memory, and bounded loops. Commands
   shared with Claude are byte-identical so Cursor compatibility mode deduplicates them.
-- Codex: `AGENTS.md` plus `.codex/hooks.json`, the same scripts. `PostToolUseFailure` is omitted because Codex has no such event.
+- Codex: `AGENTS.md` plus `.codex/hooks.json`, the same commands. A failed tool is reported on `PostToolUse`, and `failure-loop-guard.mjs` runs there.
 - Copilot and Gemini: generated instruction overlays that point at `AGENTS.md`.
 
 Pre-tool allow paths emit Claude's nested `hookSpecificOutput.permissionDecision: allow` format,

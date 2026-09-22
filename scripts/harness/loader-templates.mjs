@@ -141,13 +141,10 @@ function forbiddenSubagentMatcher() {
         : [name]).join("|");
 }
 
-function hookCommand(root, script, args = "", host = "") {
+function hookCommand(root, script, args = "") {
   if (root === VENDORED_HOOKS) {
     const loader = "const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)";
-    const node = `node -e "${loader}" "${script}"${args ? ` ${args}` : ""}`;
-    if (host === "codex") return `FHF_HOOK_HOST=codex ${node}`;
-    if (host === "codex-windows") return `set "FHF_HOOK_HOST=codex" && ${node}`;
-    return node;
+    return `node -e "${loader}" "${script}"${args ? ` ${args}` : ""}`;
   }
   return `node "${root}/${script}"${args ? ` ${args}` : ""}`;
 }
@@ -212,7 +209,6 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
         cursorCommand(HARNESS_HOOKS, script, {
           matcher: forbiddenSubagentMatcher(),
           failClosed: true,
-          args: "--deny-matched-subagent",
         })),
       subagentStop: HOOKS.subagentStop.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, { failClosed: true })),
@@ -325,19 +321,10 @@ export function codexHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
   const hooks = {};
   for (const [event, groups] of Object.entries(settings.hooks)) {
     if (event === "PostToolUseFailure") continue;
-    hooks[event] = groups.map((group) => ({
-      ...(group.matcher ? { matcher: group.matcher } : {}),
-      hooks: group.hooks.map((hook) => ({
-        type: "command",
-        command: hook.command.startsWith("node ") ? `FHF_HOOK_HOST=codex ${hook.command}` : hook.command,
-        commandWindows: hook.command.startsWith("node ")
-          ? `set "FHF_HOOK_HOST=codex" && ${hook.command}`
-          : hook.command,
-      })),
-    }));
+    hooks[event] = groups;
   }
   return {
-    description: "Projection of engineering.harness.hooks. Codex has no PostToolUseFailure event.",
+    description: "Projection of engineering.harness.hooks. The commands match Claude. Codex reports a failed tool on PostToolUse, where failure-loop-guard.mjs also runs.",
     hooks,
   };
 }

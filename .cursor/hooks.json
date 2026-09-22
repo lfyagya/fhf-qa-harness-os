@@ -81,7 +81,7 @@
     ],
     "subagentStart": [
       {
-        "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\" --deny-matched-subagent",
+        "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\"",
         "matcher": "general-purpose|generalPurpose|explore|Explore|documentation-writer|test-execution-planner|cypress-bug-hunter|cypress-cloud-investigator|cypress-e2e-automation|cypress-explorer|cypress-performance-auditor|cypress-runner|cypress-test-automation|cypress-ui-coverage-analyst|pr-creator|pre-merge-qa-gate|qa-ticket-router|spec-generation-loop|test-design-reviewer",
         "failClosed": true
       }
@@ -135,6 +135,10 @@
       },
       {
         "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\"",
+        "failClosed": false
+      },
+      {
+        "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"failure-loop-guard.mjs\"",
         "failClosed": false
       }
     ],

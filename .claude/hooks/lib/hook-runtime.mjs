@@ -13,10 +13,15 @@ export function emitEmpty() {
 
 // One object for every host. Claude reads additionalContext. Cursor reads
 // user_message on beforeSubmitPrompt and additional_context on session start.
-// The text in those fields is the same.
+// Codex rejects those two extra fields, which its payload marks with turn_id
+// or permission_mode. The command is the same.
+function hostRejectsCursorFields(payload) {
+  return payload?.turn_id != null || payload?.permission_mode != null;
+}
+
 export function emitContext(payload, claudeEvent, context) {
   if (!context) return emitEmpty(payload);
-  const codex = process.env.FHF_HOOK_HOST === "codex";
+  const codex = hostRejectsCursorFields(payload);
   const output = {
     hookSpecificOutput: {
       hookEventName: claudeEvent,
@@ -34,7 +39,7 @@ export function emitPrompt(payload, context) {
   if (!text && event !== "beforeSubmitPrompt") return emitEmpty(payload);
   const original = String(payload?.prompt ?? payload?.user_message ?? "");
   const delivered = text ? (original ? `${original}\n\n${text}` : text) : original;
-  const codex = process.env.FHF_HOOK_HOST === "codex";
+  const codex = hostRejectsCursorFields(payload);
   const output = {
     continue: true,
     hookSpecificOutput: {

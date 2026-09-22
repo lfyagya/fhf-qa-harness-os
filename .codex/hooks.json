@@ -1,13 +1,12 @@
 {
-  "description": "Projection of engineering.harness.hooks. Codex has no PostToolUseFailure event.",
+  "description": "Projection of engineering.harness.hooks. The commands match Claude. Codex reports a failed tool on PostToolUse, where failure-loop-guard.mjs also runs.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-context.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-context.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-context.mjs\""
           }
         ]
       }
@@ -17,8 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"prompt-router.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"prompt-router.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"prompt-router.mjs\""
           }
         ]
       }
@@ -28,8 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\""
           }
         ]
       },
@@ -38,33 +35,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-harness-governance.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-harness-governance.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-harness-governance.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-app-source.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-app-source.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-app-source.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-second-brain-boundary.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-second-brain-boundary.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-second-brain-boundary.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-automation-scope.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-automation-scope.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-automation-scope.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"enforce-task-gates.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"enforce-task-gates.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"enforce-task-gates.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"pre-validate-cypress-rules.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"pre-validate-cypress-rules.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"pre-validate-cypress-rules.mjs\""
           }
         ]
       },
@@ -73,13 +64,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-harness-governance.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-harness-governance.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-harness-governance.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"manual-task-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"manual-task-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"manual-task-guard.mjs\""
           }
         ]
       },
@@ -88,8 +77,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\""
           }
         ]
       },
@@ -98,8 +86,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-forbidden-skills.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-forbidden-skills.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-forbidden-skills.mjs\""
           }
         ]
       },
@@ -108,8 +95,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"context-read-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"context-read-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"context-read-guard.mjs\""
           }
         ]
       },
@@ -118,8 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-prod-data.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-prod-data.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"protect-prod-data.mjs\""
           }
         ]
       }
@@ -130,8 +115,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"block-generic-agents.mjs\""
           }
         ]
       }
@@ -141,8 +125,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"verify-subagent-citations.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"verify-subagent-citations.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"verify-subagent-citations.mjs\""
           }
         ]
       }
@@ -152,13 +135,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"spec-sweep-stop-hook.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"spec-sweep-stop-hook.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"spec-sweep-stop-hook.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-end-reminder.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-end-reminder.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"session-end-reminder.mjs\""
           }
         ]
       }
@@ -168,8 +149,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\""
           }
         ]
       }
@@ -179,8 +159,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"memory-checkpoint.mjs\""
           }
         ]
       }
@@ -191,43 +170,35 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-backend-automation.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-backend-automation.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-backend-automation.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-cypress-rules.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-cypress-rules.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-cypress-rules.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-file-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-file-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-file-guard.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-content-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-content-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"scenario-content-guard.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"artifact-duplication-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"artifact-duplication-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"artifact-duplication-guard.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"coverage-strategy-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"coverage-strategy-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"coverage-strategy-guard.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-spec-linkage.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-spec-linkage.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"validate-spec-linkage.mjs\""
           },
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"sync-reminder.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"sync-reminder.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"sync-reminder.mjs\""
           }
         ]
       },
@@ -235,8 +206,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FHF_HOOK_HOST=codex node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\"",
-            "commandWindows": "set \"FHF_HOOK_HOST=codex\" && node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\""
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url'),c=require('node:child_process');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||(()=>{try{return c.execSync('git rev-parse --show-toplevel',{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return process.cwd()}})();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"failure-loop-guard.mjs\""
           }
         ]
       }

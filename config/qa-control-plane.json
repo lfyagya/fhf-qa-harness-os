@@ -3473,7 +3473,8 @@
           "repeat-tool-guard.mjs"
         ],
         "postAny": [
-          "repeat-tool-guard.mjs"
+          "repeat-tool-guard.mjs",
+          "failure-loop-guard.mjs"
         ],
         "preWrite": [
           "protect-harness-governance.mjs",
