@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { formatLastTool } from "./last-tool.mjs";
 
 const LOOP_SCHEMA = "fhf-harness/loop-state/v1";
 
@@ -56,19 +57,22 @@ export function readLoopState(cwd, config) {
 
 export function formatLoopState(cwd, config) {
   const { rel, state, error } = readLoopState(cwd, config);
-  if (error) return `[loop] ${error}`;
-  if (!state) return `[loop] No loop state at ${rel}. This is a first pass.`;
+  const lastTool = formatLastTool(cwd, config);
+  const withLast = (line) => (lastTool ? `${line}\n${lastTool}` : line);
+  if (error) return withLast(`[loop] ${error}`);
+  if (!state) return withLast(`[loop] No loop state at ${rel}. This is a first pass.`);
   const verdict = Array.isArray(state.verdicts) && state.verdicts.length
     ? JSON.stringify(state.verdicts.at(-1))
     : "none";
   const failure = Array.isArray(state.failures) && state.failures.length
     ? JSON.stringify(state.failures.at(-1)).slice(0, 400)
     : "none";
-  return [
+  const base = [
     `[loop] runId=${state.runId} status=${state.status} repairCycles=${state.repairCycles} lastProgressAt=${state.lastProgressAt} stepCount=${state.stepCount}.`,
     `[loop] Last verdict: ${verdict}. Last failure: ${failure}.`,
     "[loop] Do not repeat an action this state already records. An identical retry is escalation.",
   ].join("\n");
+  return withLast(base);
 }
 
 export function loopWriteBlock(cwd, config) {

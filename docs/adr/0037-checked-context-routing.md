@@ -24,4 +24,4 @@ Route selection was the first matching regex, and a quoted "Acceptance Criteria"
 
 ## Consequences
 
-`validateTaskManifest` rejects the old free-text expansion reasons. Fixtures that named a reason without leaving the seed set now pass an empty list, and a real expansion must name an `expandBy` value. Owners still set `FHF_ALLOW_HARNESS_EDIT=1` to change a gate; this ADR does not let an agent set that for itself. Cursor-native `beforeSubmitPrompt` stays unwired until that event can carry the same `additionalContext` the router already emits.
+`validateTaskManifest` rejects the old free-text expansion reasons. Fixtures that named a reason without leaving the seed set now pass an empty list, and a real expansion must name an `expandBy` value. Owners still set `FHF_ALLOW_HARNESS_EDIT=1` to change a gate; this ADR does not let an agent set that for itself. Cursor `beforeSubmitPrompt` is wired by ADR-0038. The same router appends its text to `user_message`.

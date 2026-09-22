@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// ADR-0030 check. The control plane is the policy. This script verifies the
+// current decision: spawn budget, model tiers, skill lanes, route invoke,
+// formatInvoke, and the bundle slice. It does not serialize the control plane.
+// Usage: node docs/adr/0030-apply.mjs [--check]
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +12,7 @@ const CONFIG = path.join(ROOT, "config", "qa-control-plane.json");
 const ROUTER = path.join(ROOT, ".claude", "hooks", "prompt-router.mjs");
 const SKILL_HOOK = path.join(ROOT, ".claude", "hooks", "block-forbidden-skills.mjs");
 const DRIFT = path.join(ROOT, "scripts", "harness", "check-loader-drift.mjs");
+const checkOnly = process.argv.includes("--check");
 
 const SPAWN_BUDGET = { maxSpecialists: 1, maxDepth: 1, concurrent: 1 };
 const MODEL_TIERS = {
@@ -30,7 +35,6 @@ const SKILL_LANES = {
   "claude-md-improver": ["root"],
   "ralph-loop": ["root"],
 };
-const ROUTED_SKILLS = Object.keys(SKILL_LANES);
 const ROUTE_INVOKE = {
   "cross-layer-test-failure": { kind: "agent", name: "qa-automation-debugger" },
   "backend-test-failure": { kind: "agent", name: "qa-automation-debugger" },
@@ -71,228 +75,61 @@ const ROUTE_INVOKE = {
   "agent-workflow": { kind: "parent" },
   "triage-night-brief": { kind: "parent" },
   "regression-sprint-records": { kind: "parent" },
+  "ralph-loop": { kind: "skill", name: "ralph-loop" },
+  "claude-md-improver": { kind: "skill", name: "claude-md-improver" },
+  hookify: { kind: "skill", name: "hookify" },
+  "ponytail-review": { kind: "skill", name: "ponytail-review" },
+  "skill-creator": { kind: "skill", name: "skill-creator" },
 };
-const NEW_ROUTES = [
-  {
-    id: "ralph-loop",
-    priority: 89,
-    match: "\\b(ralph loop|ralph-loop)\\b",
-    lanes: ["root"],
-    invoke: { kind: "skill", name: "ralph-loop" },
-    hint: "Ralph loop → stay in parent and read the ralph-loop skill. Bound the request to engineering.loops. Do not start an unbounded retry. Root lane only.",
-  },
-  {
-    id: "claude-md-improver",
-    priority: 88,
-    match: "\\b(claude-?md(?:-improver)?|audit CLAUDE\\.md|improve CLAUDE\\.md)\\b",
-    lanes: ["root"],
-    invoke: { kind: "skill", name: "claude-md-improver" },
-    hint: "CLAUDE.md audit → stay in parent and read the claude-md-improver skill. Engine CLAUDE.md only. Do not edit generated consumer pointers. Root lane only.",
-  },
-  {
-    id: "hookify",
-    priority: 87,
-    match: "\\b(hookify|create a hookify rule|write a hook rule|configure hookify)\\b",
-    lanes: ["root"],
-    invoke: { kind: "skill", name: "hookify" },
-    hint: "Hookify → stay in parent and read the hookify skill. Draft one hook-rule proposal. Do not edit hooks or the control plane. Root lane only. ADR required to land a hook.",
-  },
-  {
-    id: "ponytail-review",
-    priority: 87,
-    match: "\\b(ponytail(?:-(?:review|audit|help))?|over-?engineering review)\\b",
-    lanes: ["root"],
-    invoke: { kind: "skill", name: "ponytail-review" },
-    hint: "Ponytail → stay in parent and read the ponytail-review skill. Read-only review of harness-os engine code. Do not edit application source or consumer tests. Root lane only.",
-  },
-  {
-    id: "skill-creator",
-    priority: 87,
-    match: "\\b(skill-?creator|create a (new )?skill|author a skill)\\b",
-    lanes: ["root"],
-    invoke: { kind: "skill", name: "skill-creator" },
-    hint: "Skill creator → stay in parent and read the skill-creator skill. Draft an ADR-0022 proposal. Do not write consumer skills or add an allow-list name. Root lane only.",
-  },
-];
 
-function readNormalized(file) {
-  const raw = fs.readFileSync(file, "utf8");
-  return { text: raw.replace(/\r\n/g, "\n"), eol: raw.includes("\r\n") ? "\r\n" : "\n" };
+function same(actual, expected) {
+  return JSON.stringify(actual) === JSON.stringify(expected);
 }
 
-function writeNormalized(file, text, eol) {
-  fs.writeFileSync(file, eol === "\r\n" ? text.replace(/\n/g, "\r\n") : text);
-}
-
-function patchFile(file, { already, needle, replacement, label }) {
-  const { text, eol } = readNormalized(file);
-  if (already(text)) {
-    console.log(`${label}: already applied`);
-    return;
+function collect(config, router, skillHook, drift) {
+  const issues = [];
+  const harness = config.engineering?.harness ?? {};
+  if (!same(harness.spawnBudget, SPAWN_BUDGET)) issues.push("engineering.harness.spawnBudget does not match ADR-0030");
+  if (!same(harness.modelTiers, MODEL_TIERS)) issues.push("engineering.harness.modelTiers does not match ADR-0030");
+  if (!same(harness.skillInvocation, SKILL_INVOCATION)) issues.push("engineering.harness.skillInvocation does not match ADR-0030");
+  for (const [skill, lanes] of Object.entries(SKILL_LANES)) {
+    if (!same(harness.skillLanes?.[skill], lanes)) issues.push(`skillLanes.${skill} is not ${JSON.stringify(lanes)}`);
+    if (!Array.isArray(harness.skills) || !harness.skills.includes(skill)) issues.push(`skills allow-list is missing ${skill}`);
   }
-  if (!text.includes(needle)) {
-    throw new Error(`${label}: patch site not found in ${path.relative(ROOT, file)}`);
-  }
-  writeNormalized(file, text.replace(needle, replacement), eol);
-  console.log(`${label}: patched`);
-}
-
-function matchingPair(text, openIdx, openCh, closeCh) {
-  let depth = 0;
-  for (let i = openIdx; i < text.length; i += 1) {
-    if (text[i] === openCh) depth += 1;
-    else if (text[i] === closeCh) {
-      depth -= 1;
-      if (depth === 0) return i;
+  const routes = config.engineering?.context?.routes ?? [];
+  for (const route of routes) {
+    if (!route?.invoke || typeof route.invoke !== "object" || !route.invoke.kind) {
+      issues.push(`route ${route?.id ?? "(missing id)"} has no invoke`);
     }
   }
-  throw new Error(`unbalanced ${openCh}${closeCh} at ${openIdx}`);
-}
-
-function formatProperty(name, value, indent) {
-  return JSON.stringify({ [name]: value }, null, 2)
-    .split("\n")
-    .slice(1, -1)
-    .map((line) => `${indent}${line.slice(2)}`)
-    .join("\n");
-}
-
-function insertPropertyBeforeClose(text, closeIdx, propertyText) {
-  let last = closeIdx;
-  while (last > 0 && /\s/.test(text[last - 1])) last -= 1;
-  return `${text.slice(0, last)},\n${propertyText}${text.slice(last)}`;
-}
-
-function applyControlPlane(text) {
-  let next = text;
   for (const [id, invoke] of Object.entries(ROUTE_INVOKE)) {
-    const idAt = next.indexOf(`"id": "${id}"`);
-    if (idAt === -1) throw new Error(`Route missing from control plane: ${id}`);
-    const open = next.lastIndexOf("{", idAt);
-    const close = matchingPair(next, open, "{", "}");
-    if (next.slice(open, close).includes('"invoke"')) continue;
-    next = insertPropertyBeforeClose(next, close, formatProperty("invoke", invoke, "          "));
+    const route = routes.find((item) => item.id === id);
+    if (!route) issues.push(`route ${id} is missing`);
+    else if (!same(route.invoke, invoke)) issues.push(`route ${id} invoke is not the ADR-0030 mapping`);
   }
-  if (!next.includes('"id": "ralph-loop"')) {
-    const lastId = next.lastIndexOf(`"id": "regression-sprint-records"`);
-    const open = next.lastIndexOf("{", lastId);
-    const close = matchingPair(next, open, "{", "}");
-    const routesJson = NEW_ROUTES.map((route) => {
-      const raw = JSON.stringify(route, null, 2).split("\n");
-      return raw.map((line, index) => (index === 0 ? `        ${line}` : `        ${line}`)).join("\n");
-    }).join(",\n");
-    next = `${next.slice(0, close + 1)},\n${routesJson}${next.slice(close + 1)}`;
+  if (!router.includes("function formatInvoke") || !router.includes("[router] invoke:")) {
+    issues.push("prompt-router.mjs is missing the current invoke emission");
   }
-  const skillsKey = next.indexOf(`      "skills": [\n        "cypress-explain"`);
-  if (skillsKey === -1) throw new Error("engineering.harness.skills not found");
-  const skillsOpen = next.indexOf("[", skillsKey);
-  const skillsClose = matchingPair(next, skillsOpen, "[", "]");
-  const missingSkills = ROUTED_SKILLS.filter((skill) => !next.slice(skillsOpen, skillsClose).includes(`"${skill}"`));
-  if (missingSkills.length) {
-    next = insertPropertyBeforeClose(
-      next,
-      skillsClose,
-      missingSkills.map((skill) => `        "${skill}"`).join(",\n"),
-    );
+  if (!router.includes("formatBundleSlice")) {
+    issues.push("prompt-router.mjs is missing the current bundle slice");
   }
-  if (!next.includes('"spawnBudget"')) {
-    const verifyKey = next.indexOf(`      "verify": {\n          "canonical"`);
-    if (verifyKey === -1) throw new Error("engineering.harness.verify not found");
-    const verifyOpen = next.indexOf("{", verifyKey);
-    const verifyClose = matchingPair(next, verifyOpen, "{", "}");
-    const extras = [
-      formatProperty("spawnBudget", SPAWN_BUDGET, "      "),
-      formatProperty("modelTiers", MODEL_TIERS, "      "),
-      formatProperty("skillInvocation", SKILL_INVOCATION, "      "),
-      formatProperty("skillLanes", SKILL_LANES, "      "),
-    ].join(",\n");
-    next = `${next.slice(0, verifyClose + 1)},\n${extras}${next.slice(verifyClose + 1)}`;
-  }
-  return next;
+  if (!skillHook.includes("skillLanes")) issues.push("block-forbidden-skills.mjs is missing skillLanes");
+  if (!drift.includes("parentAgents")) issues.push("check-loader-drift.mjs is missing parentAgents");
+  return issues;
 }
 
-if (process.env.FHF_ALLOW_HARNESS_EDIT !== "1") {
-  throw new Error("Set FHF_ALLOW_HARNESS_EDIT=1 to apply ADR-0030 (writes control plane and hooks).");
+const config = JSON.parse(fs.readFileSync(CONFIG, "utf8"));
+const router = fs.readFileSync(ROUTER, "utf8");
+const skillHook = fs.readFileSync(SKILL_HOOK, "utf8");
+const drift = fs.readFileSync(DRIFT, "utf8");
+const issues = collect(config, router, skillHook, drift);
+
+if (issues.length === 0) {
+  console.log(checkOnly ? "ADR-0030 check passed." : "ADR-0030 already applied.");
+  process.exit(0);
 }
 
-const { text: configText, eol: configEol } = readNormalized(CONFIG);
-const patchedConfig = applyControlPlane(configText);
-const config = JSON.parse(patchedConfig);
-const harness = config.engineering.harness;
-const routes = config.engineering.context.routes;
-const missing = routes.filter((route) => !route.invoke).map((route) => route.id);
-if (missing.length) throw new Error(`Routes missing invoke: ${missing.join(", ")}`);
-for (const skill of ROUTED_SKILLS) {
-  if (!harness.skills.includes(skill)) throw new Error(`Skill not allow-listed: ${skill}`);
-}
-if (!harness.spawnBudget || !harness.skillLanes) throw new Error("Control plane missing spawnBudget or skillLanes");
-writeNormalized(CONFIG, patchedConfig.endsWith("\n") ? patchedConfig : `${patchedConfig}\n`, configEol);
-
-patchFile(ROUTER, {
-  label: "prompt-router.mjs",
-  already: (text) => text.includes("[router] invoke:"),
-  needle: `function appendRoute(route) {
-  lines.push(\`[router:\${route.id}] \${route.hint}\`);
-  if (Array.isArray(route.sourceBundles) && route.sourceBundles.length > 0) {
-    lines.push(\`[router] Source bundle seed: \${route.sourceBundles.join(", ")}. Expand only with a recorded topology reason.\`);
-  }
-}`,
-  replacement: `function formatInvoke(invoke) {
-  if (!invoke || typeof invoke !== "object") return "stay in parent";
-  const parts = [];
-  if (invoke.kind === "agent" && invoke.name) parts.push(\`spawn agent \${invoke.name}\`);
-  else if (invoke.kind === "skill" && invoke.name) parts.push(\`stay in parent; read skill \${invoke.name}\`);
-  else parts.push("stay in parent");
-  if (invoke.prefer?.kind === "skill" && invoke.prefer.name) {
-    parts.push(\`prefer skill \${invoke.prefer.name} when \${invoke.prefer.when ?? "applicable"}\`);
-  }
-  return parts.join("; ");
-}
-
-function appendRoute(route) {
-  lines.push(\`[router:\${route.id}] \${route.hint}\`);
-  if (route.invoke) lines.push(\`[router] invoke: \${formatInvoke(route.invoke)}\`);
-  if (Array.isArray(route.sourceBundles) && route.sourceBundles.length > 0) {
-    lines.push(\`[router] Source bundle seed: \${route.sourceBundles.join(", ")}. Expand only with a recorded topology reason.\`);
-  }
-}`,
-});
-
-patchFile(SKILL_HOOK, {
-  label: "block-forbidden-skills.mjs",
-  already: (text) => text.includes("skillLanes"),
-  needle: `const allowed = new Set(engineeringConfig().harness.skills.map((s) => s.toLowerCase()));
-if (allowed.has(skill)) process.exit(0);
-
-console.error(\`BLOCKED: skill "\${skill}" is not in the FHF allowlist.\`);
-console.error(\`Allowed: \${[...allowed].join(", ")}\`);
-console.error("See .claude/rules/agent-spawning-gate.md for the routing roster.");
-process.exit(2);`,
-  replacement: `const harness = engineeringConfig().harness;
-const allowed = new Set(harness.skills.map((s) => s.toLowerCase()));
-if (!allowed.has(skill)) {
-  console.error(\`BLOCKED: skill "\${skill}" is not in the FHF allowlist.\`);
-  console.error(\`Allowed: \${[...allowed].join(", ")}\`);
-  console.error("See .claude/rules/agent-spawning-gate.md for the routing roster.");
-  process.exit(2);
-}
-const { detectLane } = await import("./lib/harness-config.mjs");
-const lanes = harness.skillLanes?.[skill] ?? harness.skillLanes?.[payload.tool_input?.skill];
-if (Array.isArray(lanes) && lanes.length > 0) {
-  const lane = detectLane(payload.cwd ?? process.cwd());
-  if (!lanes.includes(lane)) {
-    console.error(\`BLOCKED: skill "\${skill}" is routed only for lanes: \${lanes.join(", ")} (current: \${lane}).\`);
-    process.exit(2);
-  }
-}
-process.exit(0);`,
-});
-
-patchFile(DRIFT, {
-  label: "check-loader-drift.mjs",
-  already: (text) => text.includes("parentAgents,"),
-  needle: "  geminiInstructions,\n  parentCopilotInstructions,",
-  replacement: "  geminiInstructions,\n  parentAgents,\n  parentCopilotInstructions,",
-});
-
-console.log(`Updated control plane. Routes: ${routes.length}. Skills: ${harness.skills.join(", ")}`);
+for (const issue of issues) console.error(`- ${issue}`);
+console.error("ADR-0030 policy drifted. Edit the control plane or the router, then re-run this check.");
+console.error("This script does not rewrite the control plane; a full serialize would reorder it.");
+process.exit(2);

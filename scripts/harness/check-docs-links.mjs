@@ -50,6 +50,20 @@ function checkHookClassOrder(issues, config) {
   }
 }
 
+
+function checkAdr0030(issues) {
+  try {
+    execFileSync(process.execPath, ["docs/adr/0030-apply.mjs", "--check"], {
+      cwd: HARNESS_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    const detail = `${error.stdout ?? ""}${error.stderr ?? ""}`.trim();
+    issues.push(`ADR-0030 check failed${detail ? `: ${detail}` : ""}`);
+  }
+}
+
 function checkSkillsAreUsable(issues, config) {
   const skillsDir = path.join(HARNESS_ROOT, ".claude", "skills");
   if (!fs.existsSync(skillsDir)) return;
@@ -86,6 +100,7 @@ try {
   engineering = config.engineering;
   checkSkillsAreUsable(issues, config);
   checkHookClassOrder(issues, config);
+  checkAdr0030(issues);
 } catch (error) {
   issues.push(`Invalid harness config: ${error.message}`);
 }
@@ -716,8 +731,8 @@ if (engineering) {
   if (adapters?.claudeCode?.autoCompactWindowEnv !== "CLAUDE_CODE_AUTO_COMPACT_WINDOW") {
     issues.push("Claude adapter must use CLAUDE_CODE_AUTO_COMPACT_WINDOW");
   }
-  if (adapters?.cursor?.promptRouting !== "session-context") {
-    issues.push("Cursor adapter must use session-context prompt routing");
+  if (adapters?.cursor?.promptRouting !== "before-submit-prompt") {
+    issues.push("Cursor adapter must run prompt-router on beforeSubmitPrompt");
   }
   if (adapters?.cursor?.compatibleHookDeduplication !== "identical-command") {
     issues.push("Cursor compatible hooks must deduplicate by identical command");

@@ -47,7 +47,15 @@ for (const [cursorEvent, claudeEvent] of eventPairs) {
   }
 }
 
-check(!cursor.hooks.beforeSubmitPrompt, "Cursor must not wire unsupported per-prompt context injection");
+check(
+  cursorCommands("beforeSubmitPrompt").some((command) => command.includes("prompt-router.mjs")),
+  "Cursor beforeSubmitPrompt must run the same prompt router",
+);
+check(
+  cursorCommands("preToolUse").some((command) => command.includes("repeat-tool-guard.mjs")) &&
+    cursorCommands("postToolUse").some((command) => command.includes("repeat-tool-guard.mjs")),
+  "Cursor must compare the next tool call with the last recorded output",
+);
 check(
   !/(?:[A-Za-z]:[\\/](?:Users|home)[\\/]|\/(?:Users|home)\/|Leapfrog)/i.test(sharedArtifacts),
   "Generated adapters must not contain machine-specific home paths",

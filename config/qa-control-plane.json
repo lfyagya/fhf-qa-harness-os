@@ -2738,6 +2738,7 @@
       },
       "runtime": {
         "stateFile": "cypress/handoff/loop-state.json",
+        "lastToolFile": "cypress/handoff/last-tool.json",
         "traceFile": "cypress/handoff/loop-trace.jsonl",
         "stateSchema": "fhf-harness/loop-state/v1",
         "traceSchema": "fhf-harness/trace/v1",
@@ -3441,6 +3442,7 @@
           "protect-automation-scope.mjs": "scope",
           "enforce-task-gates.mjs": "scope",
           "manual-task-guard.mjs": "scope",
+          "repeat-tool-guard.mjs": "scope",
           "pre-validate-cypress-rules.mjs": "content",
           "validate-backend-automation.mjs": "content",
           "validate-cypress-rules.mjs": "content",
@@ -3466,6 +3468,12 @@
         ],
         "prompt": [
           "prompt-router.mjs"
+        ],
+        "preAny": [
+          "repeat-tool-guard.mjs"
+        ],
+        "postAny": [
+          "repeat-tool-guard.mjs"
         ],
         "preWrite": [
           "protect-harness-governance.mjs",
@@ -3508,6 +3516,7 @@
           "sync-reminder.mjs"
         ],
         "postToolFailure": [
+          "repeat-tool-guard.mjs",
           "failure-loop-guard.mjs"
         ],
         "preCompact": [
@@ -3554,7 +3563,7 @@
           }
         },
         "cursor": {
-          "promptRouting": "session-context",
+          "promptRouting": "before-submit-prompt",
           "compatibleHookDeduplication": "identical-command"
         },
         "codex": {

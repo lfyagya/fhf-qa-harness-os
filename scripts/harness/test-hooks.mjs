@@ -949,7 +949,7 @@ expect("prompt-router consumes the central route table",
     FHF_HARNESS_CONFIG: customConfigPath,
   }),
   (r) => r.code === 0 && r.stdout.includes("configured-control-route"));
-expect("prompt-router emits the shared Claude/Cursor context format",
+expect("prompt-router appends the same route text on Cursor beforeSubmitPrompt",
   run("prompt-router.mjs", {
     hook_event_name: "beforeSubmitPrompt",
     cursor_version: "1.7.2",
@@ -959,8 +959,9 @@ expect("prompt-router emits the shared Claude/Cursor context format",
     try {
       const output = JSON.parse(r.stdout);
       return r.code === 0 &&
-        output.hookSpecificOutput?.hookEventName === "UserPromptSubmit" &&
-        output.hookSpecificOutput?.additionalContext.includes("New test");
+        output.continue === true &&
+        output.user_message.includes("write a new smoke test") &&
+        output.user_message.includes("New test");
     } catch {
       return false;
     }
@@ -1134,6 +1135,31 @@ expect("citation verifier allows an unrecognised payload shape",
   run("verify-subagent-citations.mjs", { cwd: HARNESS_ROOT, unexpected_field: "nope" }), 0);
 
 rmSync(tmp, { recursive: true, force: true });
+
+const repeatDir = mkdtempSync(path.join(tmpdir(), "fhf-repeat-"));
+const repeatCall = {
+  cwd: repeatDir,
+  tool_name: "Read",
+  tool_input: { file_path: "src/app.js" },
+};
+expect("repeat guard allows the first tool call",
+  run("repeat-tool-guard.mjs", { hook_event_name: "PreToolUse", ...repeatCall }), 0);
+expect("repeat guard records the tool output",
+  run("repeat-tool-guard.mjs", {
+    hook_event_name: "PostToolUse",
+    ...repeatCall,
+    tool_response: "exported function loadAccount",
+  }), 0);
+expect("repeat guard returns the last output for an identical call",
+  run("repeat-tool-guard.mjs", { hook_event_name: "PreToolUse", ...repeatCall }),
+  (r) => r.code === 2 && r.stderr.includes("exported function loadAccount"));
+expect("repeat guard allows a different tool call",
+  run("repeat-tool-guard.mjs", {
+    hook_event_name: "PreToolUse",
+    ...repeatCall,
+    tool_input: { file_path: "src/other.js" },
+  }), 0);
+rmSync(repeatDir, { recursive: true, force: true });
 
 if (failures.length > 0) {
   console.error(`\n${failures.length} hook self-test failure(s):`);

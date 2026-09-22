@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { loadHarnessConfig, detectLane } from './lib/harness-config.mjs';
-import { emitContext, emitEmpty } from './lib/hook-runtime.mjs';
+import { emitPrompt } from './lib/hook-runtime.mjs';
 import { extractFacts, isExternalBackendWorkspace, mergeHandoff } from './lib/memory-state.mjs';
 import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
 import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
@@ -39,7 +39,7 @@ if (!workspace.ready) {
     console.error(formatWorkspacePreflight(workspace, config));
     process.exit(2);
   }
-  emitContext(payload, "UserPromptSubmit", formatWorkspacePreflight(workspace, config));
+  emitPrompt(payload, formatWorkspacePreflight(workspace, config));
   process.exit(0);
 }
 const ticket = ticketKeyFromPrompt(promptForMatch(payload.prompt ?? ""));
@@ -157,8 +157,8 @@ if (isCreate && moduleMatch) {
 }
 
 if (lines.length > 0) {
-  emitContext(payload, "UserPromptSubmit", lines.join('\n'));
+  emitPrompt(payload, lines.join('\n'));
 } else {
-  emitEmpty(payload);
+  emitPrompt(payload, "");
 }
 process.exit(0);

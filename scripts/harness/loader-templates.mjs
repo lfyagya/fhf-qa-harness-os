@@ -19,8 +19,8 @@ const HOOKS = ENGINEERING.harness.hooks;
 const ADAPTERS = ENGINEERING.harness.adapters;
 const BOUNDARIES = ENGINEERING.harness.boundaries;
 
-if (ADAPTERS.cursor.promptRouting !== "session-context") {
-  throw new Error("Cursor prompt routing must use the session-context capability fallback");
+if (ADAPTERS.cursor.promptRouting !== "before-submit-prompt") {
+  throw new Error("Cursor prompt routing must run prompt-router on beforeSubmitPrompt");
 }
 if (ADAPTERS.cursor.compatibleHookDeduplication !== "identical-command") {
   throw new Error("Cursor/Claude compatible hooks must deduplicate by identical command");
@@ -162,7 +162,11 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
     hooks: {
       sessionStart: HOOKS.sessionStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
+      beforeSubmitPrompt: HOOKS.prompt.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
       preToolUse: [
+        ...HOOKS.preAny.map((script) =>
+          cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
         ...HOOKS.preWrite.map((script) =>
           cursorCommand(HARNESS_HOOKS, script, {
             matcher: cursorWriteMatcher,
@@ -192,11 +196,15 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
           failClosed: true,
           args: "--deny-matched-subagent",
         })),
-      postToolUse: HOOKS.postWrite.map((script) =>
-        cursorCommand(HARNESS_HOOKS, script, {
-          matcher: cursorPostWriteMatcher,
-          failClosed: true,
-        })),
+      postToolUse: [
+        ...HOOKS.postWrite.map((script) =>
+          cursorCommand(HARNESS_HOOKS, script, {
+            matcher: cursorPostWriteMatcher,
+            failClosed: true,
+          })),
+        ...HOOKS.postAny.map((script) =>
+          cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
+      ],
       postToolUseFailure: HOOKS.postToolFailure.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
       preCompact: HOOKS.preCompact.map((script) =>
@@ -226,6 +234,7 @@ function claudeGroup(root, scripts) {
 
 export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
   const preToolUse = [
+    { hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preAny) },
     { matcher: "Edit|Write", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
     { matcher: "Bash", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
     { matcher: "Task|Agent", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
@@ -259,10 +268,13 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
       Stop: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.stop) }],
       PreCompact: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preCompact) }],
       SessionEnd: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionEnd) }],
-      PostToolUse: [{
-        matcher: "Edit|Write",
-        hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postWrite),
-      }],
+      PostToolUse: [
+        {
+          matcher: "Edit|Write",
+          hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postWrite),
+        },
+        { hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postAny) },
+      ],
       PostToolUseFailure: [{
         hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postToolFailure),
       }],

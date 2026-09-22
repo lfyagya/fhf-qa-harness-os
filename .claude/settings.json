@@ -25,6 +25,14 @@
     ],
     "PreToolUse": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\""
+          }
+        ]
+      },
+      {
         "matcher": "Edit|Write",
         "hooks": [
           {
@@ -194,11 +202,23 @@
             "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"sync-reminder.mjs\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\""
+          }
+        ]
       }
     ],
     "PostToolUseFailure": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"repeat-tool-guard.mjs\""
+          },
           {
             "type": "command",
             "command": "node -e \"const p=require('node:path'),u=require('node:url');const r=process.env.CLAUDE_PROJECT_DIR||process.env.CURSOR_PROJECT_DIR||process.cwd();import(u.pathToFileURL(p.join(r,'.claude','hooks',process.argv[1])).href)\" \"failure-loop-guard.mjs\""
