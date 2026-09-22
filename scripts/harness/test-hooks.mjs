@@ -399,7 +399,11 @@ expect("protect-app-source leaves backend automation to its scoped boundary",
   run("protect-app-source.mjs", { tool_input: { file_path: backendTestPath } }), 0);
 expect("protect-automation-scope asks for the sprint task when no manifest is active",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, workspaceEnv),
-  (r) => r.code === 2 && r.stderr.includes("Provide the sprint task"));
+  (r) => r.code === 2 && r.stderr.includes("Provide the sprint task") && r.stderr.includes("sprint-task.json"));
+mkdirSync(path.join(backendRoot, ".harness", "tasks"), { recursive: true });
+writeFileSync(path.join(backendRoot, ".harness", "tasks", "SERV-12360.json"), JSON.stringify(activeTask));
+expect("protect-automation-scope uses the sprint task stored in .harness/tasks",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, workspaceEnv), 0);
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
