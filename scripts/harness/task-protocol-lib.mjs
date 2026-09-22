@@ -133,12 +133,31 @@ export function firstPendingGate(manifest, gates, stage, options = {}) {
 export function stampGate(manifest, gate, { approvedBy, approvedAt }, {
   approvalFields = DEFAULT_APPROVAL_FIELDS,
   legacyGateId = "plan",
+  gates,
 } = {}) {
   if (typeof approvedBy !== "string" || !approvedBy.trim()) {
     throw new Error("approvedBy must be a non-empty string");
   }
   if (typeof approvedAt !== "string" || !Number.isFinite(Date.parse(approvedAt))) {
     throw new Error("approvedAt must be an ISO-8601 timestamp");
+  }
+  if (!Array.isArray(gates) || gates.length === 0) {
+    throw new Error("gates must be a non-empty array");
+  }
+  if (!gate?.id || !gates.some((item) => item.id === gate.id)) {
+    throw new Error(`unknown gate: ${gate?.id ?? "(missing)"}`);
+  }
+  const stage = manifest.stage;
+  const stageGates = requiredGates(gates, stage);
+  const gateIndex = stageGates.findIndex((item) => item.id === gate.id);
+  if (gateIndex < 0) {
+    throw new Error(`cannot stamp ${gate.id} at stage ${stage}`);
+  }
+  for (const prior of stageGates.slice(0, gateIndex)) {
+    const state = gateState(manifest, prior, { approvalFields, legacyGateId });
+    if (state.state !== "current") {
+      throw new Error(`cannot stamp ${gate.id} before ${prior.id} is current`);
+    }
   }
   const digest = gateDigest(manifest, gate);
   const approval = {

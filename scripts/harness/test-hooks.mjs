@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { approvalDigest, stampGate } from "./task-protocol-lib.mjs";
 import { loadHarnessConfig } from "../../.claude/hooks/lib/harness-config.mjs";
 import { recordCapabilityOutcome } from "../../.claude/hooks/lib/capability-control.mjs";
+import { authorizeAutomationRun } from "../../.claude/hooks/lib/task-scope.mjs";
 
 const HOOKS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks");
 const HARNESS_ROOT = path.resolve(HOOKS, "..", "..");
@@ -160,6 +161,28 @@ const backendSha = execFileSync("git", ["-C", backendRoot, "rev-parse", "HEAD"],
   encoding: "utf8",
   env: fixtureGitEnv,
 }).trim();
+const e2eRoot = path.join(tmp, "front-end-automation-e2e");
+const e2eSpecPath = path.join(
+  e2eRoot,
+  "CypressFHF",
+  "fhf-dashboards",
+  "cypress",
+  "tests",
+  "missing-titles.cy.js",
+);
+mkdirSync(path.dirname(e2eSpecPath), { recursive: true });
+writeFileSync(e2eSpecPath, "describe('x', () => { it('y', () => {}); });\n");
+const smokeLaneRoot = path.join(tmp, "front-end-automation-smoke");
+const smokeLaneSpecPath = path.join(
+  smokeLaneRoot,
+  "CypressFHF",
+  "fhf-dashboards",
+  "cypress",
+  "tests",
+  "a.cy.js",
+);
+mkdirSync(path.dirname(smokeLaneSpecPath), { recursive: true });
+writeFileSync(smokeLaneSpecPath, "describe('x', () => { it('y', () => {}); });\n");
 const activeTaskPath = path.join(tmp, "active-task.json");
 const activeTask = {
   schema: "fhf-harness/task/v1",
@@ -232,6 +255,14 @@ if (backendConfig.workspaceContract?.lanes?.backend) {
   backendConfig.workspaceContract.lanes.backend.requiredLocalPaths = [];
   backendConfig.workspaceContract.lanes.backend.requiredWorkspacePaths = [];
 }
+for (const lane of ["e2e", "smoke"]) {
+  if (backendConfig.workspaceContract?.lanes?.[lane]) {
+    backendConfig.workspaceContract.lanes[lane].required = false;
+    backendConfig.workspaceContract.lanes[lane].requiredLocalPaths = [];
+    backendConfig.workspaceContract.lanes[lane].requiredWorkspacePaths = [];
+    backendConfig.workspaceContract.lanes[lane].requireBranch = false;
+  }
+}
 backendConfig.moduleSpecPaths = {};
 writeFileSync(backendConfigPath, JSON.stringify(backendConfig));
 const liveApproval = backendConfig.engineering.taskProtocol.approval;
@@ -244,6 +275,7 @@ for (const gate of (liveApproval.gates ?? []).filter((item) => (item.requiredFro
   }, {
     approvalFields: liveApproval.boundFields,
     legacyGateId: liveApproval.legacySingleDigestSatisfies ?? "plan",
+    gates: liveApproval.gates,
   });
 }
 writeFileSync(activeTaskPath, JSON.stringify(activeTask));
@@ -395,6 +427,12 @@ expect("protect-app-source leaves backend automation to its scoped boundary",
   run("protect-app-source.mjs", { tool_input: { file_path: backendTestPath } }), 0);
 expect("protect-automation-scope blocks backend writes without an active task",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
+expect("protect-automation-scope blocks e2e Cypress writes without an active task",
+  run("protect-automation-scope.mjs", { cwd: e2eRoot, tool_input: { file_path: e2eSpecPath } }, workspaceEnv),
+  (r) => r.code === 2 && /FHF_ACTIVE_TASK|selected task manifest/.test(r.stderr));
+expect("protect-automation-scope blocks smoke Cypress writes without an active task",
+  run("protect-automation-scope.mjs", { cwd: smokeLaneRoot, tool_input: { file_path: smokeLaneSpecPath } }, workspaceEnv),
+  (r) => r.code === 2 && /FHF_ACTIVE_TASK|selected task manifest/.test(r.stderr));
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
@@ -412,7 +450,15 @@ expect("session-context names the pending gate for an active task",
     hook_event_name: "sessionStart",
     cwd: tmp,
   }, { ...ungatedTaskEnv, CLAUDE_CWD: tmp }),
-  (r) => r.code === 0 && r.stdout.includes("spec") && !r.stdout.includes("approve --manifest"));
+  (r) => {
+    let context = "";
+    try {
+      context = JSON.parse(r.stdout).hookSpecificOutput?.additionalContext ?? "";
+    } catch {
+      context = r.stdout;
+    }
+    return r.code === 0 && context.includes('gate "manifest"') && !context.includes("approve --manifest");
+  });
 expect("protect-automation-scope blocks stale task approval",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, staleTaskEnv), 2);
 expect("protect-automation-scope blocks a changed backend repository revision",
@@ -552,6 +598,25 @@ expect("manual-task-guard allows the exact selected backend pytest path",
     cwd: backendRoot,
     tool_input: { working_directory: backendRoot, command: "python -m pytest tests/api/users/test_users.py" },
   }, activeTaskEnv), 0);
+{
+  const livePolicy = JSON.parse(readFileSync(path.join(HARNESS_ROOT, "config", "qa-control-plane.json"), "utf8"));
+  const e2eColon = authorizeAutomationRun({
+    command: "npm run cy:run:custom CypressFHF/fhf-dashboards/cypress/tests/foo.cy.js",
+    cwd: "C:/work/front-end-automation-e2e",
+    config: livePolicy,
+  });
+  expect("e2e cy:run does not match arbitrary colon suffixes",
+    { code: e2eColon.allowed ? 0 : 2, stdout: "", stderr: e2eColon.reason ?? "" },
+    (result) => result.code === 2 && /only configured backend pytest commands/.test(result.stderr));
+  const smokeColon = authorizeAutomationRun({
+    command: "npm run cy:run:smoke:titles CypressFHF/fhf-dashboards/cypress/tests/foo.cy.js",
+    cwd: "C:/work/front-end-automation-smoke",
+    config: livePolicy,
+  });
+  expect("smoke cy:run:smoke still matches module colon suffixes",
+    { code: smokeColon.allowed ? 0 : 2, stdout: "", stderr: smokeColon.reason ?? "" },
+    (result) => /FHF_ACTIVE_TASK|selected task manifest/.test(result.stderr));
+}
 expect("manual-task-guard blocks a broader backend pytest selection",
   run("manual-task-guard.mjs", {
     cwd: backendRoot,
@@ -688,6 +753,12 @@ expect("block-forbidden-skills allows cypress-tap",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-tap" } }), 0);
 expect("block-forbidden-skills allows cypress-author",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-author" } }), 0);
+expect("block-forbidden-skills allows twg",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "twg" } }), 0);
+expect("block-forbidden-skills allows twg-jira",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "twg-jira" } }), 0);
+expect("block-forbidden-skills allows twg-confluence",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "twg-confluence" } }), 0);
 expect("block-forbidden-skills matches skill names case-insensitively",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "Cypress-Docs" } }), 0);
 expect("block-forbidden-skills noops on a payload without a skill",

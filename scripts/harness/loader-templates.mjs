@@ -104,6 +104,7 @@ export function workspaceExample(lane) {
     cypressCloud: false,
     figmaMcp: false,
     testRail: false,
+    teamworkGraphCli: false,
   };
   return `${JSON.stringify(example, null, 2)}\n`;
 }
@@ -293,7 +294,7 @@ export function parentAgents() {
   const tiers = ENGINEERING.harness.modelTiers ?? { default: "standard" };
   const invocation = ENGINEERING.harness.skillInvocation ?? { mode: "route-or-explicit" };
   const extraSkills = (ENGINEERING.harness.skills ?? []).filter((name) =>
-    !["cypress-explain", "cypress-docs", "cypress-tap", "cypress-author", "backend-test-author"].includes(name),
+    !["cypress-explain", "cypress-docs", "cypress-tap", "cypress-author", "backend-test-author", "twg", "twg-jira", "twg-confluence"].includes(name),
   );
   const extraLines = extraSkills.length
     ? extraSkills.map((name) => `- \`${name}\` — root-lane only; invoke when the matched route names it`).join("\n")
@@ -326,6 +327,7 @@ Allowed Cypress AI Toolkit skills stay in the parent (do not spawn). Read
 - \`cypress-tap\` — drive a live \`cypress open\` session (Cypress 15.21+, Chromium; not headless \`cypress run\`)
 - \`cypress-author\` — Cypress-native conventions only on FHF work; must not Write specs. Parent spawns \`cypress-generator\`
 - \`backend-test-author\` — backend pytest/API/Oracle work under the active task manifest
+- \`twg\` / \`twg-jira\` / \`twg-confluence\` — same Atlassian overlay as MCP graph. Configure then use: install from \`connectors.teamworkGraphCli.agentsMd\`, \`twg doctor\`, then \`capability-doctor teamwork-graph-cli\`. Not a second ticket oracle.
 ${extraLines ? `${extraLines}\n` : ""}
 \`cypress-author\` may load; on FHF work it must not write specs. New Cypress specs spawn
 \`cypress-generator\`.
@@ -575,6 +577,7 @@ ${isE2e
   : "Production smoke is GET-only. Never mutate, submit, export, download, upload, or send."}
 For a Jira ticket, run \`node .harness/capability-doctor.mjs --capability jira-ticket-read --subject <SERV-ID>\` before grounding.
 If it requests access, stop and request OAuth Jira Browse/Read or a sanitized ticket export; a declared connector still requires a successful live ticket read.
+Teamwork Graph CLI skills (\`twg\`, \`twg-jira\`, \`twg-confluence\`) are on the same allow-list. Do not treat them as ready until \`teamwork-graph-cli\` is ready. Jira MCP remains the ticket oracle.
 `;
 }
 

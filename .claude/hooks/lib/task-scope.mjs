@@ -266,8 +266,18 @@ export function authorizeAutomationRun({ command, cwd, config, env = process.env
     return { applies: true, allowed: false, reason: "dependency, publication, upload, and production operations are not authorized" };
   }
   const lower = trimmed.toLowerCase();
-  const prefix = (repository.policy.allowedRunPrefixes ?? [])
-    .find((candidate) => lower === candidate || lower.startsWith(`${candidate} `));
+  const colonSuffixPrefixes = new Set(
+    (repository.policy.allowedColonSuffixPrefixes ?? [])
+      .map((candidate) => String(candidate ?? "").toLowerCase())
+      .filter(Boolean),
+  );
+  const prefix = (repository.policy.allowedRunPrefixes ?? []).find((candidate) => {
+    const allowed = String(candidate ?? "").toLowerCase();
+    if (!allowed) return false;
+    return lower === allowed
+      || lower.startsWith(`${allowed} `)
+      || (colonSuffixPrefixes.has(allowed) && lower.startsWith(`${allowed}:`));
+  });
   if (!prefix) {
     return { applies: true, allowed: false, reason: "only configured backend pytest commands are executable" };
   }

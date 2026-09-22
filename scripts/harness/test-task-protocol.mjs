@@ -348,10 +348,18 @@ assert.equal(approvalState(classificationInvalidatesApproval).state, "stale");
 
 const gates = [
   {
-    id: "spec",
-    label: "Product spec",
-    boundFields: ["grounding.acceptanceCriteriaDigest", "grounding.catalogVersion"],
-    requiredFrom: ["planned", "approved", "implementing", "verified", "complete"],
+    id: "manifest",
+    label: "Task manifest",
+    boundFields: [
+      "ticketFamily",
+      "grounding.jira.issueDigest",
+      "grounding.acceptanceCriteriaDigest",
+      "grounding.catalogVersion",
+      "grounding.repositories",
+      "grounding.intentVsBuilt",
+      "selection",
+    ],
+    requiredFrom: ["grounded", "planned", "approved", "implementing", "verified", "complete"],
   },
   {
     id: "scenarios",
@@ -363,7 +371,7 @@ const gates = [
   {
     id: "plan",
     label: "Task plan",
-    boundFields: ["ticketFamily", "grounding", "selection", "plan.changeUnits", "plan.impact", "plan.executionBudget"],
+    boundFields: ["plan.changeUnits", "plan.impact", "plan.executionBudget"],
     requiredFrom: ["planned", "approved", "implementing", "verified", "complete"],
   },
   {
@@ -388,12 +396,13 @@ const gates = [
 const gatedOptions = { ...options, gates, legacySingleDigestSatisfies: "plan" };
 const gated = fixture();
 assert.equal(gateState(gated, gates[0]).state, "missing");
-assert.equal(firstPendingGate(gated, gates, "planned").gate.id, "spec");
+assert.equal(firstPendingGate(gated, gates, "grounded").gate.id, "manifest");
+assert.equal(firstPendingGate(gated, gates, "planned").gate.id, "manifest");
 assert.equal(nextStep(gated, gatedOptions).action, "await-human-approval");
-assert.equal(nextStep(gated, gatedOptions).gate, "spec");
+assert.equal(nextStep(gated, gatedOptions).gate, "manifest");
 
 gated.approval.stamps = {
-  spec: {
+  manifest: {
     approvedBy: "Sanjay Koju",
     approvedAt: "2026-09-17T00:00:00.000Z",
     digest: gateDigest(gated, gates[0]),
@@ -418,16 +427,58 @@ assert.equal(gateState(gated, gates[2], { legacyGateId: "plan" }).via, "legacy-a
 assert.equal(firstPendingGate(gated, gates, "planned", { legacyGateId: "plan" }).gate.id, "scenarios");
 
 const stamped = fixture();
+assert.throws(
+  () => stampGate(stamped, gates[0], {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }),
+  /gates must be a non-empty array/,
+);
+assert.throws(
+  () => stampGate(stamped, gates[1], {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, { gates }),
+  /cannot stamp scenarios before manifest is current/,
+);
 stamped.approval = stampGate(stamped, gates[0], {
   approvedBy: "Sanjay Koju",
   approvedAt: "2026-09-17T00:00:00.000Z",
-});
-assert.equal(stamped.approval.stamps.spec.approvedBy, "Sanjay Koju");
+}, { gates });
+assert.equal(stamped.approval.stamps.manifest.approvedBy, "Sanjay Koju");
 assert.equal(gateState({ ...fixture(), approval: stamped.approval }, gates[0]).state, "current");
+
+const groundedOnly = fixture();
+groundedOnly.stage = "grounded";
+groundedOnly.approval = stampGate(groundedOnly, gates[0], {
+  approvedBy: "Sanjay Koju",
+  approvedAt: "2026-09-17T00:00:00.000Z",
+}, { gates });
+assert.throws(
+  () => stampGate(groundedOnly, gates[1], {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, { gates }),
+  /cannot stamp scenarios at stage grounded/,
+);
+assert.throws(
+  () => stampGate(groundedOnly, gates[4], {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, { gates }),
+  /cannot stamp evidence at stage grounded/,
+);
+assert.throws(
+  () => stampGate(stamped, gates[2], {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, { gates }),
+  /cannot stamp plan before scenarios is current/,
+);
 assert.match(
   validateTaskManifest({
     ...fixture(),
-    approval: { required: true, stamps: { spec: { approvedBy: "", approvedAt: "nope", digest: "short" } } },
+    approval: { required: true, stamps: { manifest: { approvedBy: "", approvedAt: "nope", digest: "short" } } },
   }, gatedOptions).join("\n"),
   /approvedBy must be recorded/,
 );
@@ -437,10 +488,24 @@ for (const gate of gates.filter((item) => item.requiredFrom.includes("planned"))
   allPlannedStamped.approval = stampGate(allPlannedStamped, gate, {
     approvedBy: "Sanjay Koju",
     approvedAt: "2026-09-17T00:00:00.000Z",
-  }, { approvalFields: options.approvalFields, legacyGateId: "plan" });
+  }, { approvalFields: options.approvalFields, legacyGateId: "plan", gates });
 }
 assert.equal(nextStep(allPlannedStamped, gatedOptions).action, "begin-implementation");
 assert.equal(nextStep(allPlannedStamped, gatedOptions).blocked, false);
+assert.throws(
+  () => stampGate(allPlannedStamped, gates[4], {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, { gates }),
+  /cannot stamp evidence at stage planned/,
+);
+assert.throws(
+  () => stampGate(allPlannedStamped, gates[5], {
+    approvedBy: "Sanjay Koju",
+    approvedAt: "2026-09-17T00:00:00.000Z",
+  }, { gates }),
+  /cannot stamp release at stage planned/,
+);
 
 const evidenceStage = structuredClone(verified);
 evidenceStage.approval.stamps = Object.fromEntries(
@@ -474,7 +539,7 @@ const contractResult = spawnSync(process.execPath, [path.join(HERE, "task-protoc
 assert.equal(contractResult.status, 0, contractResult.stderr);
 assert.equal(JSON.parse(contractResult.stdout).schema, "fhf-harness/task/v1");
 assert.deepEqual(JSON.parse(contractResult.stdout).approvalGates, [
-  "spec",
+  "manifest",
   "scenarios",
   "plan",
   "test-cases",
@@ -482,17 +547,17 @@ assert.deepEqual(JSON.parse(contractResult.stdout).approvalGates, [
   "release",
 ]);
 const nextGated = JSON.parse(nextResult.stdout);
-assert.equal(nextGated.gate, "spec");
+assert.equal(nextGated.gate, "manifest");
 const agentApprove = spawnSync(
   process.execPath,
-  [path.join(HERE, "task-protocol.mjs"), "approve", "--manifest", manifestPath, "--gate", "spec"],
+  [path.join(HERE, "task-protocol.mjs"), "approve", "--manifest", manifestPath, "--gate", "manifest"],
   { encoding: "utf8", env: { ...process.env, CLAUDECODE: "1" } },
 );
 assert.equal(agentApprove.status, 2);
 assert.match(agentApprove.stderr, /Agents cannot approve/);
 const humanApprove = spawnSync(
   process.execPath,
-  [path.join(HERE, "task-protocol.mjs"), "approve", "--manifest", manifestPath, "--gate", "spec"],
+  [path.join(HERE, "task-protocol.mjs"), "approve", "--manifest", manifestPath, "--gate", "manifest"],
   {
     encoding: "utf8",
     input: "yes\n",
@@ -503,7 +568,7 @@ const humanApprove = spawnSync(
   },
 );
 assert.equal(humanApprove.status, 0, humanApprove.stderr);
-assert.equal(JSON.parse(humanApprove.stdout).gate, "spec");
+assert.equal(JSON.parse(humanApprove.stdout).gate, "manifest");
 assert.equal(JSON.parse(humanApprove.stdout).approved, true);
 const afterApprove = spawnSync(process.execPath, [path.join(HERE, "task-protocol.mjs"), "next", "--manifest", manifestPath], { encoding: "utf8" });
 assert.equal(JSON.parse(afterApprove.stdout).gate, "scenarios");

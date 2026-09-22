@@ -117,7 +117,8 @@ everyone's paths differ:
     "confluenceMcp": false,
     "cypressCloud": false,
     "figmaMcp": false,
-    "testRail": false
+    "testRail": false,
+    "teamworkGraphCli": false
   }
 }
 ```

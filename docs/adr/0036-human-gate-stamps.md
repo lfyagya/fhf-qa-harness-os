@@ -52,3 +52,6 @@ gate is current. The human still types `yes`; the harness only auto-stops.
 - Claude CLI and Cursor share one gate list after sync.
 - Using `lane` on an FHF ticket is a process defect, not an alternative harness.
 - A LANE-like browser UI is optional follow-on work inside the harness, not a reason to adopt LANE.
+
+Amended by ADR-0039: the first gate is `manifest` (absorbing `spec`); Cypress E2E and Smoke join
+the same `automationSource` write map as backend.

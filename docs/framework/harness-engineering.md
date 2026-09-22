@@ -57,6 +57,7 @@ measured evaluator judgment.
 ```text
 qa-control-plane.json
   ├─ connectors.cypressCloud → MCP/CLI diagnostics, auth boundary, lane access
+  ├─ connectors.teamworkGraphCli → optional TWG CLI overlay; configure then use; not a ticket oracle
   ├─ policyGovernance     → source class, placement, adoption, applicability
   ├─ engineering.context  → priority routing, context budget, compaction
   ├─ engineering.memory   → session boundary, exact facts, handoff, Obsidian boundary
@@ -101,7 +102,7 @@ flowchart TD
   C --> D[Enforcement: 26 hooks, 29 bindings, 10 events]
   C --> E[Roster: 7 agents, 17 blocked, 19 skills]
   C --> F[Budgets: 1 specialist, depth 1, 3 retries]
-  C --> G[Boundaries: source read-only, smoke GET-only, backend scoped]
+  C --> G[Boundaries: source read-only, smoke GET-only, automation scoped]
   D --> H[Task protocol, 6 human gates]
   E --> H
   F --> H
@@ -231,7 +232,7 @@ acceptance-criteria digest, repository SHAs and paths, intent-vs-built classific
 dependency DAG, QA impact, runner selection, and proof modes. It does not copy the catalog,
 repositories, full Jira history, chat, or Obsidian vault into task context.
 
-Human approval is six ordered stamps (`spec`, `scenarios`, `plan`, `test-cases`, `evidence`,
+Human approval is six ordered stamps (`manifest`, `scenarios`, `plan`, `test-cases`, `evidence`,
 `release`), each bound to a digest of named manifest fields and recorded as
 `{ approvedBy, approvedAt, digest }`. A human stamps a gate with
 `node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>` from a real terminal
@@ -243,7 +244,7 @@ invalidate the matching stamp and block the next step. Unclassified or `ask-prod
 and block verified/complete. Dependency cycles and unknown dependencies also block. The decision
 core emits one machine-readable next action; it never approves, commits, merges, deploys, or writes
 externally. Do not route FHF work through the global `lane` CLI or dashboard. Session start and
-every prompt inject the current gate. Write and pytest hooks fail closed on the earliest
+every prompt inject the current gate. Write and Cypress/pytest hooks fail closed on the earliest
 missing stamp, so step 2 cannot start until step 1 is approved. Approval itself stays
 human: the harness never types `yes`.
 
@@ -251,14 +252,10 @@ The lifecycle those stamps sit in:
 
 ```mermaid
 flowchart TD
-  A[Intake from Jira] --> B[Spec proposal]
-  B --> C{Owner approves the spec}
-  C -->|No| B
-  C -->|Yes| D[Freeze the task manifest]
-  D --> E[Classify intent versus built]
-  E --> F{Any acceptance row is a defect}
+  A[Intake from Jira] --> B[Ground ticket, sources, intent vs built]
+  B --> F{Any acceptance row is a defect}
   F -->|Yes| G[Notify Dev before any run]
-  F -->|No| H[Gates spec, scenarios, plan, test-cases]
+  F -->|No| H[Gates manifest, scenarios, plan, test-cases]
   H --> I{Owner stamps the digest}
   I -->|No| J[Every write stays blocked]
   I -->|Yes| K[One specialist authors on selected paths]
@@ -320,12 +317,13 @@ receive that same response; real tool payloads still pass through the configured
 File-tool guards, shell mutation guards, and Claude sandbox deny-write rules enforce the
 application-source boundary at available layers.
 
-Backend automation has a separate task-scoped boundary. protect-automation-scope.mjs requires
+Every automation lane has a task-scoped write-and-run boundary. protect-automation-scope.mjs requires
 FHF_ACTIVE_TASK and checks every write against the manifest's frozen repository paths plus planned
-change-unit paths. manual-task-guard.mjs permits only the selected backend-api-oracle pytest path in
-Dev/QA; validate-backend-automation.mjs parses changed Python and enforces test-layer contracts.
-Shell writes, credentials, dependency changes, Git publication, uploads, and production backend
-execution stay blocked.
+change-unit paths. Cypress E2E, Cypress Smoke, and backend pytest share that map. manual-task-guard.mjs
+permits only the selected backend-api-oracle pytest path in Dev/QA; validate-backend-automation.mjs
+parses changed Python and enforces test-layer contracts. Shell writes, credentials, dependency changes,
+Git publication, uploads, and production backend execution stay blocked. Smoke GET-only remains a
+content rule on the spec, not an exemption from the write map.
 
 ### Vendor conformance
 
@@ -374,6 +372,15 @@ Newly governed and enforced:
   manifest selects frontend and backend automation, each participating change unit records the same
   `{ endpoint, correlationKey }`, or an explicit `NOT_APPLICABLE` with evidence. Task validation
   rejects omission, malformed linkage, and mismatched seams.
+### Teamwork Graph CLI
+
+`connectors.teamworkGraphCli` is the same Atlassian overlay as MCP `teamworkGraph`, not a second
+ticket system (ADR-0040). The harness allow-lists `twg`, `twg-jira`, and `twg-confluence` with the other
+skills. Listing them does not make them ready. Each machine still runs the official
+`agentsMd` install, `twg setup`, and `twg doctor`, then records `teamwork-graph-cli`. Until that
+capability is ready, agents keep `jira-ticket-read` as the ticket oracle. Bitbucket setup stays
+optional; this org's automation PRs are GitHub.
+
 ### Cypress Cloud diagnostics
 
 `connectors.cypressCloud` owns one read-only evidence chain: Cloud MCP → Cloud CLI → local JUnit.

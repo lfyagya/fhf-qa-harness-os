@@ -31,6 +31,7 @@ function loadSetup(root, config) {
     "FHF_CYPRESS_CLOUD",
     "FHF_FIGMA_MCP",
     "FHF_TESTRAIL",
+    "FHF_TEAMWORK_GRAPH_CLI",
   ];
   const hasEnvironmentSetup = environmentFields.some((field) => process.env[field] !== undefined);
   if (!fs.existsSync(file) && !hasEnvironmentSetup) return { file, values: null, error: null };
@@ -62,6 +63,7 @@ function loadSetup(root, config) {
       cypressCloud: bool(process.env.FHF_CYPRESS_CLOUD) ?? bool(parsed.cypressCloud ?? optional.cypressCloud),
       figmaMcp: bool(process.env.FHF_FIGMA_MCP) ?? bool(parsed.figmaMcp ?? optional.figmaMcp),
       testRail: bool(process.env.FHF_TESTRAIL) ?? bool(parsed.testRail ?? optional.testRail),
+      teamworkGraphCli: bool(process.env.FHF_TEAMWORK_GRAPH_CLI) ?? bool(parsed.teamworkGraphCli ?? optional.teamworkGraphCli),
     };
     return { file, values, error: null };
   } catch (error) {
@@ -77,6 +79,7 @@ export function workspaceConnectorDeclarations({ root = PROJECT_ROOT, config = l
     cypressCloud: Boolean(setup.values?.cypressCloud),
     figmaMcp: Boolean(setup.values?.figmaMcp),
     testRail: Boolean(setup.values?.testRail),
+    teamworkGraphCli: Boolean(setup.values?.teamworkGraphCli),
     setupFile: setup.file,
     setupError: setup.error,
   };
@@ -256,6 +259,7 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
   if (!values?.cypressCloud) warnings.push("Cypress Cloud is not configured; use local JUnit and run metadata only.");
   if (!values?.figmaMcp) warnings.push("Figma is not configured; design-driven visual acceptance remains blocked unless an approved design export is supplied.");
   if (!values?.testRail) warnings.push("TestRail is not configured; use native local artifacts unless the task requires TestRail lookup or reporting.");
+  if (!values?.teamworkGraphCli) warnings.push("Teamwork Graph CLI is not declared; keep Jira MCP as the ticket oracle and do not treat twg skills as ready.");
 
   return {
     ready: issues.length === 0,
@@ -275,6 +279,7 @@ export function workspacePreflight({ root = PROJECT_ROOT, config = loadHarnessCo
           cypressCloud: Boolean(values.cypressCloud),
           figmaMcp: Boolean(values.figmaMcp),
           testRail: Boolean(values.testRail),
+          teamworkGraphCli: Boolean(values.teamworkGraphCli),
         }
       : null,
   };

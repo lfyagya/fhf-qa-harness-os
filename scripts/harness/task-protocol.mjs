@@ -417,6 +417,7 @@ async function approveCommand(options) {
   const approval = stampGate(manifest, gate, { approvedBy, approvedAt }, {
     approvalFields: options.approvalFields,
     legacyGateId: options.legacySingleDigestSatisfies,
+    gates: options.gates,
   });
   const next = { ...manifest, approval };
   fs.writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");

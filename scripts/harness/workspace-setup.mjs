@@ -63,6 +63,7 @@ try {
       cypressCloud: await askBoolean("Cypress Cloud metadata access is configured", existing.optional?.cypressCloud ?? false),
       figmaMcp: await askBoolean("Figma MCP/OAuth read access is configured", existing.optional?.figmaMcp ?? false),
       testRail: await askBoolean("TestRail read/reporting access is configured", existing.optional?.testRail ?? false),
+      teamworkGraphCli: await askBoolean("Teamwork Graph CLI is installed and twg doctor is green (not merely allow-listed)", existing.optional?.teamworkGraphCli ?? false),
     },
   };
   if (meta.rootField) {
@@ -75,6 +76,11 @@ try {
     values.optional.jiraMcp
       ? "Jira is declared configured. Ticket intake still requires a live read probe: node .harness/capability-doctor.mjs --capability jira-ticket-read --subject <SERV-ID>."
       : "Jira ticket intake will request OAuth Jira Browse/Read access or a sanitized ticket export: node .harness/capability-doctor.mjs --capability jira-ticket-read --subject <SERV-ID>.",
+  );
+  console.log(
+    values.optional.teamworkGraphCli
+      ? "Teamwork Graph CLI is declared. It is still overlay-only: node .harness/capability-doctor.mjs --capability teamwork-graph-cli --subject <SERV-ID>."
+      : "Teamwork Graph CLI stays undeclared. Jira MCP remains the ticket oracle; do not treat twg skills as ready.",
   );
   console.log(`Run node .harness/verify.mjs to validate the complete ${meta.name} workspace.`);
 } finally {

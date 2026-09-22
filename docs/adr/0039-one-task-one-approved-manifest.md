@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-09-21 |
 | **Extends** | ADR-0036 (human gate stamps) |
 | **Amends** | `engineering.taskProtocol.approval.gates`, `engineering.harness.boundaries.automationSource` |
@@ -107,9 +107,12 @@ coverage, not strength; hardening the model further buys nothing while having on
    `plan` and `test-cases` stay separate gates rather than merging into one step. That is stricter
    than asked for and costs nothing, since ordering already blocks on the earlier of the two.
 
-3. **`stampGate` refuses out-of-order approval.** Stamping a gate whose earlier required gates are
-   not `current` throws, in the same shape as its existing `approvedBy`/`approvedAt` validation. The
-   write path already enforces the order; this makes the record agree with it.
+3. **`stampGate` refuses out-of-order approval.** A gate that is not required at the current
+   stage cannot be stamped. A required gate whose earlier required-at-this-stage gates are not
+   `current` also throws, in the same shape as its existing `approvedBy`/`approvedAt`
+   validation. After `manifest` is current at `grounded`, later gates stay unstamped until the
+   task reaches the stage that requires them. The write path already enforces the order; this
+   makes the record agree with it.
 
 4. **`legacySingleDigestSatisfies: "plan"` is retained.** It satisfies the renamed-and-narrowed
    `plan` gate only, never `manifest`. A pre-existing single-digest approval must not be read as
@@ -141,7 +144,19 @@ This ADR does **not** decide:
   that is correct depends on what it is for, which is a separate reading;
 - any change to the approval digest algorithm, the stage machine, or `invalidateWhen`.
 
-A gate that has not been observed failing has not been shown to work (ADR-0034). Each of the three
-enforced changes needs that treatment before this is marked Accepted: a frontend write refused with
-no manifest, a `manifest` stamp demanded before `scenarios`, and `stampGate` throwing on an
-out-of-order stamp.
+A gate that has not been observed failing has not been shown to work (ADR-0034). Observed on
+2026-09-21 after this change landed:
+
+- E2E and Smoke Cypress writes without `FHF_ACTIVE_TASK` exit 2 from `protect-automation-scope`
+  with the active-manifest reason;
+- `firstPendingGate` at `grounded` and `planned` returns `manifest` before `scenarios`;
+- `stampGate` throws `cannot stamp scenarios before manifest is current`;
+- `stampGate` throws `cannot stamp scenarios at stage grounded` and
+  `cannot stamp evidence at stage planned`.
+
+Implementation filled the Cypress `deniedWritePatterns` and `allowedRunPrefixes` from the lane
+files and runners rather than inventing them: deny `cypress.env.json`, `.npmrc`, `node_modules`,
+Cypress screenshots/videos/downloads, and key material; allow `npm run cy:run`,
+`npm run cy:run:smoke`, and `npx cypress run`. Colon suffixes are an explicit
+`allowedColonSuffixPrefixes` list, and only `npm run cy:run:smoke` is on it.
+`manual-task-guard` is still not a second manifest gate.

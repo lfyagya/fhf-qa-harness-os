@@ -138,6 +138,100 @@ function sourceIssues(raw) {
   throw new Error("Snapshot must contain an issues array.");
 }
 
+const ISSUE_KEY = /\b([A-Z][A-Z0-9]+-\d+)\b/;
+
+function firstIssueKey(...candidates) {
+  for (const candidate of candidates) {
+    const match = String(candidate ?? "").toUpperCase().match(ISSUE_KEY);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function unwrapGraphNode(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  if (value.data && (value.data.object || value.data.relationships || value.data.data || value.data.graphContexts)) {
+    return unwrapGraphNode(value.data);
+  }
+  return value;
+}
+
+function asGraphContextList(graph) {
+  if (!graph) return [];
+  if (Array.isArray(graph)) return graph;
+  const node = unwrapGraphNode(graph) ?? graph;
+  if (Array.isArray(node)) return node;
+  if (Array.isArray(node.graphContexts)) return node.graphContexts;
+  if (Array.isArray(node.contexts)) return node.contexts;
+  if (node.object || Array.isArray(node.relationships)) return [node];
+  return [];
+}
+
+function graphContextIssueKey(context) {
+  if (!context || typeof context !== "object") return null;
+  return firstIssueKey(
+    context.issueKey,
+    context.key,
+    context.objectIdentifier,
+    context.object?.key,
+    context.data?.object?.key,
+    context.data?.data?.object?.key,
+  );
+}
+
+function graphParentKey(context) {
+  if (!context || typeof context !== "object") return null;
+  const named = firstIssueKey(
+    context.parentKey,
+    context.parent?.key,
+    context.object?.parent?.key,
+  );
+  if (named) return named;
+  for (const relation of context.relationships ?? []) {
+    if (!/parent|epic|child_of|belongs_to/i.test(relation.relationshipName ?? "")) continue;
+    for (const target of relation.targets ?? []) {
+      const key = firstIssueKey(target.key, target.issueKey, graphContextIssueKey(target));
+      if (key && key !== context.issueKey) return key;
+    }
+  }
+  return null;
+}
+
+function graphEvidenceText(context) {
+  if (!context) return "";
+  const parts = [
+    context.object?.summary,
+    context.object?.key,
+    context.issueKey,
+    ...(context.relationships ?? []).flatMap((relation) => [
+      relation.relationshipName,
+      ...(relation.targets ?? []).flatMap((target) => [
+        target.key,
+        target.issueKey,
+        target.summary,
+        target.title,
+        target.userName,
+        target.name,
+      ]),
+    ]),
+  ];
+  return parts.filter(Boolean).join(" ");
+}
+
+function normalizeGraphContexts(graph) {
+  return asGraphContextList(graph).flatMap((raw) => {
+    const context = unwrapGraphNode(raw) ?? raw;
+    const issueKey = graphContextIssueKey(raw) ?? graphContextIssueKey(context);
+    if (!issueKey) return [];
+    return [{
+      ...context,
+      issueKey,
+      relationships: context.relationships ?? raw.relationships ?? [],
+      jiraModuleValue: context.jiraModuleValue ?? context.object?.jiraModuleValue ?? raw.jiraModuleValue ?? null,
+    }];
+  });
+}
+
 function snapshotIsComplete(raw) {
   return raw.metadata?.complete === true || raw.isLast === true;
 }
@@ -328,12 +422,12 @@ function buildSnapshot(raw, config) {
   if (!snapshotIsComplete(raw)) {
     throw new Error("Jira snapshot is paginated. Fetch every page and set metadata.complete=true.");
   }
-  const graphContexts = raw.graphContexts ?? [];
+  const graphContexts = normalizeGraphContexts(raw);
   const confluencePages = raw.confluencePages ?? [];
-  const graphByIssue = new Map(graphContexts.map((context) => [
-    context.issueKey ?? context.key ?? context.objectIdentifier,
-    context,
-  ]));
+  const graphByIssue = new Map();
+  for (const context of graphContexts) {
+    if (!graphByIssue.has(context.issueKey)) graphByIssue.set(context.issueKey, context);
+  }
   const issues = sourceIssues(raw).map((issue) => {
     const normalized = normalizeIssue(issue, config);
     const graphContext = graphByIssue.get(issue.key);
@@ -343,8 +437,9 @@ function buildSnapshot(raw, config) {
       .join(" ");
     return {
       ...normalized,
+      parent: normalized.parent ?? graphParentKey(graphContext),
       moduleValue: normalized.moduleValue ?? graphContext?.jiraModuleValue ?? null,
-      graphText: [normalized.graphText, textOf(graphContext), confluenceText].filter(Boolean).join(" "),
+      graphText: [normalized.graphText, graphEvidenceText(graphContext), confluenceText].filter(Boolean).join(" "),
     };
   });
   const wrongProject = issues.filter((issue) => !issue.key?.startsWith(`${config.atlassian.projectKey}-`));
@@ -1096,8 +1191,7 @@ function snapshotCommand(input, config, enrichments = {}) {
         metadata: { complete: pages.at(-1).isLast === true },
         issues: pages.flatMap(sourceIssues),
       };
-  raw.graphContexts = graph?.graphContexts ?? graph?.contexts ??
-    (Array.isArray(graph) ? graph : raw.graphContexts ?? []);
+  raw.graphContexts = normalizeGraphContexts(graph ?? raw);
   raw.confluencePages = confluence?.confluencePages ?? confluence?.pages ??
     (Array.isArray(confluence) ? confluence : raw.confluencePages ?? []);
   const snapshot = buildSnapshot(raw, config);
