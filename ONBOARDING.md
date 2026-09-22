@@ -1,5 +1,7 @@
 # FHF QA Harness — Workspace Setup
 
+Doc revision: docs-2026-09-22
+
 For a QA engineer joining the FHF project. Sets up the automation lanes and the AI harness that
 governs them.
 
@@ -147,8 +149,10 @@ node .harness/verify.mjs change
 node ~/fhf-harness-os/scripts/harness/sync-loader-shims.mjs
 ```
 
-This writes `.claude/` into the workspace and each lane — hooks, agents, rules, skills, and the
-config they read. **Run it from your own engine clone**, and never from a stale one: sync compares
+This writes the harness projection into the **workspace root** only: `.claude/` (hooks, agents,
+rules, skills, and config), Cursor/Copilot/Gemini adapters, and `.harness/` runtime CLIs. A lane
+receives no `.claude/` of its own — sessions open at the workspace root and resolve policy upward
+(ADR-0032). **Run sync from your own engine clone**, and never from a stale one: sync compares
 against the engine you invoke, so an out-of-date clone will report current files as hand-edited and
 offer `--force`, which would overwrite them with older policy.
 
@@ -220,3 +224,6 @@ next sync refuse, and your change is lost the moment someone forces past it.
 **`fhf_documents` on Windows.** The Oracle/ORDS tree is still cloned, but a Windows working tree can
 fail to check out. If that happens, leave the clone in place and inspect files through Git objects
 (`git ls-tree` / `git show`) rather than deleting it.
+
+When setup is done, read [`CLAUDE.md`](CLAUDE.md) for what this repository is and where the
+engineering handbook lives.

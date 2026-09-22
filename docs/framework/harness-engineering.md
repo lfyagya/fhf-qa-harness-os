@@ -1,8 +1,11 @@
 # Harness Engineering
 
+Doc revision: docs-2026-09-22
+
 `config/qa-control-plane.json` is the single non-secret configuration for the FHF QA system.
-Its `engineering` object connects context, memory, harness, and loop behavior. Tool-native
-settings are generated projections, not additional sources of truth.
+Tool-native settings are generated projections, not additional sources of truth. Context and
+memory keys live in the control plane; this page does not teach them. Read connectors, harness
+(agents, skills, hooks, boundaries), loops, then task protocol.
 
 ## System overview
 
@@ -56,21 +59,24 @@ measured evaluator judgment.
 
 ```text
 qa-control-plane.json
-  ├─ connectors.cypressCloud → MCP/CLI diagnostics, auth boundary, lane access
-  ├─ connectors.teamworkGraphCli → optional TWG CLI overlay; configure then use; not a ticket oracle
+  ├─ connectors.*         → Cypress Cloud, optional Teamwork Graph CLI (not a ticket oracle)
   ├─ policyGovernance     → source class, placement, adoption, applicability
-  ├─ engineering.context  → priority routing, context budget, compaction
-  ├─ engineering.memory   → session boundary, exact facts, handoff, Obsidian boundary
   ├─ engineering.harness  → agents, skills, hooks, boundaries, runtime adapters
-  └─ engineering.loops    → retry limits, escalation, phase boundaries
+  ├─ engineering.loops    → retry limits, escalation, phase boundaries
+  └─ engineering.taskProtocol → manifests, digests, human gates
             │
             ▼
 loader-templates.mjs + sync-loader-shims.mjs
             │
-            ├─ workspace root: .claude/ (settings, harness.config.json, hooks, agents,
-            │                  rules, skills), .cursor/hooks.json, .harness/ runtime CLIs
-            └─ each lane:      .harness/lane.json, plus execution tooling in E2E and Smoke
+            ├─ workspace root: .claude/, adapters, .harness/ runtime CLIs
+            └─ each lane:      .harness/lane.json (+ E2E/Smoke execution tooling)
 ```
+
+`engineering.context` and `engineering.memory` stay configured in the control plane and are not
+taught on this path. Two keys still bind an agent at runtime and are stated where an agent reads
+them, in the generated `.claude/rules/session-rules.md`: `engineering.context.routes` selects the
+one path a task may read, and `engineering.memory.sessionScope` holds one session to one job.
+`check-docs-links.mjs` verifies both keys exist and that Obsidian stays derived-only.
 
 The engine lives in `fhf-harness-os`. The FHF root is the workspace root: it holds the lane
 repositories and the one generated projection. Since ADR-0032 a lane receives no `.claude/` at all —
@@ -89,9 +95,8 @@ boundaries, routes, product-contract mappings, hard loop ceilings, and verificat
 Generated `.claude`, Cursor, and instruction projections are derived from that policy.
 
 An optional `FHF_HARNESS_OVERLAY` is session configuration, not a second source of truth. It may
-identify a ticket/module/run, select a configured route, or lower context and retry budgets. It may
-not widen permissions, change hook or agent topology, disable data protections, or raise hard
-safety limits. The effective configuration is fingerprinted in runtime loop state and traces.
+identify a ticket/module/run, select a configured route, or lower retry budgets. It may not widen
+permissions, change hook or agent topology, disable data protections, or raise hard safety limits.
 
 What the reviewed policy actually configures, counted from the tree on 17 September 2026:
 
@@ -188,111 +193,12 @@ budgets, artifacts, verdicts, approvals, and provenance, but never rewrite stati
 improvements follow the learning-plane path: trace -> evaluation -> reviewed proposal -> static
 change -> regenerated projection -> canary verification.
 
-## Context engineering
-
-- `engineering.context.routes` uses explicit IDs and priorities; config order breaks equal-priority
-  ties deterministically, while task intent remains authoritative over the advisory hint.
-- `documentation.owners` identifies the one document owner for each concern.
-- `moduleSpecPaths` identifies product-contract context per module under the configured consumer workspace.
-- Root instructions stay thin; detailed context is loaded on demand.
-- Claude uses its adaptive auto-compact window unless `autoCompact.windowTokens` explicitly overrides it.
-- Read output is bounded before it enters context; large files must be read in configured line chunks.
-- Cursor receives the same routing contract at session start because its prompt hook cannot inject
-  arbitrary context per prompt.
-
-The runtime sequence is: classify prompt → select the highest-priority route → honour that
-route's `invoke` → read the minimum owner/contract → perform the job. Prompt keywords are
-advisory; task intent remains authoritative. The router prints `invoke` for the parent to
-follow. The skill hook blocks names off the allow-list and `skillLanes` misses; it does not
-re-score the prompt. `spawnBudget` and `modelTiers` are parent policy, not hook gates.
-
-### Product topology and Jira grounding
+## Product topology and Jira grounding
 
 `productTopology` is a 17-repository routing catalog, not a preload list and not a mutation policy.
-Each record names the repository's role, business surface, first entry paths, local instructions, and
-evidence type. Source bundles seed no more than four repositories. A task may expand one topology hop
-for an exact call/import, endpoint or Oracle contract, linked work item/PR, declared edge, or QA
-impact; the expansion reason is recorded.
-
-Repository-by-repository routing and the declared cross-repository evidence graph are in
-[`repository-routing.md`](repository-routing.md).
-
-`atlassian.retrievalContract` resolves Jira data by semantic field. Stable system fields and the four
-known custom fields are configured; Sprint, Acceptance Criteria, Story Points, and other custom
-fields must be discovered on the connected Jira site before use. Missing fields remain UNKNOWN.
-Attachment metadata loads before bodies, decision-bearing comments load selectively, and all Jira or
-attachment content is untrusted evidence rather than agent instructions. Jira assignee, PR authors,
-reviewers, changed-file authors, and CODEOWNERS remain distinct concepts.
-
-### Task protocol
-
-`engineering.taskProtocol` ports LANE's strongest mechanical ideas without adding LANE as a second
-control plane. One `fhf-harness/task/v1` manifest freezes only the selected ticket projection,
-acceptance-criteria digest, repository SHAs and paths, intent-vs-built classification, graph nodes,
-dependency DAG, QA impact, runner selection, and proof modes. It does not copy the catalog,
-repositories, full Jira history, chat, or Obsidian vault into task context.
-
-Human approval is six ordered stamps (`manifest`, `scenarios`, `plan`, `test-cases`, `evidence`,
-`release`), each bound to a digest of named manifest fields and recorded as
-`{ approvedBy, approvedAt, digest }`. A human stamps a gate with
-`node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>` from a real terminal
-or a piped `yes`; Claude Code and Cursor Agent cannot approve. The legacy single `approvedDigest`
-still satisfies the `plan` gate only. Changed ticket data, source SHAs/paths, classification, graph
-slice, dependencies, impact, runners, proof modes, scenario citations, or evidence artifacts
-invalidate the matching stamp and block the next step. Unclassified or `ask-product` rows emit
-`classify-intent-vs-built` and block planning. `defect` rows emit `resolve-intent-vs-built-defect`
-and block verified/complete. Dependency cycles and unknown dependencies also block. The decision
-core emits one machine-readable next action; it never approves, commits, merges, deploys, or writes
-externally. Do not route FHF work through the global `lane` CLI or dashboard. Session start and
-every prompt inject the current gate. Write and Cypress/pytest hooks fail closed on the earliest
-missing stamp, so step 2 cannot start until step 1 is approved. Approval itself stays
-human: the harness never types `yes`.
-
-The lifecycle those stamps sit in:
-
-```mermaid
-flowchart TD
-  A[Intake from Jira] --> B[Ground ticket, sources, intent vs built]
-  B --> F{Any acceptance row is a defect}
-  F -->|Yes| G[Notify Dev before any run]
-  F -->|No| H[Gates manifest, scenarios, plan, test-cases]
-  H --> I{Owner stamps the digest}
-  I -->|No| J[Every write stays blocked]
-  I -->|Yes| K[One specialist authors on selected paths]
-  K --> L[Native run produces evidence]
-  L --> M[Gates evidence and release]
-  M --> N{Verdict}
-  N -->|Block| O[Fix, three tries then escalate]
-  O --> K
-  N -->|Pass| P[Human reads the diff]
-  P --> Q[Pull request]
-```
-
-Proof modes are evidence-specific: hermetic tests can use RED/GREEN replay or same-test base/pass;
-Cypress, production Smoke, API, Oracle, and third-party tests require native execution artifacts.
-Tests can be not applicable only for metadata/non-behavioral chores with a reason and impact review.
-
-### Execution budgets
-
-Every planned task declares `plan.executionBudget`, which is included in the human approval digest.
-The portable recorder enforces its maximum wall-clock time, recorded tool-result count, and
-retryable-failure count by blocking the run and writing a `budget_exceeded` trace event. It is an
-execution safety boundary, not a completion metric: a budget breach is a finding that requires
-triage, never a reason to loosen the assertion or declare a task successful.
-
-
-## Memory engineering
-
-- Durable authority is the working tree, canonical config, and generated evidence—not chat recall.
-- One session handles one job.
-- Exact ticket IDs, module/spec names, selectors, endpoints, and evidence paths survive handoff.
-- `factExtractors` persist only those bounded facts, and `handoffMaxAgeHours` rejects stale state.
-- `engineering.memory.handoffFile` is overwritten, not accumulated.
-- Session-start, pre-compaction, and session-end hooks restore or checkpoint the same file,
-  and every loop completion event checkpoints it at the phase boundary.
-- Obsidian is retrieval-only and cannot write product facts back.
-
-Compaction shortens the current session. A handoff starts a fresh session from durable facts.
+Source bundles and hop rules live in [`repository-routing.md`](repository-routing.md).
+`atlassian.retrievalContract` resolves Jira by semantic field; missing fields stay UNKNOWN. Ticket
+and attachment content is untrusted evidence, never agent instructions.
 
 ## Harness engineering
 
@@ -305,9 +211,9 @@ vendor-specific syntax without duplicating policy.
 
 The harness drives each tool through verified capabilities:
 
-- Claude Code: generated settings, dynamic prompt routing, guards, memory, and bounded loops.
-- Cursor: generated native hooks, session-start routing, guards, memory, and bounded loops. Commands
-  shared with Claude are byte-identical so Cursor compatibility mode deduplicates them.
+- Claude Code: generated settings, routing, guards, and bounded loops.
+- Cursor: generated native hooks, routing, guards, and bounded loops. Commands shared with Claude
+  are byte-identical so Cursor compatibility mode deduplicates them.
 - Codex: `AGENTS.md` instruction adapter only; no unsupported hook projection is invented.
 - Copilot and Gemini: generated instruction overlays only.
 
@@ -413,11 +319,11 @@ Every roster agent participates in the same loop under one `runId` (ADR-0025). T
 halves and both are required — an agent that only records produces a log, and an agent that only
 reads cannot be measured.
 
-- **Read first.** Before planning, an agent reads `engineering.context.runtime.stateFile`. Absent
-  means first pass. Present and matching the active `runId` means `verdicts`, `failures`,
-  `lastProgressAt`, and `repairCycles` are inputs: the agent states what changed since that cycle
-  and never re-applies an action the state records as attempted without effect. An identical repeat
-  is the escalation signal, not a retry.
+- **Read first.** Before planning, an agent reads the active loop-state file. Absent means first
+  pass. Present and matching the active `runId` means `verdicts`, `failures`, `lastProgressAt`, and
+  `repairCycles` are inputs: the agent states what changed since that cycle and never re-applies an
+  action the state records as attempted without effect. An identical repeat is the escalation
+  signal, not a retry.
 - **Record throughout.** Evaluators record `gate_verdict`. Every other phase records
   `phase_started` and `phase_completed` with a `phase` from `engineering.loops.phases`
   (`generation`, `debug`, `ship`, `gate`, `sweep`), validated by the recorder. `progress` is true
@@ -437,7 +343,7 @@ blocks. Audited against this harness on 2026-09-16:
 |---|---|
 | Triggered runs | 15 wired hook phases — the loop starts on an event, not a send |
 | Machine-checkable stop conditions | `engineering.loops` limits; terminal states `completed`/`blocked`/`escalated` |
-| Persistent state files | `engineering.context.runtime.stateFile` + `traceFile`, `runId`-scoped |
+| Persistent state files | loop state + trace files, `runId`-scoped |
 | Verifier sub-agents | `cypress-gate`, `qa-automation-gate`, `verify-subagent-citations`, plus code verifiers |
 | Budgets | `executionBudget` hard ceilings, recorder-enforced, `budget_exceeded` on breach |
 | Escalation points | owner-action stop; `escalated` is a terminal state, not a failure mode |
@@ -452,71 +358,16 @@ field rather than a required one — adding it to `requiredFields` would invalid
 written before today — and `tokenEnforcement` is `advisory-until-a-runtime-reports-usage`, because a
 ceiling nothing measures is decoration.
 
-## Graph engineering
-
-Feng et al., *Graph Engineering in the Era of LLM Agents* (August 2026), argues that individual agent
-capability hits an architectural ceiling when work needs "heterogeneous expertise, interdependent
-subtasks, parallel execution, independent verification, and persistent state". It names three
-primitives, and this harness already has all three:
-
-| Primitive | Here |
-|---|---|
-| **Node** — an agent or task | the roster in `engineering.harness.agents` |
-| **Edge** — execution flow | `engineering.context.routes`, every one carrying `invoke` |
-| **State** — shared, evolving context | `cypress/handoff/loop-state.json`, schema `fhf-harness/loop-state/v1` |
-
-The distinction that matters: in a loop, state is buried implicitly in a growing message history; in
-a graph it is an explicit object every node reads and writes. The agent loop contract above — read
-the state file before planning, record throughout — is that property already stated as a rule.
-
-**A loop is a graph with one dominant path.** Loop engineering does not stop applying when graph
-engineering starts; it becomes the behaviour of a single node. The harness's bounded retries run
-*inside* a node, and the routing table is the graph between them.
-
-### Two different graphs — do not conflate them
-
-`build-knowledge-index.mjs` emits a **knowledge graph**: specs, business rules, tests, endpoints and
-Oracle objects joined by declared references. It improves what the model *knows*, and belongs to
-context engineering.
-
-An **agent graph** coordinates workers — who runs, in what order, sharing what state. It improves how
-agents *cooperate*.
-
-They share a word and nothing else. "We already have a graph" is true of the first and says nothing
-about the second.
-
-### When a graph is warranted
-
-Start at the simplest layer that solves the problem and add structure only on hitting that layer's
-failure mode:
-
-- an agent retrying the same failing call needs a **verifier**, not a better prompt;
-- an agent that has forgotten the original goal needs **state**, not a larger context window;
-- an agent that cannot hold the breadth of a task needs a **graph**, not a stronger model.
-
-`backfill-traces.mjs` is the worked example. 617 business rules across 14 modules exceed one agent's
-span — tunnel vision, the third failure mode — so the work fans out per module and converges into
-patches. It does not hit the other two, which is why it stays a script with a code verifier rather
-than becoming a framework. Its verifier is `resolveTraces()`: a checker that is code cannot agree
-with a worker's mistake, which is strictly stronger than a second model reviewing the first.
-
-A `phase_completed`, `repair_completed`, or `loop_completed` event is also a **memory checkpoint**:
-the recorder merges the event's `findings` and `artifacts` through the configured `factExtractors`
-into `engineering.memory.handoffFile`. Compaction discards the within-session channel before the
-PreCompact hook fires, so the phase boundary — not session end — is where facts are captured.
-
 ### Runtime evaluation evidence
 
 The evaluator does not use a committed repair-outcome fixture. Gate agents record `gate_verdict`,
 `repair_started`, and `repair_completed` events with `.harness/record-loop-event.mjs`. The canonical
-`eval-harness.mjs` discovers the ignored `engineering.context.runtime.traceFile` under the configured
-workspace and lane roots, groups events by `runId`, and measures convergence only for runs that
-actually entered repair. Missing traces remain `unavailable`, never zero or a fabricated pass.
+`eval-harness.mjs` discovers ignored loop-trace files under the configured workspace and lane roots,
+groups events by `runId`, and measures convergence only for runs that actually entered repair.
+Missing traces remain `unavailable`, never zero or a fabricated pass.
 
 Convergence is gated on `thresholds.minimumRepairSamples`, not on the first recorded outcome. Below
-that floor the rate is reported and marked UNKNOWN without failing the gate: a single outcome
-carries a Wilson interval too wide to support any verdict, and failing on it would make recording
-the first real trace the act that turns the gate red.
+that floor the rate is reported and marked UNKNOWN without failing the gate.
 
 Gate calibration is a separate human-review workflow:
 
@@ -526,17 +377,9 @@ node scripts/harness/calibrate-gate.mjs status
 node scripts/harness/calibrate-gate.mjs label --id <case> --human-pass <pass|fail> --human-score <0..1> --reviewer <name> --rationale <text>
 ```
 
-Collection imports only machine-scored gate verdicts. It never fills human fields automatically;
-agreement metrics are withheld until every collected case has an explicit reviewer, pass/fail label,
-score, and rationale.
-
-Corpus status, 17 September 2026: `scripts/harness/evals/gate-calibration.json` holds two labeled
-cases, both `BLOCK`, both labeled by one reviewer on the same day, with the judge agreeing on both.
-Agreement of two out of two on two same-verdict cases is not a measurement. With no labeled PASS
-case the false-block rate is unmeasured, and a gate that blocked every change would score perfectly
-on this corpus. Publishing an accuracy number needs labeled PASS cases, at least two independent
-reviewers on an overlapping subset with inter-rater agreement reported, and a target corpus around
-60 balanced cases across both lanes.
+Collection imports only machine-scored gate verdicts. It never fills human fields automatically.
+Corpus status, 17 September 2026: two labeled `BLOCK` cases, one reviewer — not a measurement.
+False-block rate is unmeasured until PASS cases and a second reviewer exist.
 
 What a claimed pass has to clear before it counts as coverage:
 
@@ -559,21 +402,55 @@ Four things are rejected as a false green: fallback markers treated as coverage,
 treated as passing, a stubbed mutation treated as a workflow, and a file inventory treated as
 product coverage.
 
+## Task protocol
+
+This page is the single home for **current** gate and sync behavior. One `fhf-harness/task/v1`
+manifest freezes the selected ticket projection, digests, repository SHAs/paths, intent-vs-built
+classification, graph slice, impact, runners, and proof modes.
+
+Human approval is six ordered stamps (`manifest` → `scenarios` → `plan` → `test-cases` →
+`evidence` → `release`). The former `spec` gate is absorbed into `manifest` (ADR-0039 Accepted).
+Each stamp is `{ approvedBy, approvedAt, digest }`. Humans approve with
+`node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>` from a real terminal;
+agents cannot. Legacy `approvedDigest` still satisfies `plan` only. Bound-field changes invalidate
+the matching stamp. Write and Cypress/pytest hooks fail closed on the earliest missing stamp.
+Do not route FHF work through the global `lane` CLI.
+
+```mermaid
+flowchart TD
+  A[Intake from Jira] --> B[Ground ticket, sources, intent vs built]
+  B --> F{Any acceptance row is a defect}
+  F -->|Yes| G[Notify Dev before any run]
+  F -->|No| H[Gates manifest, scenarios, plan, test-cases]
+  H --> I{Owner stamps the digest}
+  I -->|No| J[Every write stays blocked]
+  I -->|Yes| K[One specialist authors on selected paths]
+  K --> L[Native run produces evidence]
+  L --> M[Gates evidence and release]
+  M --> N{Verdict}
+  N -->|Block| O[Fix, three tries then escalate]
+  O --> K
+  N -->|Pass| P[Human reads the diff]
+  P --> Q[Pull request]
+```
+
+Proof modes: hermetic tests may use RED/GREEN or same-test base/pass; Cypress, Smoke, API, Oracle,
+and third-party require native artifacts. Every planned task declares `plan.executionBudget` in the
+approval digest; a `budget_exceeded` event is a finding, never a reason to loosen assertions.
+
 ## Runtime flow
 
 ```text
 prompt
-  → route context
-  → ground task manifest and freeze selected graph slice
-  → select repository-local rules, runner, and optional specialist
+  → ground task manifest
+  → select runner and optional specialist
   → execute through pre/post guards
-  → collect proof-mode-specific native evidence
+  → collect native evidence
   → repair within configured limit
-  → deterministic next step, durable handoff, or owner escalation
+  → next step or owner escalation
 ```
 
-The guards in that fourth step are refusals, not annotations: a `PreToolUse` hook exits non-zero and
-the tool never runs.
+The guards are refusals, not annotations: a `PreToolUse` hook exits non-zero and the tool never runs.
 
 ```mermaid
 flowchart TD
@@ -587,29 +464,59 @@ flowchart TD
   H --> I[Eight post-write validators]
 ```
 
-Generator and evaluator remain separate. Cypress-only implementation routes to `cypress-generator`;
-backend-only and combined frontend/backend automation route to `qa-automation-generator`, with
-`qa-automation-debugger` and `qa-automation-gate` owning cross-layer diagnosis and verdicts.
-Cypress-only merge judgment routes to `cypress-gate`; Cypress-only failures route to
-`cypress-debugger`; Cypress shipping and reports route to `cypress-shipper`.
+Generator and evaluator remain separate. Cypress-only routes use `cypress-generator` /
+`cypress-gate` / `cypress-debugger` / `cypress-shipper`. Backend or combined FE/BE routes use
+`qa-automation-generator` / `qa-automation-debugger` / `qa-automation-gate`.
 
 ## Change protocol
 
-1. Change `config/qa-control-plane.json` for policy, product topology, task protocol, runners,
-   budgets, routing, memory, or limits.
+1. Change `config/qa-control-plane.json` for policy, topology, task protocol, runners, harness, or loops.
 2. Change hook/script code only for executable behavior.
-3. Run `scripts/harness/sync-loader-shims.mjs`.
-4. Run every command in `engineering.harness.verify.canonical` from this repo.
+3. Run `node scripts/harness/sync-loader-shims.mjs`.
+4. Run `node scripts/harness/verify-canonical.mjs` from this repo.
 5. Do not commit generated or agent-authored work without owner review.
+
+`verify-canonical.mjs` runs every entry in `engineering.harness.verify.canonical` and exits
+non-zero on the first failure (~30s); `--list` prints the set without running it. Add a check by
+adding it to the control plane, not to a second list here. A check lands green or it does not
+land: wiring a check into `canonical` while the thing it grades is still wrong makes every later
+commit fail for a reason unrelated to that commit.
+
+`.githooks/pre-commit` runs that same command. It is versioned, so a fresh clone gets it, but it
+is inert until enabled once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 `engineering.harness.verify` is split on purpose:
 
 - `canonical` — `scripts/harness/*` checks that exist only in `fhf-harness-os`.
 - `consumer` — `node .harness/verify.mjs`, at the workspace root and in an `--only-baseline` clone. A lane has none.
 
-`check-docs-links.mjs` validates the engineering pillars, Jira contract, product topology, task
-protocol, runner matrix, routes, roster, hook paths, limits, documentation owners, and Obsidian
-boundary. `check-loader-drift.mjs` verifies named generated
-files only; it does not treat owner `.cursor/*`, owner `.github/*`, or `architecture/README.md`
-as generated. `test-hooks.mjs` verifies runtime behavior. `test-adapter-contract.mjs` checks official
-compaction projection, hook deduplication, capability fallbacks, sandbox boundaries, and loop wiring.
+### Sync targets
+
+Sync writes the full projection to the workspace root, `.harness/lane.json` to every lane, and
+E2E/Smoke execution tooling to those two lanes. `--only-baseline` (`FHF_BASELINE_TARGET`) is the
+separate standalone case: a clone-ready consumer that receives the root projection plus its own
+`README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, and `docs/README.md`, so it works without this
+repository. The lanes are not that; they are folders inside a workspace.
+
+Roots resolve from `FHF_CONSUMER_ROOT`, then `paths.consumerRoot`; sync and drift additionally
+honour `FHF_SYNC_TARGET_ROOT` as a more-specific override. Lane roots resolve from their `rootEnv`,
+then `paths.lanes.<lane>.root`. Checkout locations belong in the ignored setup file or the
+environment, never in committed policy. Sync refuses a target whose generated file was hand-edited
+rather than merely stale; port the fix into the canonical source here and re-run, and reach for
+`--force` only to discard a target-side edit deliberately.
+
+### Hook rationale ratchet
+
+Every hook in `.claude/hooks/` must state the model limitation it compensates for, ratcheted
+against `.claude/hooks/rationale-baseline.json` and enforced by `check-docs-links.mjs`. A hook
+that cannot name its limitation is a hook nobody can retire.
+
+`check-docs-links.mjs` validates control-plane integrity and documentation owners.
+`check-loader-drift.mjs` verifies named generated files only. `test-hooks.mjs` verifies runtime
+behavior. `test-adapter-contract.mjs` checks adapter projection and loop wiring.
+
+Read next: [`repository-routing.md`](repository-routing.md) — which sources a ticket may use.

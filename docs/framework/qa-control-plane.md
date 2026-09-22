@@ -1,5 +1,7 @@
 # FHF QA Control Plane
 
+Doc revision: docs-2026-09-22
+
 The control plane is the AI-independent operating layer across FHF product, contract, frontend,
 backend, and automation repositories. It centralizes read-only Atlassian context, task-scoped source
 selection, repository-derived evidence, proposed application-spec changes, QA impact routing, and a
@@ -56,19 +58,20 @@ flowchart LR
 ```
 
 The initial context contains task intent, selected ticket metadata, and repository catalog records.
-It does not contain repository trees, source files, full Jira history, attachment bodies, all product
-specifications, or the Obsidian vault. Source expands one graph hop at a time only for a matched
-call/import, API or Oracle contract, linked development item, declared topology edge, or QA impact.
-Every expansion reason is frozen in the task manifest. After source is frozen, the next required
-action is `classify-intent-vs-built`; planning and test authoring stay blocked while any row is
-missing or `ask-product`.
+It does not preload repository trees, source files, full Jira history, attachment bodies, or all
+product specifications. Source expands one graph hop at a time only for a matched call/import, API
+or Oracle contract, linked development item, declared topology edge, or QA impact. Every expansion
+reason is frozen in the task manifest. After source is frozen, the next required action is
+`classify-intent-vs-built`; planning and test authoring stay blocked while any row is missing or
+`ask-product`.
 
 Approval binds to the selected ticket projection, acceptance criteria, repository SHAs/paths,
 intent-vs-built classification, graph slice, change DAG, impact scope, runners, and proof modes. A
-change to any bound field invalidates the approval digest. Cypress, Smoke, API, Oracle, and
-third-party flows require native execution evidence; they cannot claim RED/GREEN from a synthetic Git
-replay. Stubbed external proof cannot complete a `same` or `accepted` row. A classified `defect`
-blocks verified/complete.
+change to any bound field invalidates the matching stamp. Ordered human gate stamps live in
+[`harness-engineering.md` Task protocol](harness-engineering.md#task-protocol); this page does not
+restate the sequence. Cypress, Smoke, API, Oracle, and third-party flows require native execution
+evidence; they cannot claim RED/GREEN from a synthetic Git replay. Stubbed external proof cannot
+complete a `same` or `accepted` row. A classified `defect` blocks verified/complete.
 
 For backend authoring or execution, set FHF_ACTIVE_TASK to the absolute validated manifest path.
 File hooks allow only fhf-backend-automation paths selected by both grounding.repositories and
@@ -150,7 +153,7 @@ verify that PID is no longer running before explicitly removing the reported sta
 - Freshness limits and measurable gates for traceability, unmapped work, review backlog,
   execution age, and Cypress UI Coverage.
 - Module aliases, Jira Module prefixes, application-spec targets, and prioritization weights.
-- Context, memory, harness, and bounded-loop engineering under `engineering`.
+- Harness and loops under `engineering` (context and memory stay control-plane internals).
 - Documentation ownership and source precedence.
 
 The config contains no credentials, OAuth tokens, account IDs, or Atlassian cloud IDs.
@@ -169,8 +172,6 @@ contains active feature work; the centralized harness does not rewrite them duri
 
 Documentation changes start with `documentation.owners`. Update or delete; do not create a second
 report for the same concern. `scripts/harness/check-docs-links.mjs` validates owners and links.
-The `engineering.memory` policy permits Obsidian indexing for retrieval, but never fact write-back
-or precedence over repository evidence.
 
 `engineering.harness.adapters` maps this tool-neutral policy to verified runtime capabilities.
 Claude Code and Cursor receive generated lifecycle enforcement. Codex, Copilot, and Gemini receive
@@ -264,3 +265,5 @@ from redacted `cypress/handoff/loop-trace.jsonl` events grouped by `runId`; it d
 repair-outcome fixture. Gate calibration imports machine verdicts only after a recorded gate run and
 requires explicit human pass/fail labels, scores, reviewer identity, and rationale before reporting
 Cohen's kappa or Spearman correlation.
+
+Read next: [`../governance.md`](../governance.md) — when an ADR is required.

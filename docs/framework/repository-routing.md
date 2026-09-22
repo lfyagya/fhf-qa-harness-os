@@ -1,5 +1,7 @@
 # FHF Repository Routing
 
+Doc revision: docs-2026-09-22
+
 Use this page to select the smallest source set for a QA task. It is a view of
 `config/qa-control-plane.json` (`productTopology`, `sourceBundles`, and runners), not a second
 catalog and not a permission grant.
@@ -9,10 +11,9 @@ catalog and not a permission grant.
 ```mermaid
 mindmap
   root((FHF QA harness))
-    Context engineering
-      approved product contract
+    Product contract
+      approved rules and scenarios
       selected repository paths
-      bounded task context
     Tool orchestration
       manifest-selected runners
       E2E and backend automation
@@ -21,19 +22,13 @@ mindmap
       exact assertions
       native artifacts
       bounded repair or block
-    Execution envelope
-      task wall-clock ceiling
-      recorded tool-result ceiling
-      retryable-failure ceiling
-    Evidence and learning
+    Evidence
       trace and JUnit artifacts
       evidence-bound verdict
-      reviewed improvement only
 ```
 
-The map uses a small, verifiable task map and real execution feedback instead of a large static
-instruction set or an unbounded agent loop. FHF applies that approach through existing contracts,
-manifests, native artifacts, and fail-closed guards.
+The map uses a small, verifiable task map and real execution feedback instead of an unbounded agent
+loop. Contracts, manifests, native artifacts, and fail-closed guards stay authoritative.
 
 ## Configure in this order
 
@@ -247,9 +242,6 @@ authority for intent, implementation, and execution respectively.
 | `front-end-automation-e2e` | Dev/QA functional, regression, cross-layer UI proof | `CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/e2e` | synthetic data, cleanup, native Cypress artifacts |
 | `front-end-automation-smoke` | production availability, auth, structure | `CypressFHF/fhf-dashboards/cypress/tests/fhf-dashboard/smoke` | GET-only; native Cypress artifacts; no mutations |
 
-`claude-obsidian` may exist in a local FHF checkout, but it is derived-only retrieval support. It is
-outside the product topology, task manifests, runner selection, and execution evidence chain.
-
 ## Proof selection
 
 ```mermaid
@@ -277,3 +269,5 @@ manifest and selected paths; it is not enabled by catalog membership alone.
 
 These sources inform the harness shape. FHF product contracts, repository source, and native run
 artifacts remain the authority for FHF-specific behavior and quality claims.
+
+Read next: [`qa-control-plane.md`](qa-control-plane.md) — intake and command center.
