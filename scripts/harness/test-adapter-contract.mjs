@@ -56,6 +56,22 @@ check(
     cursorCommands("postToolUse").some((command) => command.includes("repeat-tool-guard.mjs")),
   "Cursor must compare the next tool call with the last recorded output",
 );
+function hookScripts(commands) {
+  return commands.map((command) => command.match(/"([^"]+\.mjs)"\s*$/)?.[1]).filter(Boolean);
+}
+const claudeScripts = new Set(Object.keys(claude.hooks).flatMap((event) => hookScripts(claudeCommands(event))));
+const cursorScripts = new Set(Object.keys(cursor.hooks).flatMap((event) => hookScripts(cursorCommands(event))));
+for (const script of claudeScripts) {
+  check(cursorScripts.has(script), `Cursor is missing hook ${script}`);
+}
+for (const script of cursorScripts) {
+  check(claudeScripts.has(script), `Claude is missing hook ${script}`);
+}
+check(
+  cursorCommands("subagentStop").some((command) => command.includes("verify-subagent-citations.mjs")) &&
+    cursorCommands("preToolUse").some((command) => command.includes("block-generic-agents.mjs")),
+  "Cursor must run the same subagent guards as Claude",
+);
 check(
   !/(?:[A-Za-z]:[\\/](?:Users|home)[\\/]|\/(?:Users|home)\/|Leapfrog)/i.test(sharedArtifacts),
   "Generated adapters must not contain machine-specific home paths",

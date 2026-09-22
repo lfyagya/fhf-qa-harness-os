@@ -177,6 +177,11 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
             matcher: "Shell|Bash|shell|bash",
             failClosed: true,
           })),
+        ...HOOKS.preSubagent.map((script) =>
+          cursorCommand(HARNESS_HOOKS, script, {
+            matcher: "Task|Agent",
+            failClosed: true,
+          })),
         ...HOOKS.preSkill.map((script) =>
           cursorCommand(HARNESS_HOOKS, script, {
             matcher: "Skill|skill",
@@ -196,6 +201,8 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
           failClosed: true,
           args: "--deny-matched-subagent",
         })),
+      subagentStop: HOOKS.subagentStop.map((script) =>
+        cursorCommand(HARNESS_HOOKS, script, { failClosed: true })),
       postToolUse: [
         ...HOOKS.postWrite.map((script) =>
           cursorCommand(HARNESS_HOOKS, script, {

@@ -402,11 +402,11 @@ function syncRuntimeEvidence(repoPath, lane) {
 }
 
 function syncCursorPolicyRules(repoPath) {
-  const names = ["task-approval.mdc", "thin-tests.mdc", "pre-human-review.mdc"];
-  for (const name of names) {
-    const source = path.join(HARNESS_ROOT, ".cursor", "rules", name);
-    if (!fs.existsSync(source)) continue;
-    writeText(path.join(repoPath, ".cursor", "rules", name), fs.readFileSync(source, "utf8"));
+  const dir = path.join(HARNESS_ROOT, ".cursor", "rules");
+  if (!fs.existsSync(dir)) return;
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.endsWith(".mdc")) continue;
+    writeText(path.join(repoPath, ".cursor", "rules", name), fs.readFileSync(path.join(dir, name), "utf8"));
   }
 }
 

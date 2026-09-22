@@ -107,8 +107,8 @@ change -> regenerated projection -> canary verification.
 - Root instructions stay thin; detailed context is loaded on demand.
 - Claude uses its adaptive auto-compact window unless `autoCompact.windowTokens` explicitly overrides it.
 - Read output is bounded before it enters context, except paths in `readOutput.fullContextPaths` (`docs/framework/`, `docs/adr/`), which are the correct context and load in full. Every other large file stays in configured line chunks. The router injects the matched bundle slice, so the control plane does not have to be dumped into the turn.
-- Cursor `beforeSubmitPrompt` receives the same route text in `user_message`. Session start still
-  loads the routing contract through `session-context.mjs`.
+- `engineering.harness.hooks` is the only hook list. Claude settings and Cursor hooks are projections of it.
+  `emitPrompt` writes one payload for both prompt events. Rule text stays in `.claude/rules`.
 
 The runtime sequence is: classify prompt → select the highest-priority route as a candidate →
 name every other match → honour task intent, then that route's `invoke` → read the injected
@@ -116,8 +116,9 @@ bundle seeds, legal `expandBy` reasons, and one topology hop → perform the job
 `chat_selection` is not part of the match. Prompt keywords are advisory; task intent remains
 authoritative, and a single regex is not proof when another route also matched. The same
 `prompt-router.mjs` is the decision for every host that can deliver `additionalContext`.
-Cursor `beforeSubmitPrompt` runs that same script and appends the route text to `user_message`.
-`session-context.mjs` still repeats the loop-state and routing rule at session start. The skill hook blocks names off the allow-list
+Claude `UserPromptSubmit` and Cursor `beforeSubmitPrompt` run that same script and emit one payload.
+The route text is in `additionalContext` and `user_message`. `session-context.mjs` repeats the same
+loop-state and routing rule at session start for both hosts. The skill hook blocks names off the allow-list
 and `skillLanes` misses; it does not re-score the prompt. `spawnBudget` and `modelTiers` are
 parent policy, not hook gates. A manifest that names an expansion reason outside the bundle's
 `expandBy`, or a repository that is not a seed or one hop from those seeds, is invalid.
@@ -233,10 +234,9 @@ Confirmed correct, no change warranted:
   `permissionDecision: allow` and `additionalContext` in that form.
 - `SubagentStart` is wired on both Claude and Cursor, so agent-roster enforcement no longer
   depends on matching the Task tool alone and is not bypassed by other spawn paths.
-- `cursor.promptRouting: before-submit-prompt` runs the same `prompt-router.mjs` on Cursor
-  `beforeSubmitPrompt`. That event returns `continue` and `user_message`, so the router appends the
-  same route text to `user_message`. Claude `UserPromptSubmit` still receives `additionalContext`.
-  Session start still runs `session-context.mjs`.
+- `cursor.promptRouting: before-submit-prompt` means Cursor runs `prompt-router.mjs` from
+  `engineering.harness.hooks.prompt`, the same script Claude runs. `emitPrompt` is the only prompt
+  payload. Session start runs `session-context.mjs` from `engineering.harness.hooks.sessionStart` on both.
 - Cursor defaults to fail-open on hook crash or timeout. Every protective `preToolUse` entry and the
   `subagentStart` entry set `failClosed: true`. Post-write validators also fail closed, so a validator
   crash cannot be reported as a clean pass.

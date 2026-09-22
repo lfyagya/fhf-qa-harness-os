@@ -961,7 +961,9 @@ expect("prompt-router appends the same route text on Cursor beforeSubmitPrompt",
       return r.code === 0 &&
         output.continue === true &&
         output.user_message.includes("write a new smoke test") &&
-        output.user_message.includes("New test");
+        output.user_message.includes("New test") &&
+        output.additional_context.includes("New test") &&
+        output.hookSpecificOutput?.additionalContext.includes("New test");
     } catch {
       return false;
     }
