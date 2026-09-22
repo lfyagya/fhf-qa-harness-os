@@ -88,15 +88,15 @@ flowchart TD
 ```
 
 Hard limits sit on the harness, not in a second checklist: product source is read-only; Smoke is
-GET-only and is not this sprint loop; backend or combined work freezes a task manifest first; a
-refusal is the system working. BLOCK means fix.
+GET-only and is not this sprint loop; every automation write (Cypress or pytest) freezes a task
+manifest first; a refusal is the system working. BLOCK means fix.
 
 ### Inner standard — what each step must satisfy
 
 | Harness step | Inner standard | Owner |
 |---|---|---|
 | Gather and sprint spec | Intent, actor, precondition, expected outcome. A scenario counts only when intent → implementation → assertion → evidence all trace. A broken link is `UNKNOWN`. Priority is customer / financial / control loss. | [`TESTS.md`](../framework/testing-standards/TESTS.md) §What counts as coverage |
-| Router and authoring | State the ticket, never the agent. One specialist. Backend freezes the manifest before a write. | [`qa-harness.md`](./qa-harness.md) |
+| Router and authoring | State the ticket, never the agent. One specialist. Freeze the manifest before any automation write. | [`qa-harness.md`](./qa-harness.md) |
 | Prove on Dev | Manual or automation, whichever gives confidence. Synthetic identity the lane owns; cleanup required. No shared row across lanes. | [`TESTS.md`](../framework/testing-standards/TESTS.md) §Lane contracts |
 | Dev2 and on-demand regression | Same spec, automation. Smallest set that can observe *this* change. A narrowed run is never a release verdict. | [`execution-strategy.md`](../framework/execution-strategy.md) |
 | Gate | Seven source-verifiable review questions. Eight false-greens block outright. One digest-bound verdict. | [`TESTS.md`](../framework/testing-standards/TESTS.md) §Review gate, §False-green controls |
@@ -191,7 +191,7 @@ Each row below is enforced at runtime; a refusal is the system working.
 | Product source is read-only | An agent "fixing" the application instead of the test |
 | Smoke is GET-only | Any mutation, export, download, or send against production |
 | UI mutations are Dev or QA, on owned synthetic data, cleaned up | Shared rows and cross-lane data collisions |
-| Backend and combined work freeze a task manifest first | A write drifting onto code the approval never covered |
+| Every automation write freezes a task manifest first | A write drifting onto code the approval never covered |
 | One session, one job; one specialist at a time | Two agents authoring against the same files |
 | Three tries at the same failure, then escalate | Retrying until a broken test passes for the wrong reason |
 | Gate — source-verifiable review questions, false-green controls | A test that passes without testing anything |
@@ -223,14 +223,13 @@ reported in the bi-weekly sync.
 
 ### Backend / frontend parity — what the gap actually is
 
-Parity is not a tooling gap. The backend lane has the same specialists, the same gate, and the same
-evidence contract as the UI lanes; what it lacks is coverage. Eleven of fourteen modules have no
+Parity is not a tooling gap. Cypress and backend share one task protocol and one write map; what
+backend lacks is coverage. Eleven of fourteen modules have no
 recorded backend evidence, and three are partial — against three FULL and eight PARTIAL on E2E.
 
-The difference in the workflow is one extra step: backend and combined work must freeze a task
-manifest before anything is authored or run, because a write outside the selected paths is refused.
-That step is the thing to teach; the rest is identical to the UI loop people already learn in the
-workshop.
+The workflow is the same loop in every lane: freeze one task manifest, then author only the selected
+paths. Cypress E2E, Cypress Smoke, and backend pytest are refused without that manifest. Teach the
+freeze once; do not treat backend as an extra step.
 
 Sequence the catch-up in loan-lifecycle order, not by module size — so integration dependencies
 land before the modules that depend on them. Funding and Post Funding are two of the three E2E
@@ -365,9 +364,10 @@ This is the workflow the harness already enforces. How-to: [`qa-harness.md`](./q
 flowchart TD
   T[State the ticket] --> G[Gather Jira, Confluence, source, evidence]
   G --> S[Sprint spec — intent, actor, precondition, expected outcome]
-  S --> R[Router — one specialist, or answer in place]
+  S --> M[Freeze the task manifest]
+  M --> R[Router — one specialist, or answer in place]
   R --> E[E2E — Dev functional, synthetic data, cleanup]
-  R --> B[Backend — freeze the task manifest first]
+  R --> B[Backend — API and Oracle]
   E --> V[Prove — manual or automation]
   B --> V
   V --> A[Automation holds Dev2 and on-demand regression]

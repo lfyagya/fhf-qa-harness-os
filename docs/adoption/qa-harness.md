@@ -328,9 +328,9 @@ request.
 | Fix a red, flaky, or slow run | cypress-debugger | qa-automation-debugger |
 | Open the pull request or report coverage | cypress-shipper | Use the UI shipper only after a combined gate has passed |
 
-Anything else is blocked on purpose, and generic explore agents are refused. If the work crosses
-repositories, or any backend path will be written or run, freeze the task plan before a specialist
-starts — which is why combined and backend routes outrank UI-only routes.
+Anything else is blocked on purpose, and generic explore agents are refused. If the work writes or
+runs automation — Cypress E2E, Cypress Smoke, or backend pytest — freeze the task manifest first.
+Lane still selects the specialist; the write map is the same.
 
 ## The four workflows
 
