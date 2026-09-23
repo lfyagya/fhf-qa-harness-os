@@ -261,6 +261,29 @@ try {
   const e2eLocal = JSON.parse(fs.readFileSync(path.join(autoE2e, ".harness", "workspace.local.json"), "utf8"));
   assert.equal(e2eLocal.e2eRoot, autoE2e);
 
+  // A fresh lane setup takes its defaults from the root's setup, not all-false flags.
+  const rootSetupPath = path.join(autoRoot, ".harness", "workspace.local.json");
+  const e2eSetupPath = path.join(autoE2e, ".harness", "workspace.local.json");
+  fs.writeFileSync(rootSetupPath, JSON.stringify({ ...rootLocal, optional: { jiraMcp: true, confluenceMcp: true, cypressCloud: true } }));
+  fs.rmSync(e2eSetupPath);
+  const laneSetup = () => spawnSync(process.execPath, [setupScript], {
+    cwd: autoE2e,
+    encoding: "utf8",
+    env: { ...isolatedEnv, CURSOR_PROJECT_DIR: autoE2e, FHF_CONSUMER_ROOT: autoRoot },
+  });
+  assert.equal(laneSetup().status, 0);
+  const inherited = JSON.parse(fs.readFileSync(e2eSetupPath, "utf8"));
+  assert.deepEqual(
+    [inherited.optional.jiraMcp, inherited.optional.confluenceMcp, inherited.optional.cypressCloud, inherited.optional.testRail],
+    [true, true, true, false],
+  );
+  assert.equal(inherited.e2eRoot, autoE2e);
+  assert.equal(inherited.backendRoot, autoBackend);
+  // The lane's own explicit value still wins over the root default.
+  fs.writeFileSync(e2eSetupPath, JSON.stringify({ ...inherited, optional: { ...inherited.optional, jiraMcp: false } }));
+  assert.equal(laneSetup().status, 0);
+  assert.equal(JSON.parse(fs.readFileSync(e2eSetupPath, "utf8")).optional.jiraMcp, false);
+
   const unknownLane = path.join(temp, "unknown-lane");
   write(path.join(unknownLane, ".harness", "lane.json"), JSON.stringify({ lane: "unknown" }));
   const rejected = spawnSync(process.execPath, [setupScript], {
