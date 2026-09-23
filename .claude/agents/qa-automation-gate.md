@@ -21,7 +21,7 @@ credential/dependency change, missing required native evidence, or production ba
 
 Review frontend files against cypress-gate architecture, classification, selector, assertion,
 security, and Smoke GET-only rules. Review backend files against
-fhf-backend-automation/CLAUDE.md, the selected repository-local rules, and
+.claude/skills/backend-test-author/REPOSITORY.md, the selected .claude/rules, and
 backend-test-author: typed clients, centralized DB access, assertion helpers, synthetic data,
 deterministic waits, TestRail traceability when known, and cleanup for persistent mutations.
 

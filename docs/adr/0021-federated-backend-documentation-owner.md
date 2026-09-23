@@ -4,6 +4,7 @@
 |---|---|
 | **Status** | Accepted |
 | **Date** | 2026-08-26 |
+| **Amended by** | ADR-0048 (the owner moved to the harness-owned backend guide) |
 
 ## Context
 

@@ -527,7 +527,7 @@
           "project-context"
         ],
         "instructions": [
-          "CLAUDE.md"
+          "README.md"
         ],
         "evidence": "pytest-junit-allure-and-native-api-db-results"
       },
@@ -3090,7 +3090,7 @@
           "sourceBundles": [
             "backend-api-change"
           ],
-          "hint": "Backend automation generation → create or refresh the active task manifest, then spawn qa-automation-generator. Read fhf-backend-automation/CLAUDE.md and only the backend-test-author resources selected for the task. Writes and pytest runs require manifest-selected paths, the backend-api-oracle runner, and a non-production environment.",
+          "hint": "Backend automation generation → create or refresh the active task manifest, then spawn qa-automation-generator. Read .claude/skills/backend-test-author/REPOSITORY.md and only the backend-test-author resources selected for the task. Writes and pytest runs require manifest-selected paths, the backend-api-oracle runner, and a non-production environment.",
           "invoke": {
             "kind": "agent",
             "name": "qa-automation-generator"
@@ -4105,7 +4105,7 @@
       "regression-sprint-records": "front-end-automation-e2e/docs/evidence/regression-effort/records",
       "qa-onboarding": "docs/adoption/qa-harness.md",
       "qa-adoption": "docs/adoption/qa-ai-adoption-strategy.md",
-      "backend-standards": "fhf-backend-automation/CLAUDE.md",
+      "backend-standards": ".claude/skills/backend-test-author/REPOSITORY.md",
       "pr-template-frontend": "docs/standards/pr-template-frontend.md",
       "pr-template-backend": "docs/standards/pr-template-backend.md"
     },

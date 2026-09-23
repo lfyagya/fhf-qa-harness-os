@@ -23,7 +23,7 @@ Then trace product intent -> application/API/Oracle implementation -> automation
 assertion. A successful setup/API response alone is not proof that the scenario passed.
 
 For Cypress, follow cypress-debugger's evidence and selector rules. For pytest, follow
-fhf-backend-automation/CLAUDE.md and its selected local rules. Reproduce with the exact
+.claude/skills/backend-test-author/REPOSITORY.md and the selected .claude/rules. Reproduce with the exact
 manifest-selected path through `.harness/backend-task-runner.mjs` and a non-production environment;
 apply the smallest source-grounded
 automation fix; add or strengthen the regression assertion; replay the exact failing test.
