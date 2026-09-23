@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse:Read|Bash — block agent access to production-data artifacts by default.
+// PreToolUse:Read|Bash|PowerShell — block agent access to production-data artifacts by default.
 // exit 2 = BLOCK the tool call.
 //
 // Why this exists (2026-07-27): the smoke lane runs against LIVE PRODUCTION, so every
@@ -75,7 +75,7 @@ function deny(what, detail) {
 /** E2E full-read context: explicit lane env, or cwd under the E2E package and not smoke. */
 export function isE2eFullReadContext(payloadObj = {}, command = '', env = process.env, config = harness) {
   // Inline env on the command itself (agents cannot persist shell env across Bash calls).
-  if (/\bFHF_LANE\s*=\s*e2e\b/i.test(command)) return true;
+  if (/\bFHF_LANE\s*=\s*['"]?e2e\b/i.test(command)) return true;
   if (String(env.FHF_LANE || '').toLowerCase() === 'e2e') return true;
   if (String(laneAccess.e2e || '') !== 'full-read') return false;
 
@@ -103,7 +103,7 @@ if (filePath && PROD_ARTIFACT.test(filePath) && !SAFE.test(filePath)) {
 // ── Shell — protected artifact references default-deny ──
 // Only single, metadata-only commands may name a production artifact. Content readers,
 // interpreters, redirects, substitutions, pipes, and chained commands are denied.
-if (/^(?:bash|shell)$/i.test(toolName) || payload?.tool_input?.command) {
+if (/^(?:bash|shell|powershell)$/i.test(toolName) || payload?.tool_input?.command) {
   const cmd = String(hookInput(payload).command ?? '');
   const normalised = cmd.replace(/\\/g, '/');
   const lowerCmd = cmd.toLowerCase();

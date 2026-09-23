@@ -1214,7 +1214,8 @@
           ],
           "inlineCredentialPatterns": [
             "\\b(?:cy-cloud|npx\\s+(?:--yes\\s+)?@cypress/cloud)\\s+login\\b[^\\r\\n;&|]*--token(?:\\s|=)",
-            "\\bCYPRESS_CLOUD_TOKEN\\s*="
+            "\\bCYPRESS_CLOUD_TOKEN\\s*=",
+            "(?:\\b(?:set-item|new-item|si|ni)\\s+(?:-path\\s+)?env:|\\bsetx\\s+(?:/m\\s+)?|SetEnvironmentVariable\\(\\s*['\"])CYPRESS_CLOUD_TOKEN\\b"
           ],
           "productionSensitivePatterns": [
             "\\b(?:cy-cloud|npx\\s+(?:--yes\\s+)?@cypress/cloud)\\s+replay\\s+(?:info|timeline)\\b",

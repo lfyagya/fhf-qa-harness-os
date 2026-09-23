@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// PreToolUse:Bash — block destructive or production-unsafe shell commands.
+// PreToolUse:Bash|PowerShell — block destructive or production-unsafe shell commands (ADR-0045).
 // exit 2 = BLOCK; exit 0 = allow.
 import { readFileSync } from 'fs';
+import path from 'path';
 import { loadHarnessConfig } from './lib/harness-config.mjs';
 import { emitAllow } from './lib/hook-runtime.mjs';
 import { authorizeAutomationRun } from './lib/task-scope.mjs';
-import { enforceWorkspaceReady, isWorkspaceBootstrapCommand } from './lib/workspace-contract.mjs';
+import { enforceWorkspaceReady, isWorkspaceBootstrapCommand, workspacePreflight } from './lib/workspace-contract.mjs';
 
 let payload = {};
 try {
@@ -18,7 +19,16 @@ try {
 const config = loadHarnessConfig();
 const command = String(payload.tool_input?.command ?? '');
 const cmd = command.toLowerCase();
-if (!isWorkspaceBootstrapCommand(command)) {
+// A lone directory change INTO a ready workspace is the recovery from WORKSPACE BLOCKED
+// (session-rules.md). Refusing it too would turn a recoverable block into a dead session now
+// that PowerShell is guarded as well as Bash.
+const changeDirectory = command.trim()
+  .match(/^(?:cd|chdir|pushd|set-location|sl|push-location)\s+(?:-(?:literal)?path\s+)?(["']?)([^"'\r\n;&|<>`$]+)\1$/i)?.[2];
+const entersReadyWorkspace = Boolean(changeDirectory) && workspacePreflight({
+  root: path.resolve(String(payload.cwd ?? process.cwd()), changeDirectory.trim()),
+  config,
+}).ready;
+if (!isWorkspaceBootstrapCommand(command) && !entersReadyWorkspace) {
   enforceWorkspaceReady({ root: payload.cwd ?? process.cwd(), config });
 }
 const workingDirectory = String(
@@ -53,7 +63,7 @@ const BLOCKED_PATTERNS = [
 if (isExternalBackend && !readOnlyBackendCommand.test(cmd)) {
   const decision = authorizeAutomationRun({ command, cwd: workingDirectory, config, sessionId: payload.session_id ?? null });
   if (!decision.allowed) {
-    console.error(`BASH BLOCKED: ${decision.reason}`);
+    console.error(`SHELL BLOCKED: ${decision.reason}`);
     if (!decision.ask) {
       console.error('Backend writes use scoped file tools; pytest runs need the active task and its exact selected test path.');
     }
@@ -62,14 +72,14 @@ if (isExternalBackend && !readOnlyBackendCommand.test(cmd)) {
 }
 
 if (protectedApplicationPaths.some((pattern) => pattern.test(cmd) || pattern.test(workingDirectoryLower)) && shellMutation.test(cmd)) {
-  console.error('BASH BLOCKED: application source is read-only.');
+  console.error('SHELL BLOCKED: application source is read-only.');
   console.error('Use application source as implementation evidence; do not edit it from the QA harness.');
   process.exit(2);
 }
 
 for (const { re, msg, overridable = true } of BLOCKED_PATTERNS) {
   if (re.test(cmd)) {
-    console.error(`BASH BLOCKED: ${msg}`);
+    console.error(`SHELL BLOCKED: ${msg}`);
     if (overridable) {
       console.error('If this is intentional, explicitly ask the user to run it with ! <command>');
     } else {

@@ -124,10 +124,11 @@ export function npmrcExample(lane) {
 
 export const VENDORED_HOOKS = "project-hooks";
 
+// ADR-0045: every shell tool is a shell. The Claude Code desktop exposes PowerShell beside Bash.
 const PHASE_MATCHERS = {
-  preReadExceptE2e: "Read|Bash",
+  preReadExceptE2e: "Read|Bash|PowerShell",
   preWrite: "Edit|Write",
-  preShell: "Bash",
+  preShell: "Bash|PowerShell",
   preSubagent: "Task|Agent",
   preSkill: "Skill",
   preRead: "Read",
