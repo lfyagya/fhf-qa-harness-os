@@ -366,26 +366,31 @@ function syncHarnessRoot() {
   writeText(path.join(HARNESS_ROOT, ".claude", "settings.json"), harnessSettings());
 }
 
+function isTestingLane(lane) {
+  return lane === "e2e" || lane === "smoke" || lane === "backend";
+}
+
 function syncRuntimeEvidence(repoPath, lane) {
-  // ADR-0032: a lane keeps only its identity marker plus its own execution tooling.
-  //
-  // lane.json cannot move to the root and is the one exception to centralisation:
-  // markerLane() walks UPWARD, so a lane without its own marker inherits the root marker and
-  // reports lane "root" instead of itself. Verified 2026-09-16 - removing it made all three
-  // lanes resolve as root.
-  //
-  // The generic runtime CLIs are not projected. Nothing resolves them lane-relative: every hook
-  // resolves against the project root and qa-command-center reads the setup file from
-  // consumerRoot, so the root copy is the one that runs.
+  // ADR-0032: lane.json stays per-checkout because markerLane() walks upward.
+  // ADR-0046: Cypress and Python are parallel test-development lanes. Each testing
+  // checkout gets the same setup bootstrap plus its own runner. Root-only CLIs
+  // (verify, task protocol, doctors) still assume a full .claude/ projection.
   writeText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
 
   if (lane === "e2e" || lane === "smoke") {
-    // Execution tooling is genuinely per-lane (ADR-0014) and the root never receives it,
-    // so dropping it here would delete it rather than centralise it.
     writeText(path.join(repoPath, ".harness", "prepare-execution.mjs"), EXECUTION_SETUP_TEXT);
     writeText(path.join(repoPath, ".harness", "execution.example.json"), executionProfileExample(lane));
     const pkg = lanePackage(lane);
     if (pkg) writeText(path.join(repoPath, pkg, ".npmrc.example"), npmrcExample(lane));
+  }
+
+  if (lane === "backend") {
+    writeText(path.join(repoPath, ".harness", "backend-task-runner.mjs"), BACKEND_TASK_RUNNER_TEXT);
+  }
+
+  if (isTestingLane(lane)) {
+    writeText(path.join(repoPath, ".harness", "setup.mjs"), WORKSPACE_SETUP_TEXT);
+    writeText(path.join(repoPath, ".harness", "workspace.example.json"), workspaceExample(lane));
   }
 
   if (lane !== "root") return;
@@ -503,11 +508,10 @@ function syncBackend() {
   // walks up and resolves the workspace projection, so there is one config and nothing to
   // drift. The lane keeps .harness/lane.json, which is what detectLane() needs for identity.
 
-  // Without this the backend repo received .claude/ but no .harness/lane.json, so detectLane()
-  // fell through to "root" and the backend lane did not operationally exist. Verified 2026-09-16.
+  // ADR-0046: backend is a testing lane. syncRuntimeEvidence writes lane.json, setup.mjs,
+  // workspace.example.json, and backend-task-runner.mjs — the Python counterpart of the
+  // Cypress prepare-execution files.
   syncRuntimeEvidence(SUB_REPOS.backend, "backend");
-  // The consumer verifier travels with the runtime files; syncSubRepo writes these for the
-  // Cypress lanes and backend needs them for the same reason - the drift check verifies them.
 }
 
 function removeEmptyLegacyCodexDirectory(repoPath) {

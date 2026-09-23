@@ -344,7 +344,7 @@ const workspaceContract = config?.workspaceContract;
 if (!workspaceContract || workspaceContract.version !== 1) {
   issues.push("workspaceContract.version must be 1");
 } else {
-  for (const lane of ["e2e", "smoke"]) {
+  for (const lane of ["e2e", "smoke", "backend"]) {
     const laneConfig = config.paths?.lanes?.[lane];
     if (!laneConfig?.root && (typeof laneConfig?.rootEnv !== "string" || !laneConfig.rootEnv)) {
       issues.push(`paths.lanes.${lane} must use a configured rootEnv instead of a checkout folder name`);
@@ -371,6 +371,18 @@ if (!workspaceContract || workspaceContract.version !== 1) {
   }
   if (!(e2e?.requiredInputs ?? []).some((input) => input.field === "e2eRoot")) {
     issues.push("workspaceContract.lanes.e2e.requiredInputs must include e2eRoot");
+  }
+  const backend = workspaceContract.lanes?.backend;
+  if (!backend?.required) {
+    issues.push("workspaceContract.lanes.backend must be required");
+  }
+  if (typeof backend?.moduleSpecsPathPrefix !== "string" || !backend.moduleSpecsPathPrefix) {
+    issues.push("workspaceContract.lanes.backend.moduleSpecsPathPrefix must be configured");
+  }
+  for (const [name, contract] of [["e2e", e2e], ["smoke", smoke], ["backend", backend]]) {
+    if (!(contract?.requiredInputs ?? []).some((input) => input.field === "backendRoot")) {
+      issues.push(`workspaceContract.lanes.${name}.requiredInputs must include backendRoot`);
+    }
   }
   for (const input of smoke.requiredInputs ?? []) {
     if (!input.field || !input.label || !input.description) {
