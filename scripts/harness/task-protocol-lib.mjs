@@ -1077,3 +1077,23 @@ export function quickTaskQuestion({ quick, target, suggestions = [] }) {
     "One yes covers every automation write and own-file test run for this prompt's task.",
   ].join("\n");
 }
+
+// One options builder for every nextStep/validate caller. The hooks once passed only the gate
+// options, so every planned manifest looked broken to them ("execution budget policy is unavailable").
+export function protocolOptions(config) {
+  const runners = config?.engineering?.executionRunners?.runners ?? {};
+  const approval = config?.engineering?.taskProtocol?.approval ?? {};
+  return {
+    repoIds: Object.keys(config?.productTopology?.repositories ?? {}),
+    bundleIds: Object.keys(config?.productTopology?.sourceBundles ?? {}),
+    runnerIds: Object.keys(runners),
+    runners,
+    approvalFields: approval.boundFields,
+    gates: approval.gates ?? [],
+    legacySingleDigestSatisfies: approval.legacySingleDigestSatisfies ?? "plan",
+    executionBudget: config?.engineering?.taskProtocol?.executionBudget,
+    crossRepositorySeam: config?.engineering?.taskProtocol?.crossRepositorySeam,
+    frontendTestData: config?.qualityAssurance?.frontendTestData,
+    capabilityControl: config?.engineering?.capabilityControl,
+  };
+}
