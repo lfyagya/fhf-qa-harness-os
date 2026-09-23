@@ -26,6 +26,7 @@ try {
     [
       "docs/evidence/one.json",
       "docs/evidence/two.md",
+      "docs/evidence/nested/",
       "docs/evidence/*.json.lock",
       "docs/evidence/*.*.tmp",
       "docs/evidence/*.*.bak",
@@ -50,6 +51,15 @@ try {
   fs.rmSync(staleLock);
   publishEvidenceBundle({ ...policy, consent: "approval-2" }, files);
   assert.equal(fs.existsSync(staleLock), false);
+
+  const nestedPolicy = {
+    ...policy,
+    consent: "approval-nested",
+    runtimeFiles: ["nested/module.md"],
+  };
+  const nested = path.join(evidenceDir, "nested", "module.md");
+  publishEvidenceBundle(nestedPolicy, [{ file: nested, content: "# Nested\n" }]);
+  assert.equal(fs.readFileSync(nested, "utf8"), "# Nested\n");
 
   assert.throws(() => writeBundleAtomic([
     { file: first, content: "{\"staged\":true}\n" },
