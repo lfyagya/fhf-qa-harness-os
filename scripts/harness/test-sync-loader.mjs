@@ -114,7 +114,7 @@ try {
   assert.equal(fs.existsSync(path.join(root, ".harness", "record-loop-event.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "portable-runtime-state.mjs")), true);
   assert.equal(fs.existsSync(path.join(root, ".harness", "backend-task-runner.mjs")), true);
-  // ADR-0037: testing lanes share setup.mjs; verify/task-protocol stay at the workspace root.
+  // ADR-0046: testing lanes share setup.mjs; verify/task-protocol stay at the workspace root.
   // Each lane keeps its own runner — Cypress prepare-execution or Python backend-task-runner.
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "verify.mjs")), false);
   assert.equal(fs.existsSync(path.join(root, "front-end-automation-smoke", ".harness", "setup.mjs")), true);

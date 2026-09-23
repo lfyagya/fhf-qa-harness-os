@@ -372,7 +372,7 @@ function isTestingLane(lane) {
 
 function syncRuntimeEvidence(repoPath, lane) {
   // ADR-0032: lane.json stays per-checkout because markerLane() walks upward.
-  // ADR-0037: Cypress and Python are parallel test-development lanes. Each testing
+  // ADR-0046: Cypress and Python are parallel test-development lanes. Each testing
   // checkout gets the same setup bootstrap plus its own runner. Root-only CLIs
   // (verify, task protocol, doctors) still assume a full .claude/ projection.
   writeText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
@@ -508,7 +508,7 @@ function syncBackend() {
   // walks up and resolves the workspace projection, so there is one config and nothing to
   // drift. The lane keeps .harness/lane.json, which is what detectLane() needs for identity.
 
-  // ADR-0037: backend is a testing lane. syncRuntimeEvidence writes lane.json, setup.mjs,
+  // ADR-0046: backend is a testing lane. syncRuntimeEvidence writes lane.json, setup.mjs,
   // workspace.example.json, and backend-task-runner.mjs — the Python counterpart of the
   // Cypress prepare-execution files.
   syncRuntimeEvidence(SUB_REPOS.backend, "backend");

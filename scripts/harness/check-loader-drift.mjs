@@ -131,7 +131,7 @@ function isTestingLane(lane) {
 }
 
 function checkConsumerVerifier(repoPath, lane) {
-  // ADR-0037: testing lanes share setup.mjs + workspace.example.json and keep their own
+  // ADR-0046: testing lanes share setup.mjs + workspace.example.json and keep their own
   // runner. Root-only CLIs still live only at the workspace root.
   requireFile(path.join(repoPath, ".harness", "lane.json"));
   checkExactText(path.join(repoPath, ".harness", "lane.json"), laneMarker(lane));
