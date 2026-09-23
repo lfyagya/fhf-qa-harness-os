@@ -76,6 +76,26 @@ function inferConsumerRoot(start) {
   return start;
 }
 
+// A lane defaults to the workspace root's own setup: its shared paths and optional flags. Without
+// this a fresh lane setup wrote every flag false, silently disagreeing with the root (2026-09-24).
+// Whatever the lane's own file already says still wins.
+if (lane !== "root") {
+  const rootSetup = path.join(existing.consumerRoot || inferConsumerRoot(root), ".harness", "workspace.local.json");
+  let base = {};
+  try {
+    base = JSON.parse(fs.readFileSync(rootSetup, "utf8"));
+  } catch {
+    // No readable root setup: fall back to inference, as before.
+  }
+  existing = {
+    consumerRoot: base.consumerRoot,
+    moduleSpecsRoot: base.moduleSpecsRoot,
+    backendRoot: base.backendRoot,
+    ...existing,
+    optional: { ...base.optional, ...existing.optional },
+  };
+}
+
 function optionalFlags(source) {
   const optional = source.optional && typeof source.optional === "object" ? source.optional : {};
   return {
