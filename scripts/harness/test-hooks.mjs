@@ -480,6 +480,10 @@ expect("protect-automation-scope names the ticket that still needs a manifest",
 expect("prompt-router selects a manifest by its title when no ticket is named",
   run("prompt-router.mjs", { prompt: "let's continue the dealer invoice export coverage" }, focusEnv),
   (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12999 (title)") && readFocus().file === "SERV-12999.json");
+// SERV-12359 is only in SERV-12360's related list (an epic or sibling): context, not a switch.
+expect("prompt-router keeps the active task when a prompt names only a related ticket",
+  run("prompt-router.mjs", { prompt: "create a follow-up ticket under SERV-12359" }, focusEnv),
+  (r) => r.code === 0 && /SERV-12359 is only a related ticket/.test(r.stdout) && readFocus().file === "SERV-12999.json");
 expect("enforce-task-gates lets a prompt-selected task leave non-automation writes alone",
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: path.join(focusRoot, "docs", "note.md") } }, focusEnv), 0);
 expect("enforce-task-gates still gates automation writes for a prompt-selected task",

@@ -110,6 +110,12 @@ export function routeTaskFocus({ root, config, text, env = process.env, sessionI
   const resolution = protocol.resolveTaskFromText({ root, config, text, lenient: current?.awaiting === true });
   const relative = (file) => path.relative(root, file).replace(/\\/g, "/");
   const listed = resolution.candidates.map((entry) => entry.manifest.id).join(", ");
+  if (resolution.match && resolution.via === "related" && current?.file
+    && current.file !== path.basename(resolution.match.file)) {
+    // A ticket that is only "related" to some manifest (an epic, a sibling) is context, not a
+    // task switch. Naming it must not take the focus from the task this session is working on.
+    return `[task] ${resolution.key} is only a related ticket of ${resolution.match.manifest.id}; keeping the active task (${current.id ?? current.file}). Name ${resolution.match.manifest.ticketFamily?.primary ?? "its primary ticket"} to switch.`;
+  }
   if (resolution.match) {
     const focus = protocol.focusFromResolution(resolution);
     if (current?.file !== focus.file || current?.awaiting || current?.quick) write(focus);

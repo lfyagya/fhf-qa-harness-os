@@ -879,7 +879,7 @@ function matchByTicket(entries, key) {
   if (primary.length > 1) return { match: null, candidates: primary };
   const related = preferOpen(entries.filter((entry) =>
     (entry.manifest.ticketFamily?.related ?? []).some((item) => String(item).toUpperCase() === key)));
-  return { match: related.length === 1 ? related[0] : null, candidates: related };
+  return { match: related.length === 1 ? related[0] : null, candidates: related, via: "related" };
 }
 
 function terms(text) {
