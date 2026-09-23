@@ -1,0 +1,4 @@
+{
+  "name": "fhf-qa-harness-os",
+  "install": "bash .cursor/install.sh"
+}
