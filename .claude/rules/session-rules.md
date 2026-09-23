@@ -65,9 +65,9 @@ is unreachable or unauthenticated, whether or not it has a capability entry.
   `process.cwd()`, so a shell parked there goes WORKSPACE BLOCKED and holds a directory lock that
   prevents removal. Inspect other checkouts with `git -C <path>`.
 - That block is recoverable, not a dead session. The Bash and PowerShell tools share one working
-  directory, but the guard intercepts Bash and Edit only, so `Set-Location <workspace-root>` through
-  the PowerShell tool clears it for both. A plain `cd` back cannot: the guard rejects the command
-  before it runs. Verified 2026-09-01.
+  directory and the shell guards cover both (ADR-0045). A lone `cd <workspace-root>` or
+  `Set-Location <workspace-root>` into a ready workspace is exempt from the block, so either tool
+  clears it. Anything chained onto it is not exempt. Verified 2026-09-24.
 
 For multi-module work, use loan-lifecycle order:
 Funding → Post Funding → Document Repository → Custodian → Titles → UniFi Servicing → UniFi

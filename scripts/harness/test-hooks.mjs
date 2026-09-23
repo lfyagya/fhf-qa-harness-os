@@ -11,6 +11,7 @@ import { approvalDigest, stampGate } from "./task-protocol-lib.mjs";
 import { loadHarnessConfig } from "../../.claude/hooks/lib/harness-config.mjs";
 import { recordCapabilityOutcome } from "../../.claude/hooks/lib/capability-control.mjs";
 import { authorizeAutomationRun } from "../../.claude/hooks/lib/task-scope.mjs";
+import { claudeSettingsText } from "./loader-templates.mjs";
 
 const HOOKS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks");
 const HARNESS_ROOT = path.resolve(HOOKS, "..", "..");
@@ -758,6 +759,62 @@ expect("manual-task-guard blocks shell-assigned Cloud CLI tokens",
   run("manual-task-guard.mjs", { tool_input: { command: "$env:CYPRESS_CLOUD_TOKEN = 'secret'; cy-cloud run list" } }), 2);
 expect("manual-task-guard allows Cloud CLI OAuth status",
   run("manual-task-guard.mjs", { tool_input: { command: "cy-cloud status" } }), 0);
+
+// ── ADR-0045: PowerShell is a shell tool too ──────────────────────────────────────────
+// Regression for 2026-09-24: this exact assignment was refused through Bash and ran through
+// PowerShell, because no shell guard was matched to the PowerShell tool at all.
+{
+  const preToolUse = JSON.parse(claudeSettingsText()).hooks.PreToolUse;
+  const matched = (script) => preToolUse
+    .filter((entry) => entry.hooks.some((hook) => hook.command.includes(script)))
+    .flatMap((entry) => entry.matcher.split("|"));
+  for (const script of ["manual-task-guard.mjs", "protect-harness-governance.mjs", "protect-prod-data.mjs"]) {
+    expect(`generated settings run ${script} on the PowerShell tool`,
+      { code: 0, stdout: "", stderr: matched(script).join("|") },
+      () => matched(script).includes("PowerShell") && matched(script).includes("Bash"));
+  }
+}
+const ps = (command, extra = {}) => ({ tool_name: "PowerShell", tool_input: { command, description: "probe" }, ...extra });
+expect("manual-task-guard blocks the PowerShell Cloud token assignment from 2026-09-24",
+  run("manual-task-guard.mjs", ps("$env:CYPRESS_CLOUD_TOKEN = [Environment]::GetEnvironmentVariable('CYPRESS_CLOUD_TOKEN','User')")),
+  (r) => r.code === 2 && /Cypress Cloud credentials/.test(r.stderr));
+for (const command of [
+  "Set-Item env:CYPRESS_CLOUD_TOKEN 'secret'",
+  "New-Item -Path Env:CYPRESS_CLOUD_TOKEN -Value 'secret'",
+  "[Environment]::SetEnvironmentVariable('CYPRESS_CLOUD_TOKEN', 'secret', 'User')",
+  "setx CYPRESS_CLOUD_TOKEN secret",
+]) {
+  expect(`manual-task-guard blocks PowerShell token form: ${command.slice(0, 40)}`,
+    run("manual-task-guard.mjs", ps(command)), 2);
+}
+expect("manual-task-guard allows reading whether the token is set (no assignment)",
+  run("manual-task-guard.mjs", ps("Test-Path env:CYPRESS_CLOUD_TOKEN")), 0);
+expect("manual-task-guard blocks PowerShell force push",
+  run("manual-task-guard.mjs", ps("git push --force origin main")), 2);
+expect("manual-task-guard blocks PowerShell Out-File into application source",
+  run("manual-task-guard.mjs", ps("'changed' | Out-File C:/work/fhf-dashboards/src/App.tsx")), 2);
+expect("manual-task-guard blocks PowerShell in an unconfigured Smoke workspace",
+  run("manual-task-guard.mjs", ps("git status", { cwd: smokeRoot }), { FHF_HARNESS_CONFIG: smokeConfigPath }),
+  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED"));
+expect("manual-task-guard lets Set-Location leave a blocked workspace for a ready one",
+  run("manual-task-guard.mjs", ps(`Set-Location '${HARNESS_ROOT}'`, { cwd: smokeRoot }), { FHF_HARNESS_CONFIG: smokeConfigPath }), 0);
+expect("manual-task-guard lets Bash cd leave a blocked workspace for a ready one",
+  run("manual-task-guard.mjs", { cwd: smokeRoot, tool_name: "Bash", tool_input: { command: `cd "${HARNESS_ROOT}"` } },
+    { FHF_HARNESS_CONFIG: smokeConfigPath }), 0);
+expect("manual-task-guard does not let a chained command ride the Set-Location exemption",
+  run("manual-task-guard.mjs", ps(`Set-Location '${HARNESS_ROOT}'; git status`, { cwd: smokeRoot }), { FHF_HARNESS_CONFIG: smokeConfigPath }),
+  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED"));
+expect("manual-task-guard still blocks Set-Location into another unready workspace",
+  run("manual-task-guard.mjs", ps(`Set-Location '${smokeRoot}'`, { cwd: smokeRoot }), { FHF_HARNESS_CONFIG: smokeConfigPath }),
+  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED"));
+expect("protect-prod-data blocks PowerShell Get-Content of a production screenshot",
+  run("protect-prod-data.mjs", ps("Get-Content front-end-automation-smoke/cypress/screenshots/failure.png")), 2);
+expect("protect-prod-data blocks PowerShell Test Replay in production contexts",
+  run("protect-prod-data.mjs", ps("cy-cloud replay timeline --testId abc --commands --network --logs")), 2);
+expect("protect-prod-data accepts the PowerShell form of the E2E lane opt-in",
+  run("protect-prod-data.mjs", ps("$env:FHF_LANE = 'e2e'; cy-cloud replay timeline --testId abc --commands")), 0);
+expect("protect-prod-data allows PowerShell metadata listing of artifacts",
+  run("protect-prod-data.mjs", ps("Get-ChildItem front-end-automation-smoke/cypress/screenshots")), 0);
 expect("manual-task-guard emits runtime-neutral JSON",
   run("manual-task-guard.mjs", {
     hook_event_name: "preToolUse",
@@ -1282,6 +1339,19 @@ expect("governance guard allows reading a gate",
 expect("governance guard accepts the inline shell opt-in",
   run("protect-harness-governance.mjs",
     { tool_name: "Bash", tool_input: { command: "FHF_ALLOW_HARNESS_EDIT=1 sed -i s/a/b/ config/qa-control-plane.json" } }), 0);
+// ADR-0045: the PowerShell forms of the same writes.
+expect("governance guard blocks a PowerShell Set-Content over a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "PowerShell", tool_input: { command: "Set-Content -Path .claude/settings.json -Value '{}'" } }), 2);
+expect("governance guard blocks a PowerShell Out-File over a hook source",
+  run("protect-harness-governance.mjs",
+    { tool_name: "PowerShell", tool_input: { command: "'x' | Out-File .claude\\hooks\\manual-task-guard.mjs" } }), 2);
+expect("governance guard blocks a PowerShell redirect over a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "PowerShell", tool_input: { command: "'{}' > config\\qa-control-plane.json" } }), 2);
+expect("governance guard allows a PowerShell Get-Content of a gate",
+  run("protect-harness-governance.mjs",
+    { tool_name: "PowerShell", tool_input: { command: "Get-Content config/qa-control-plane.json" } }), 0);
 
 // ── verify-subagent-citations: a summary must cite locations that exist ────────────────
 expect("citation verifier blocks an unresolvable file",

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse:Edit|Write and PreToolUse:Bash — deny agent writes to the harness's own gates.
+// PreToolUse:Edit|Write and PreToolUse:Bash|PowerShell — deny agent writes to the harness's own gates.
 // exit 2 = BLOCK the tool call.
 //
 // Why this exists (2026-09-05): every other guard in this directory constrains what an agent
