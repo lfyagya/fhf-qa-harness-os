@@ -233,13 +233,34 @@ try {
   const backendReady = workspacePreflight({ root: backend, config: backendConfig });
   assert.equal(backendReady.ready, true, backendReady.issues.join("\n"));
 
-  const setupSource = fs.readFileSync(setupScript, "utf8");
-  assert.match(setupSource, /backend:\s*\{\s*name:\s*"Backend"/);
-  assert.match(setupSource, /backendRoot:\s*await ask\(\s*"Backend automation repository root"/);
-  assert.doesNotMatch(setupSource, /optional:\s*\{\s*backendRoot/);
-
   const isolatedEnv = { ...process.env };
   for (const key of ["CLAUDE_PROJECT_DIR", "CURSOR_PROJECT_DIR"]) delete isolatedEnv[key];
+
+  const autoRoot = path.join(temp, "FHF-auto");
+  const autoBackend = path.join(autoRoot, "fhf-backend-automation");
+  const autoSpecs = path.join(autoRoot, "Test-Case-Automation-Using-Claude-Agents");
+  const autoE2e = path.join(autoRoot, "front-end-automation-e2e");
+  write(path.join(autoRoot, ".harness", "lane.json"), JSON.stringify({ lane: "root" }));
+  write(path.join(autoBackend, ".harness", "lane.json"), JSON.stringify({ lane: "backend" }));
+  write(path.join(autoE2e, ".harness", "lane.json"), JSON.stringify({ lane: "e2e" }));
+  fs.mkdirSync(autoSpecs, { recursive: true });
+  const autoSetup = spawnSync(process.execPath, [setupScript], {
+    cwd: autoRoot,
+    encoding: "utf8",
+    env: { ...isolatedEnv, CURSOR_PROJECT_DIR: autoRoot, FHF_CONSUMER_ROOT: autoRoot },
+  });
+  assert.equal(autoSetup.status, 0, `${autoSetup.stdout}\n${autoSetup.stderr}`);
+  const rootLocal = JSON.parse(fs.readFileSync(path.join(autoRoot, ".harness", "workspace.local.json"), "utf8"));
+  assert.equal(rootLocal.consumerRoot, autoRoot);
+  assert.equal(rootLocal.backendRoot, autoBackend);
+  assert.equal(rootLocal.moduleSpecsRoot, autoSpecs);
+  assert.equal(rootLocal.optional?.backendRoot, undefined);
+  const backendLocal = JSON.parse(fs.readFileSync(path.join(autoBackend, ".harness", "workspace.local.json"), "utf8"));
+  assert.equal(backendLocal.backendRoot, autoBackend);
+  assert.equal(backendLocal.consumerRoot, autoRoot);
+  const e2eLocal = JSON.parse(fs.readFileSync(path.join(autoE2e, ".harness", "workspace.local.json"), "utf8"));
+  assert.equal(e2eLocal.e2eRoot, autoE2e);
+
   const unknownLane = path.join(temp, "unknown-lane");
   write(path.join(unknownLane, ".harness", "lane.json"), JSON.stringify({ lane: "unknown" }));
   const rejected = spawnSync(process.execPath, [setupScript], {
@@ -249,6 +270,14 @@ try {
   });
   assert.equal(rejected.status, 2);
   assert.match(rejected.stderr, /root, e2e, smoke, or backend/);
+
+  const bootstrapScript = path.join(path.dirname(fileURLToPath(import.meta.url)), "bootstrap.mjs");
+  const missingWorkspace = spawnSync(process.execPath, [bootstrapScript], {
+    encoding: "utf8",
+    env: { ...isolatedEnv, FHF_SYNC_TARGET_ROOT: path.join(temp, "no-such-fhf"), FHF_CONSUMER_ROOT: path.join(temp, "no-such-fhf") },
+  });
+  assert.equal(missingWorkspace.status, 2);
+  assert.match(missingWorkspace.stderr, /FHF workspace not found/);
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }
