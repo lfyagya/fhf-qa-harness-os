@@ -11,7 +11,7 @@ Do not browse or preload this tree. Read the single owner matching the task.
 | Product behavior and business rules | [`Test-Case-Automation-Using-Claude-Agents/specs/`](../Test-Case-Automation-Using-Claude-Agents/specs/INDEX.md) |
 | Frontend implementation evidence | `../fhf-dashboards/src/` |
 | Automation implementation evidence | `../front-end-automation-e2e/CypressFHF/fhf-dashboards/`, `../front-end-automation-smoke/CypressFHF/fhf-dashboards/`, and `../fhf-backend-automation/` |
-| Backend API and Oracle authoring rules — how to write the tests | `../fhf-backend-automation/CLAUDE.md` and its `.claude/rules/`. **Federated owner**: authority is repository-local per ADR-0010, ADR-0017, ADR-0021. The lane *contract* — what counts as evidence — stays in `framework/testing-standards/TESTS.md` §Backend API/database |
+| Backend API and Oracle authoring rules — how to write the tests | `../.claude/skills/backend-test-author/REPOSITORY.md` (setup, commands, layout) and the harness `.claude/rules/` (api-standards, assertions, oracle-db, testing, new-module, security). The harness owns both (ADR-0032, ADR-0048); the backend repo gitignores `CLAUDE.md`. The lane *contract* — what counts as evidence — stays in `framework/testing-standards/TESTS.md` §Backend API/database |
 | Canonical requirement registry — intent as machine-readable ids, for the five blueprint-ready sub-modules | `evidence/requirements.json` (generated; run `node ../fhf-harness-os/scripts/harness/build-requirements.mjs`) |
 | Current repository test presence | `evidence/coverage-computed.json` |
 | Latest execution and failure evidence | `evidence/execution-history.md` |
