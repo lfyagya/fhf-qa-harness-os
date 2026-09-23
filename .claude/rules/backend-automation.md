@@ -10,10 +10,10 @@ hooks, agents, rules, and skills are all generated from the aggregation workspac
 rules and skills (api-standards, assertions, oracle-db, testing, security, new-module, and all
 backend skill directories) live in the harness and are synced out — nothing is locally authoritative.
 
-- An active, validated task manifest must be selected: the prompt names its ticket (or local-task
-  title) and the router records the focus (ADR-0043); FHF_ACTIVE_TASK overrides.
-- Writes must be inside both grounding.repositories[].selectedPaths and
-  plan.changeUnits[].paths for fhf-backend-automation.
+- Every prompt is a task. Unticketed: a quick task (ADR-0044) that needs one owner confirm, then
+  writes inside allowedWriteRoots and runs only the test files it wrote or named.
+- A named SERV ticket, manifest file or title selects a full task (ADR-0043): writes must be inside
+  both grounding.repositories[].selectedPaths and plan.changeUnits[].paths.
 - Runs must use backend-api-oracle, the exact plan.tests[].path, and Dev/QA.
 - From the FHF root, use `.harness/backend-task-runner.mjs` for preflight and execution. It forces
   sequential pytest until the selected files prove independent data, cleanup, and no cross-file state.

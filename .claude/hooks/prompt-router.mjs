@@ -136,7 +136,7 @@ const moduleMatch = prompt.match(/(?:for|command for|config for|spec for)\s+([\w
 // override still selects a task there.
 if (!isExternalBackend) {
   try {
-    const focusLine = routeTaskFocus({ root: taskRoot(payload), config, text: payload.prompt ?? "" });
+    const focusLine = routeTaskFocus({ root: taskRoot(payload), config, text: payload.prompt ?? "", sessionId: payload.session_id ?? null });
     if (focusLine) lines.push(focusLine);
   } catch (error) {
     lines.push(`[task] focus not recorded: ${error.message}`);

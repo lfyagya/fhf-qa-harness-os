@@ -22,6 +22,7 @@ const decision = authorizeAutomationWrite({
   filePath: hookFilePath(payload),
   cwd,
   config,
+  sessionId: payload.session_id ?? null,
 });
 if (decision.applies && !decision.allowed) {
   console.error(`BLOCKED: ${decision.reason}`);

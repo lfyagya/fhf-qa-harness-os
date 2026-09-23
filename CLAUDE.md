@@ -8,9 +8,9 @@ holds no Cypress specs, application documentation, or coverage evidence — thos
 payload side of the workspace.
 
 The workspace root receives the generated projection (`.claude/`, adapters, `.harness/` CLIs). A
-lane receives no `.claude/` of its own (ADR-0032). Application source stays read-only; automation
-writes and runs require an active, validated task manifest, resolved from the ticket or title the
-prompt names (`FHF_ACTIVE_TASK` overrides; ADR-0043).
+lane receives no `.claude/` of its own (ADR-0032). Application source stays read-only; every
+prompt is a task (ADR-0044): one that names no SERV ticket is a quick task that needs one owner
+confirm; naming a ticket, manifest file or title selects its full, gated manifest (ADR-0043).
 
 Read next: [`docs/framework/harness-engineering.md`](docs/framework/harness-engineering.md) —
 system overview, control-plane order, current gate and sync behavior.

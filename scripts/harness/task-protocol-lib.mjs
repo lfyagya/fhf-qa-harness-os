@@ -988,11 +988,19 @@ export function focusFromResolution(resolution, at = new Date().toISOString()) {
   return { id: null, file: null, source: resolution.kind, key: resolution.key ?? null, at };
 }
 
-export function resolveActiveTask({ root, config, env = process.env }) {
+// A focus belongs to the session that set it (one session, one job). A caller with no session
+// (the CLI, the backend runner) accepts any focus.
+export function sessionFocus(root, config, sessionId = null) {
+  const focus = readTaskFocus(root, config);
+  if (focus?.sessionId && sessionId && focus.sessionId !== sessionId) return null;
+  return focus;
+}
+
+export function resolveActiveTask({ root, config, env = process.env, sessionId = null }) {
   const envName = config?.engineering?.taskProtocol?.activeManifestEnv;
   const explicit = envName ? String(env[envName] ?? "").trim() : "";
   if (explicit) return { source: "env", envName, file: explicit };
-  const focus = readTaskFocus(root, config);
+  const focus = sessionFocus(root, config, sessionId);
   if (focus?.file) {
     const dir = taskDirectory(root, config);
     const file = path.resolve(dir, String(focus.file));
@@ -1000,4 +1008,72 @@ export function resolveActiveTask({ root, config, env = process.env }) {
     if (path.dirname(file) === dir) return { source: "focus", envName, file, focus };
   }
   return { source: null, envName, file: null, focus };
+}
+
+// ADR-0044. Every prompt is a task. A prompt that names no SERV ticket is a quick task: its
+// intent is the prompt, it needs one owner confirm, and it carries no Jira grounding or gates.
+const AFFIRMATIVE = /^\s*(?:y|yes|yep|yeah|ok|okay|sure|confirm(?:ed)?|approve(?:d)?|go(?: ahead)?|proceed|do it|lgtm)\b/i;
+const NEGATIVE = /^\s*(?:n|no|nope|cancel|stop|don't|do not)\b/i;
+const SHORT_REPLY = /^\s*(?:y|yes|yep|yeah|ok|okay|sure|confirm(?:ed)?|approve(?:d)?|go(?: ahead)?|proceed|do it|lgtm|continue|next|n|no|nope|cancel|stop|thanks|thank you)\b[\s.!,]*$/i;
+
+export function isAffirmative(text) {
+  return AFFIRMATIVE.test(String(text ?? ""));
+}
+
+export function isNegative(text) {
+  return NEGATIVE.test(String(text ?? ""));
+}
+
+// A prompt that asks for work, as opposed to a reply such as "yes" or "continue".
+export function isInstruction(text) {
+  const value = String(text ?? "").trim();
+  return value.length >= 8 && !SHORT_REPLY.test(value);
+}
+
+export function quickTaskDirectory(root, config) {
+  return path.resolve(root, activeTaskPolicy(config).quick?.directory ?? ".harness/tasks/quick");
+}
+
+export function quickTaskFor(root, config, instruction) {
+  const text = String(instruction?.text ?? "").trim();
+  const digest = sha256(text);
+  const id = `quick-${taskSlug(text).slice(0, 40).replace(/-+$/, "")}-${digest.slice(0, 8)}`;
+  return { id, digest, title: text.slice(0, 120), file: path.join(quickTaskDirectory(root, config), `${id}.json`) };
+}
+
+export function readQuickTask(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// The quick task file is the record (intent, touched paths). Its confirmation lives in the
+// governance-protected focus, so editing this file cannot authorize anything.
+export function recordQuickTask(root, config, quick, { instruction, touched = null } = {}) {
+  if (!fs.existsSync(taskDirectory(root, config))) return false;
+  fs.mkdirSync(path.dirname(quick.file), { recursive: true });
+  const existing = readQuickTask(quick.file) ?? {
+    schema: "fhf-harness/quick-task/v1",
+    id: quick.id,
+    tier: "quick",
+    title: quick.title,
+    intent: { text: String(instruction?.text ?? quick.title), digest: quick.digest },
+    createdAt: new Date().toISOString(),
+    touched: [],
+  };
+  if (touched && !existing.touched.includes(touched)) existing.touched.push(touched);
+  fs.writeFileSync(quick.file, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
+  return true;
+}
+
+export function quickTaskQuestion({ quick, target, suggestions = [] }) {
+  return [
+    `QUICK TASK CONFIRM: "${quick.title}" wants to write ${target}.`,
+    ...suggestions.map((line) => `Note: ${line}`),
+    'Ask the owner in this turn with one question, header "Quick task", question text starting',
+    `"Quick task: ${quick.title}", and options "Yes, go ahead" / "No". Do not answer it yourself.`,
+    "One yes covers every automation write and own-file test run for this prompt's task.",
+  ].join("\n");
 }

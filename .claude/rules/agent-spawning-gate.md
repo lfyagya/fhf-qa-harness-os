@@ -2,9 +2,9 @@
 
 Apply this to FHF QA automation work. fhf-backend-automation is a full harness sync consumer —
 its `.claude/{hooks,agents,rules,skills}/` are generated from this harness, same as E2E and Smoke.
-Pytest authoring and execution inside it stay task-scoped: writes and runs require an active,
-validated task manifest (resolved from the ticket or title the prompt names; `FHF_ACTIVE_TASK`
-overrides) and remain within its selected paths — see
+Pytest authoring and execution inside it stay task-scoped: writes and runs belong to a task:
+a quick task confirmed once by the owner (ADR-0044), or a named full task whose manifest selects
+the paths (ADR-0043) — see
 `.claude/rules/backend-automation.md`.
 
 Read `.claude/harness.config.json`:

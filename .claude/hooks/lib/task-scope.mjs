@@ -3,10 +3,12 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  focusFromResolution,
   humanApprovalBlock,
   isLocalTask,
   listTaskManifests,
+  quickTaskFor,
+  quickTaskQuestion,
+  recordQuickTask,
   resolveActiveTask,
   resolveTaskFromText,
   taskQuestion,
@@ -150,8 +152,9 @@ function verifyRepositoryRevision({ filePath, cwd, repositoryId, expectedSha }) 
   return { ok: true, root, actualSha };
 }
 
-// ADR-0043. No focus yet: find the task ourselves before asking. First the one open manifest that
-// selects this exact path (or test), then a SERV key in the target repository's branch name.
+// ADR-0043/0044. Full tasks this work may belong to: the one open manifest that selects this exact
+// path (or test), then a SERV key in the target repository's branch name. Since ADR-0044 these are
+// suggestions in the owner's question; a full task applies only when the owner names it.
 function searchTask({ root, config, repository, relative, command, filePath, cwd }) {
   const open = listTaskManifests(root, config)
     .filter(({ manifest }) => !["complete", "blocked"].includes(manifest.stage));
@@ -179,26 +182,48 @@ function searchTask({ root, config, repository, relative, command, filePath, cwd
   return { entry: null, key, searched };
 }
 
-function activeTask(config, env, stages, root, hint = null) {
+function readQuickTaskRecord(quick) {
+  try {
+    return JSON.parse(fs.readFileSync(quick.file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function activeTask(config, env, stages, root, hint = null, sessionId = null) {
   const protocol = config.engineering?.taskProtocol;
   const boundary = config.engineering?.harness?.boundaries?.automationSource;
   const envName = boundary?.activeManifestEnv ?? protocol?.activeManifestEnv;
   if (!envName || protocol?.activeManifestEnv !== envName) {
     return { ok: false, reason: "active task manifest environment is not configured consistently" };
   }
-  const resolved = resolveActiveTask({ root, config, env });
-  let source = resolved.file;
+  const resolved = resolveActiveTask({ root, config, env, sessionId });
+  const source = resolved.file;
   if (!source) {
+    const focus = resolved.focus;
     const found = hint ? searchTask({ root, config, ...hint }) : { entry: null, key: null, searched: [] };
-    if (found.entry) {
-      source = found.entry.file;
-      writeTaskFocus(root, config, focusFromResolution({ match: found.entry, kind: found.via }));
-    } else {
-      // Nothing found: ask the owner. The awaiting mark lets the router take a bare keyword reply.
-      const key = resolved.focus?.key ?? found.key;
-      writeTaskFocus(root, config, { id: null, file: null, source: "ask", key, awaiting: true, at: new Date().toISOString() });
+    const now = new Date().toISOString();
+    // A SERV ticket was named but has no manifest: a full task, so ask for it (ADR-0043).
+    if (focus?.key || !focus?.lastInstruction) {
+      const key = focus?.key ?? null;
+      writeTaskFocus(root, config, { id: null, file: null, source: "ask", key, awaiting: true, sessionId, at: now });
       return { ok: false, ask: true, reason: taskQuestion({ root, config, searched: found.searched, key }) };
     }
+    // ADR-0044. Otherwise this prompt is a quick task: one owner confirm, then it may write.
+    const quick = quickTaskFor(root, config, focus.lastInstruction);
+    if (focus.quick?.digest === quick.digest && focus.quick.state === "confirmed") {
+      return { ok: true, quick: true, task: quick, instruction: focus.lastInstruction };
+    }
+    recordQuickTask(root, config, quick, { instruction: focus.lastInstruction });
+    writeTaskFocus(root, config, {
+      ...focus,
+      sessionId,
+      quick: { id: quick.id, file: path.basename(quick.file), digest: quick.digest, title: quick.title, state: "pending", at: now },
+    });
+    const suggestions = found.entry
+      ? [`${found.entry.manifest.id} (${path.basename(found.entry.file)}) also covers this; name it instead to work under that full task.`]
+      : [];
+    return { ok: false, ask: true, reason: quickTaskQuestion({ quick, target: hint?.relative ?? hint?.command ?? "automation", suggestions }) };
   }
   if (!path.isAbsolute(source)) return { ok: false, reason: `${envName} must be an absolute path` };
 
@@ -264,7 +289,7 @@ export function automationRepositoryFor({ filePath = "", cwd = "", command = "",
   return null;
 }
 
-export function authorizeAutomationWrite({ filePath, cwd, config, env = process.env }) {
+export function authorizeAutomationWrite({ filePath, cwd, config, env = process.env, sessionId = null }) {
   const repository = automationRepositoryFor({ filePath, cwd, config });
   if (!repository) return { applies: false, allowed: true };
 
@@ -279,8 +304,14 @@ export function authorizeAutomationWrite({ filePath, cwd, config, env = process.
     return { applies: true, allowed: false, reason: `backend automation path is protected: ${relative}` };
   }
 
-  const task = activeTask(config, env, repository.policy.writeStages ?? [], taskRoot({}, cwd), { repository, relative, filePath, cwd });
+  const root = taskRoot({}, cwd);
+  const task = activeTask(config, env, repository.policy.writeStages ?? [], root, { repository, relative, filePath, cwd }, sessionId);
   if (!task.ok) return { applies: true, allowed: false, ask: task.ask === true, reason: task.reason };
+  if (task.quick) {
+    // A confirmed quick task writes inside the lane's allowed roots (checked above) and records the path.
+    recordQuickTask(root, config, task.task, { instruction: task.instruction, touched: `${repository.id}/${relative}` });
+    return { applies: true, allowed: true, quick: true, relative, task: task.task };
+  }
   const selected = repositorySelection(task.manifest, repository.id);
   if (!selected || !(selected.selectedPaths ?? []).some((item) => containsPath(relative, item))) {
     return { applies: true, allowed: false, reason: `path is outside grounding.repositories.selectedPaths: ${relative}` };
@@ -306,7 +337,7 @@ export function authorizeAutomationWrite({ filePath, cwd, config, env = process.
   };
 }
 
-export function authorizeAutomationRun({ command, cwd, config, env = process.env }) {
+export function authorizeAutomationRun({ command, cwd, config, env = process.env, sessionId = null }) {
   const repository = automationRepositoryFor({ command, cwd, config });
   if (!repository) return { applies: false, allowed: true };
   const trimmed = String(command ?? "").trim();
@@ -333,8 +364,25 @@ export function authorizeAutomationRun({ command, cwd, config, env = process.env
     return { applies: true, allowed: false, reason: "only configured backend pytest commands are executable" };
   }
 
-  const task = activeTask(config, env, repository.policy.runStages ?? [], taskRoot({}, cwd), { repository, command: trimmed, cwd });
+  const root = taskRoot({}, cwd);
+  const task = activeTask(config, env, repository.policy.runStages ?? [], root, { repository, command: trimmed, cwd }, sessionId);
   if (!task.ok) return { applies: true, allowed: false, ask: task.ask === true, reason: task.reason };
+  if (task.quick) {
+    // A quick task runs only test files it wrote or its prompt named (ADR-0044). The command check
+    // above already refused chaining and production; allowedEnvironments stay a runner concern.
+    const record = readQuickTaskRecord(task.task);
+    const own = [
+      ...(record?.touched ?? [])
+        .filter((item) => item.startsWith(`${repository.id}/`))
+        .map((item) => item.slice(repository.id.length + 1)),
+      ...(String(task.instruction?.text ?? "").match(/[\w./\\-]+\.py\b/g) ?? []),
+    ].map((item) => normalizePath(item).toLowerCase());
+    const normalized = normalizePath(trimmed).toLowerCase();
+    if (!own.some((item) => normalized.includes(item))) {
+      return { applies: true, allowed: false, reason: "a quick task runs only the test files it wrote or its prompt named" };
+    }
+    return { applies: true, allowed: true, quick: true, task: task.task };
+  }
   const selected = repositorySelection(task.manifest, repository.id);
   if (!selected) return { applies: true, allowed: false, reason: "backend automation repository is not selected by the active task" };
 

@@ -487,17 +487,13 @@ expect("enforce-task-gates still gates automation writes for a prompt-selected t
 expect("governance guard blocks an agent write to the task focus",
   run("protect-harness-governance.mjs", { tool_input: { file_path: focusFile } }), 2);
 
-// ADR-0043: with no focus the guard searches first, and asks only when its search comes up empty.
+// ADR-0043/0044: with no task and no instruction on record, the guard asks which task it is.
 const searchRoot = path.join(tmp, "search-workspace");
 const searchTasks = path.join(searchRoot, ".harness", "tasks");
 mkdirSync(searchTasks, { recursive: true });
 writeFileSync(path.join(searchTasks, "SERV-12360.json"), JSON.stringify(activeTask));
 const searchEnv = { ...workspaceEnv, CLAUDE_PROJECT_DIR: searchRoot, CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" };
 const searchFocus = () => JSON.parse(readFileSync(path.join(searchTasks, ".focus.json"), "utf8"));
-expect("protect-automation-scope finds the one manifest that selects the path, with no focus",
-  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, searchEnv),
-  (r) => r.code === 0 && searchFocus().source === "path" && searchFocus().file === "SERV-12360.json");
-rmSync(path.join(searchTasks, ".focus.json"));
 writeFileSync(path.join(searchTasks, "SERV-12999.json"), JSON.stringify(titledTask));
 expect("protect-automation-scope asks the owner when its search is ambiguous",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, searchEnv),
@@ -509,6 +505,59 @@ expect("prompt-router takes a bare keyword as the answer to the task question",
 expect("prompt-router takes a manifest file name as the answer",
   run("prompt-router.mjs", { prompt: "use SERV-12360.json" }, searchEnv),
   (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12360-agent-contact (file)"));
+
+// ADR-0044: every prompt is a task. One that names no ticket is a quick task with one confirm.
+const quickRoot = path.join(tmp, "quick-workspace");
+const quickTasks = path.join(quickRoot, ".harness", "tasks");
+mkdirSync(quickTasks, { recursive: true });
+writeFileSync(path.join(quickTasks, "SERV-12360.json"), JSON.stringify(activeTask));
+const quickEnv = { ...workspaceEnv, CLAUDE_PROJECT_DIR: quickRoot, CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" };
+const quickFocus = () => JSON.parse(readFileSync(path.join(quickTasks, ".focus.json"), "utf8"));
+const quickWrite = (extra = {}) => run("protect-automation-scope.mjs",
+  { cwd: backendRoot, tool_input: { file_path: backendTestPath }, session_id: "s1", ...extra }, quickEnv);
+expect("prompt-router records an unticketed instruction as the prompt's quick task",
+  run("prompt-router.mjs", { session_id: "s1", prompt: "update the agent contact selector in the users test" }, quickEnv),
+  (r) => r.code === 0 && quickFocus().lastInstruction?.text === "update the agent contact selector in the users test");
+expect("a quick task asks for one confirm and names the full task that also covers the path",
+  quickWrite(),
+  (r) => r.code === 2 && /QUICK TASK CONFIRM/.test(r.stderr) && /SERV-12360-agent-contact .* also covers this/.test(r.stderr)
+    && quickFocus().quick?.state === "pending");
+expect("an agent cannot confirm by editing the quick task record",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: path.join(quickTasks, "quick", "x.json") } }), 2);
+expect("a typed yes confirms the pending quick task",
+  run("prompt-router.mjs", { session_id: "s1", prompt: "yes" }, quickEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] quick task confirmed") && quickFocus().quick?.state === "confirmed");
+expect("a confirmed quick task writes inside the lane's allowed roots",
+  quickWrite(), 0);
+expect("a confirmed quick task records the path it wrote",
+  { code: 0, stdout: "", stderr: "" },
+  () => JSON.parse(readFileSync(path.join(quickTasks, "quick", quickFocus().quick.file), "utf8"))
+    .touched.includes("fhf-backend-automation/tests/api/users/test_users.py"));
+expect("a quick task runs the test file it wrote",
+  run("manual-task-guard.mjs", {
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "python -m pytest tests/api/users/test_users.py" },
+  }, quickEnv), 0);
+expect("a quick task refuses a test file it did not write or name",
+  run("manual-task-guard.mjs", {
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "python -m pytest tests/api/users/test_other.py" },
+  }, quickEnv),
+  (r) => r.code === 2 && /quick task runs only the test files/.test(r.stderr));
+expect("the next instruction is a new task that needs its own confirm",
+  run("prompt-router.mjs", { session_id: "s1", prompt: "now tighten the dealer filter assertion" }, quickEnv),
+  (r) => r.code === 0 && quickFocus().quick === undefined && /dealer filter/.test(quickFocus().lastInstruction.text));
+quickWrite();
+expect("an AskUserQuestion answer confirms the quick task",
+  run("record-task-answer.mjs", {
+    session_id: "s1",
+    tool_name: "AskUserQuestion",
+    tool_response: { answers: { "Quick task: now tighten the dealer filter assertion": "Yes, go ahead" } },
+  }, quickEnv),
+  (r) => r.code === 0 && r.stdout.includes("quick task confirmed") && quickFocus().quick?.state === "confirmed");
+expect("a focus from another session does not carry over",
+  quickWrite({ session_id: "a-later-session" }),
+  (r) => r.code === 2 && /TASK NEEDED/.test(r.stderr));
 expect("session-context names the pending gate for an active task",
   run("session-context.mjs", {
     hook_event_name: "sessionStart",

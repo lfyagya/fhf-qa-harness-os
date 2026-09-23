@@ -35,4 +35,6 @@ roster section and the ADR amendment above. `check-hook-order.mjs` passes and is
 ADR-0043 (active task resolved from the ticket or title the prompt names) ships as its own
 commit. It updates the active-task wording in `CLAUDE.md`, `harness-engineering.md`,
 `qa-control-plane.md`, `repository-routing.md`, and the two generated rules. The earlier ADRs that
-name `FHF_ACTIVE_TASK` stay as written; ADR-0043 amends them.
+name `FHF_ACTIVE_TASK` stay as written; ADR-0043 amends them. ADR-0044 (every prompt is a task;
+an unticketed prompt is a quick task with one owner confirm) follows it and supersedes ADR-0043's
+silent path/branch selection.

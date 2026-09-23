@@ -51,7 +51,7 @@ const BLOCKED_PATTERNS = [
 ];
 
 if (isExternalBackend && !readOnlyBackendCommand.test(cmd)) {
-  const decision = authorizeAutomationRun({ command, cwd: workingDirectory, config });
+  const decision = authorizeAutomationRun({ command, cwd: workingDirectory, config, sessionId: payload.session_id ?? null });
   if (!decision.allowed) {
     console.error(`BASH BLOCKED: ${decision.reason}`);
     if (!decision.ask) {

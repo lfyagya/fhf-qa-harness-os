@@ -1723,7 +1723,20 @@
           "minSharedTerms": 3,
           "minCoverage": 0.6
         },
-        "focusGatesOnlyAutomationWrites": true
+        "focusGatesOnlyAutomationWrites": true,
+        "quick": {
+          "adr": "ADR-0044",
+          "directory": ".harness/tasks/quick",
+          "appliesWhen": "the prompt names no SERV ticket, manifest file, or manifest title",
+          "confirm": "once-per-task",
+          "confirmedBy": [
+            "AskUserQuestion answer (record-task-answer.mjs)",
+            "typed affirmative reply (prompt-router.mjs)"
+          ],
+          "writes": "the lane's allowedWriteRoots minus deniedWritePatterns",
+          "runs": "test files the quick task wrote or its prompt named",
+          "fullTaskOnlyWhenTicketNamed": true
+        }
       },
       "stages": [
         "intake",
@@ -3438,6 +3451,7 @@
         "ownerOverrideEnv": "FHF_ALLOW_HARNESS_EDIT",
         "protectedPaths": [
           ".harness/tasks/.focus.json",
+          ".harness/tasks/quick/",
           "config/qa-control-plane.json",
           ".claude/settings.json",
           ".claude/harness.config.json",
@@ -3677,6 +3691,7 @@
           "validate-spec-linkage.mjs": "content",
           "verify-subagent-citations.mjs": "content",
           "spec-sweep-stop-hook.mjs": "content",
+          "record-task-answer.mjs": "scope",
           "context-read-guard.mjs": "ergonomic",
           "sync-reminder.mjs": "ergonomic",
           "failure-loop-guard.mjs": "ergonomic",
@@ -3733,6 +3748,9 @@
         ],
         "postToolFailure": [
           "failure-loop-guard.mjs"
+        ],
+        "postAsk": [
+          "record-task-answer.mjs"
         ],
         "preCompact": [
           "memory-checkpoint.mjs"
