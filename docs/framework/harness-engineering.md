@@ -224,7 +224,8 @@ File-tool guards, shell mutation guards, and Claude sandbox deny-write rules enf
 application-source boundary at available layers.
 
 Every automation lane has a task-scoped write-and-run boundary. protect-automation-scope.mjs requires
-FHF_ACTIVE_TASK and checks every write against the manifest's frozen repository paths plus planned
+an active task (ADR-0043: resolved from the ticket or title the prompt names, FHF_ACTIVE_TASK
+overrides) and checks every write against the manifest's frozen repository paths plus planned
 change-unit paths. Cypress E2E, Cypress Smoke, and backend pytest share that map. manual-task-guard.mjs
 permits only the selected backend-api-oracle pytest path in Dev/QA; validate-backend-automation.mjs
 parses changed Python and enforces test-layer contracts. Shell writes, credentials, dependency changes,

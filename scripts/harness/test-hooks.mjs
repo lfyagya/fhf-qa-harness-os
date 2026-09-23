@@ -31,6 +31,10 @@ for (const key of [
   "FHF_ALLOW_HARNESS_EDIT",
   "FHF_ALLOW_PROD_DATA",
   "FHF_ACTIVE_TASK",
+  // ADR-0043: the task root follows the project dir, so an inherited one would let a test
+  // prompt that names a ticket rewrite the operator's real task focus.
+  "CLAUDE_PROJECT_DIR",
+  "CURSOR_PROJECT_DIR",
 ]) delete isolatedGitEnv[key];
 
 function run(hook, payload, env = {}, args = []) {
@@ -445,6 +449,43 @@ expect("enforce-task-gates allows writing the active task manifest while a gate 
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: ungatedTaskPath } }, ungatedTaskEnv), 0);
 expect("enforce-task-gates allows the next write after planned gates are stamped",
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, activeTaskEnv), 0);
+
+// ADR-0043: no FHF_ACTIVE_TASK. The prompt names the work and the router selects its manifest.
+const focusRoot = path.join(tmp, "focus-workspace");
+const focusTasks = path.join(focusRoot, ".harness", "tasks");
+mkdirSync(focusTasks, { recursive: true });
+writeFileSync(path.join(focusTasks, "SERV-12360.json"), JSON.stringify(activeTask));
+const titledTask = JSON.parse(readFileSync(ungatedTaskPath, "utf8"));
+titledTask.id = "SERV-12999";
+titledTask.ticketFamily = { primary: "SERV-12999", related: [] };
+titledTask.title = "Ungated coverage for dealer invoice export";
+writeFileSync(path.join(focusTasks, "SERV-12999.json"), JSON.stringify(titledTask));
+const focusFile = path.join(focusTasks, ".focus.json");
+const readFocus = () => JSON.parse(readFileSync(focusFile, "utf8"));
+const focusEnv = { ...workspaceEnv, CLAUDE_PROJECT_DIR: focusRoot, CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" };
+expect("prompt-router selects the manifest a ticket names",
+  run("prompt-router.mjs", { prompt: "work on SERV-12360 please" }, focusEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12360-agent-contact") && readFocus().file === "SERV-12360.json");
+expect("prompt-router keeps the focus when a prompt names no task",
+  run("prompt-router.mjs", { prompt: "yes continue" }, focusEnv),
+  (r) => r.code === 0 && readFocus().file === "SERV-12360.json");
+expect("protect-automation-scope authorizes a backend write through the prompt focus",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, focusEnv), 0);
+expect("prompt-router routes an unmatched ticket to the path its manifest belongs at",
+  run("prompt-router.mjs", { prompt: "start SERV-99999" }, focusEnv),
+  (r) => r.code === 0 && r.stdout.includes(".harness/tasks/SERV-99999.json") && readFocus().file === null);
+expect("protect-automation-scope names the ticket that still needs a manifest",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, focusEnv),
+  (r) => r.code === 2 && /SERV-99999 has no manifest yet/.test(r.stderr));
+expect("prompt-router selects a manifest by its title when no ticket is named",
+  run("prompt-router.mjs", { prompt: "let's continue the dealer invoice export coverage" }, focusEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12999 (title)") && readFocus().file === "SERV-12999.json");
+expect("enforce-task-gates lets a prompt-selected task leave non-automation writes alone",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: path.join(focusRoot, "docs", "note.md") } }, focusEnv), 0);
+expect("enforce-task-gates still gates automation writes for a prompt-selected task",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: e2eSpecPath } }, focusEnv), 2);
+expect("governance guard blocks an agent write to the task focus",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: focusFile } }), 2);
 expect("session-context names the pending gate for an active task",
   run("session-context.mjs", {
     hook_event_name: "sessionStart",

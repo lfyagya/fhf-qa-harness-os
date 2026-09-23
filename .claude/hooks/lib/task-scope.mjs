@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { humanApprovalBlock } from "./task-protocol.mjs";
+import { humanApprovalBlock, isLocalTask, resolveActiveTask, taskRoot } from "./task-protocol.mjs";
 
 function normalized(value) {
   if (Array.isArray(value)) return value.map(normalized);
@@ -140,15 +140,19 @@ function verifyRepositoryRevision({ filePath, cwd, repositoryId, expectedSha }) 
   return { ok: true, root, actualSha };
 }
 
-function activeTask(config, env, stages) {
+function activeTask(config, env, stages, root) {
   const protocol = config.engineering?.taskProtocol;
   const boundary = config.engineering?.harness?.boundaries?.automationSource;
   const envName = boundary?.activeManifestEnv ?? protocol?.activeManifestEnv;
   if (!envName || protocol?.activeManifestEnv !== envName) {
     return { ok: false, reason: "active task manifest environment is not configured consistently" };
   }
-  const source = String(env[envName] ?? "").trim();
-  if (!source) return { ok: false, reason: `${envName} must point to the selected task manifest` };
+  const resolved = resolveActiveTask({ root, config, env });
+  const source = resolved.file;
+  if (!source) {
+    const pending = resolved.focus?.key ? ` (${resolved.focus.key} has no manifest yet)` : "";
+    return { ok: false, reason: `no active task${pending}: name the ticket or task title in the prompt so its manifest is selected, or set ${envName}` };
+  }
   if (!path.isAbsolute(source)) return { ok: false, reason: `${envName} must be an absolute path` };
 
   let manifest;
@@ -163,7 +167,7 @@ function activeTask(config, env, stages) {
   if (!stages.includes(manifest.stage)) {
     return { ok: false, reason: `task stage ${manifest.stage ?? "UNKNOWN"} is not authorized for this action` };
   }
-  if (!/^SERV-\d+$/.test(manifest.ticketFamily?.primary ?? "")) {
+  if (!isLocalTask(manifest) && !/^SERV-\d+$/.test(manifest.ticketFamily?.primary ?? "")) {
     return { ok: false, reason: "active task manifest must identify the primary SERV ticket" };
   }
   const shapeIssues = manifestShapeIssues(config, manifest);
@@ -228,7 +232,7 @@ export function authorizeAutomationWrite({ filePath, cwd, config, env = process.
     return { applies: true, allowed: false, reason: `backend automation path is protected: ${relative}` };
   }
 
-  const task = activeTask(config, env, repository.policy.writeStages ?? []);
+  const task = activeTask(config, env, repository.policy.writeStages ?? [], taskRoot({}, cwd));
   if (!task.ok) return { applies: true, allowed: false, reason: task.reason };
   const selected = repositorySelection(task.manifest, repository.id);
   if (!selected || !(selected.selectedPaths ?? []).some((item) => containsPath(relative, item))) {
@@ -282,7 +286,7 @@ export function authorizeAutomationRun({ command, cwd, config, env = process.env
     return { applies: true, allowed: false, reason: "only configured backend pytest commands are executable" };
   }
 
-  const task = activeTask(config, env, repository.policy.runStages ?? []);
+  const task = activeTask(config, env, repository.policy.runStages ?? [], taskRoot({}, cwd));
   if (!task.ok) return { applies: true, allowed: false, reason: task.reason };
   const selected = repositorySelection(task.manifest, repository.id);
   if (!selected) return { applies: true, allowed: false, reason: "backend automation repository is not selected by the active task" };

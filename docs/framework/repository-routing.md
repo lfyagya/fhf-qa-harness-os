@@ -257,8 +257,8 @@ flowchart LR
 ```
 
 E2E runs only in Dev/QA and may mutate synthetic owned data with cleanup. Smoke runs against
-Production and is GET-only. Backend automation requires a current, approved `FHF_ACTIVE_TASK`
-manifest and selected paths; it is not enabled by catalog membership alone.
+Production and is GET-only. Backend automation requires a current, approved active task manifest
+(ADR-0043) and selected paths; it is not enabled by catalog membership alone.
 
 ## Design basis
 

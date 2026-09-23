@@ -20,6 +20,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolveConsumerRoot } from "./workspace-paths.mjs";
+import { resolveActiveTask } from "./task-protocol-lib.mjs";
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const FHF_ROOT = resolveConsumerRoot(HARNESS_ROOT);
@@ -37,12 +38,13 @@ const LANES = CONTROL_PLANE.paths?.lanes ?? {};
 // enforcing something the docs should explain, not the doctor.
 const REMEDIES = [
   {
-    match: /must point to the selected task manifest|must be an absolute path/i,
+    match: /no active task|must point to the selected task manifest|must be an absolute path/i,
     hooks: ["protect-automation-scope", "validate-backend-automation"],
-    means: "Automation writes are task-scoped and no manifest is selected for this shell.",
+    means: "Automation writes are task-scoped and no manifest is selected for this work (ADR-0043).",
     dos: [
-      "node .harness/task-protocol.mjs list",
-      "Then export the absolute path, e.g.  export FHF_ACTIVE_TASK=$PWD/.harness/tasks/<task-id>.json",
+      "Name the ticket (SERV-n) or the task title in the prompt; the router selects its manifest.",
+      "node .harness/task-protocol.mjs list            # which manifests exist, which is active",
+      "node .harness/task-protocol.mjs path --ticket SERV-n   # where a missing manifest belongs",
     ],
   },
   {
@@ -50,7 +52,7 @@ const REMEDIES = [
     hooks: ["protect-automation-scope"],
     means: "The manifest exists but its stage does not permit this action yet.",
     dos: [
-      "node .harness/task-protocol.mjs show --manifest $FHF_ACTIVE_TASK",
+      "node .harness/task-protocol.mjs next --manifest <active task.json>",
       "Advance the stage only after its gate is stamped — the stage is a consequence, not a switch.",
     ],
   },
@@ -59,8 +61,8 @@ const REMEDIES = [
     hooks: ["enforce-task-gates", "protect-automation-scope"],
     means: "A human gate is unstamped, or the thing it approved changed and invalidated the stamp.",
     dos: [
-      "node .harness/task-protocol.mjs show --manifest $FHF_ACTIVE_TASK   # names the pending gate",
-      "node .harness/task-protocol.mjs approve --manifest $FHF_ACTIVE_TASK --gate <id>",
+      "node .harness/task-protocol.mjs digest --manifest <active task.json>   # names the pending gate",
+      "node .harness/task-protocol.mjs approve --manifest <active task.json> --gate <id>",
       "Only a human may approve. An agent must not run the approve command on the owner's behalf.",
     ],
   },
@@ -360,19 +362,19 @@ function checkSyncedRevision({ fix }) {
 }
 
 function checkActiveTask() {
-  const envName = CONTROL_PLANE.engineering?.taskProtocol?.activeManifestEnv ?? "FHF_ACTIVE_TASK";
-  const value = process.env[envName];
+  const active = resolveActiveTask({ root: FHF_ROOT, config: CONTROL_PLANE });
+  const value = active.file;
   if (!value) {
-    return record("warn", "active task", `${envName} is not set — automation writes will be refused`,
-      `node .harness/task-protocol.mjs list, then export ${envName}=<absolute manifest path>`);
+    return record("warn", "active task", "no task selected — automation writes will be refused",
+      "name the ticket or task title in the prompt, then: node .harness/task-protocol.mjs list");
   }
   if (!fs.existsSync(value)) {
-    return record("fail", "active task", `${envName} points at a file that does not exist: ${value}`,
+    return record("fail", "active task", `${active.source} selects a file that does not exist: ${value}`,
       "node .harness/task-protocol.mjs list");
   }
   try {
     const manifest = JSON.parse(fs.readFileSync(value, "utf8"));
-    record("ok", "active task", `stage=${manifest.stage} ticket=${(manifest.ticketFamily ?? []).join(",")}`);
+    record("ok", "active task", `${manifest.id} via ${active.source} stage=${manifest.stage} ticket=${manifest.ticketFamily?.primary ?? "local"}`);
     const gates = CONTROL_PLANE.engineering?.taskProtocol?.approval?.gates ?? [];
     const required = gates.filter((gate) => (gate.requiredFrom ?? []).includes(manifest.stage));
     const stamps = manifest.approval?.stamps ?? {};
@@ -382,7 +384,7 @@ function checkActiveTask() {
     } else if (pending.length) {
       record("fail", "task gates",
         `pending: ${pending.map((gate) => gate.id).join(", ")} (of ${required.map((g) => g.id).join(" -> ")})`,
-        `A human runs: node .harness/task-protocol.mjs approve --manifest $${envName} --gate ${pending[0].id}`);
+        `A human runs: node .harness/task-protocol.mjs approve --manifest ${value} --gate ${pending[0].id}`);
     } else {
       record("ok", "task gates", `all stamped: ${required.map((gate) => gate.id).join(", ")}`);
     }
@@ -435,8 +437,8 @@ function diagnose({ fix }) {
 
 function selftest() {
   const cases = [
-    ["FHF_ACTIVE_TASK must point to the selected task manifest", /task-protocol\.mjs list/],
-    ["BLOCKED: an unapproved task may act only from planned", /task-protocol\.mjs show/],
+    ["no active task: name the ticket or task title in the prompt", /task-protocol\.mjs list/],
+    ["BLOCKED: an unapproved task may act only from planned", /task-protocol\.mjs next/],
     ["backend automation requires current digest-bound human approval", /--gate <id>/],
     ["path is outside plan.changeUnits paths: tests/x.py", /re-approve/i],
     ["WORKSPACE BLOCKED: Harness configuration is unavailable", /Set-Location/],

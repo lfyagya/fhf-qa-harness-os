@@ -10,7 +10,8 @@ hooks, agents, rules, and skills are all generated from the aggregation workspac
 rules and skills (api-standards, assertions, oracle-db, testing, security, new-module, and all
 backend skill directories) live in the harness and are synced out — nothing is locally authoritative.
 
-- FHF_ACTIVE_TASK must point to a validated absolute task-manifest path.
+- An active, validated task manifest must be selected: the prompt names its ticket (or local-task
+  title) and the router records the focus (ADR-0043); FHF_ACTIVE_TASK overrides.
 - Writes must be inside both grounding.repositories[].selectedPaths and
   plan.changeUnits[].paths for fhf-backend-automation.
 - Runs must use backend-api-oracle, the exact plan.tests[].path, and Dev/QA.

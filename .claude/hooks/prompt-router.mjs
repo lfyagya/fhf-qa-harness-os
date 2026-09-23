@@ -9,7 +9,7 @@ import { extractFacts, isExternalBackendWorkspace, mergeHandoff } from './lib/me
 import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
 import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
 import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
-import { formatTaskGateContext, inspectActiveTaskGates } from './lib/task-protocol.mjs';
+import { formatTaskGateContext, inspectActiveTaskGates, routeTaskFocus, taskRoot } from './lib/task-protocol.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -132,7 +132,17 @@ if (overlay?.session?.ticket || overlay?.session?.module) {
 // 3. Duplication pre-check on creation prompts
 const isCreate = /\b(create|write|add|new|generate)\b.*(config|command|spec|test|hook)/i.test(prompt);
 const moduleMatch = prompt.match(/(?:for|command for|config for|spec for)\s+([\w-]+)/);
-const gateContext = formatTaskGateContext(inspectActiveTaskGates(config));
+// ponytail: an external-backend session keeps no focus, same as it keeps no handoff; the env
+// override still selects a task there.
+if (!isExternalBackend) {
+  try {
+    const focusLine = routeTaskFocus({ root: taskRoot(payload), config, text: payload.prompt ?? "" });
+    if (focusLine) lines.push(focusLine);
+  } catch (error) {
+    lines.push(`[task] focus not recorded: ${error.message}`);
+  }
+}
+const gateContext = formatTaskGateContext(inspectActiveTaskGates(config, process.env, payload));
 if (gateContext) lines.push(gateContext);
 
 if (isCreate && moduleMatch) {

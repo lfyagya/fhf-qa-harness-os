@@ -16,6 +16,7 @@ const protocol = await import(pathToFileURL(selected).href);
 
 export const firstPendingGate = protocol.firstPendingGate;
 export const nextStep = protocol.nextStep;
+export const isLocalTask = protocol.isLocalTask;
 
 export function gateOptions(config) {
   const approval = config.engineering?.taskProtocol?.approval ?? {};
@@ -51,9 +52,50 @@ export function humanApprovalBlock(manifest, config) {
   };
 }
 
+// One root for every task reader: the project the session opened, then the payload cwd.
+export function taskRoot(payload = {}, cwd = "") {
+  return path.resolve(
+    process.env.CLAUDE_PROJECT_DIR
+      ?? process.env.CURSOR_PROJECT_DIR
+      ?? payload?.cwd
+      ?? (cwd || process.cwd()),
+  );
+}
+
+export function resolveActiveTask({ root, config, env = process.env }) {
+  return protocol.resolveActiveTask({ root, config, env });
+}
+
+// ADR-0043. The prompt names the work; this maps it to its manifest and records the focus.
+// It never blocks: an unmatched ticket gets the path its manifest belongs at, and a prompt
+// with no task signal ("yes", "continue") leaves the current focus alone.
+export function routeTaskFocus({ root, config, text, env = process.env }) {
+  const envName = config.engineering?.taskProtocol?.activeManifestEnv;
+  if (envName && String(env[envName] ?? "").trim()) return null;
+  const resolution = protocol.resolveTaskFromText({ root, config, text });
+  const relative = (file) => path.relative(root, file).replace(/\\/g, "/");
+  const listed = resolution.candidates.map((entry) => entry.manifest.id).join(", ");
+  if (resolution.match) {
+    const focus = protocol.focusFromResolution(resolution);
+    if (protocol.readTaskFocus(root, config)?.file !== focus.file) protocol.writeTaskFocus(root, config, focus);
+    return `[task] active: ${focus.id} (${resolution.kind}) -> ${relative(resolution.match.file)}`;
+  }
+  if (resolution.kind === "jira") {
+    protocol.writeTaskFocus(root, config, protocol.focusFromResolution(resolution));
+    return resolution.candidates.length
+      ? `[task] ${resolution.key} matches several manifests (${listed}); name the primary ticket to choose.`
+      : `[task] no manifest for ${resolution.key}; create it at ${relative(resolution.suggestedPath)} before automation work.`;
+  }
+  if (resolution.candidates.length) {
+    return `[task] title matches several manifests (${listed}); name the ticket or the fuller title to choose.`;
+  }
+  return null;
+}
+
 export function inspectActiveTaskGates(config, env = process.env, payload = {}) {
-  const envName = config.engineering?.taskProtocol?.activeManifestEnv ?? "FHF_ACTIVE_TASK";
-  const source = String(env[envName] ?? "").trim();
+  const resolved = resolveActiveTask({ root: taskRoot(payload), config, env });
+  const envName = resolved.envName ?? "FHF_ACTIVE_TASK";
+  const source = resolved.file;
   if (!source) return { active: false, envName };
   let manifest;
   try {
@@ -62,6 +104,7 @@ export function inspectActiveTaskGates(config, env = process.env, payload = {}) 
     return {
       active: true,
       envName,
+      origin: resolved.source,
       source,
       error: `active task manifest is unavailable or invalid: ${error.message}`,
     };
@@ -75,6 +118,7 @@ export function inspectActiveTaskGates(config, env = process.env, payload = {}) 
   return {
     active: true,
     envName,
+    origin: resolved.source,
     source,
     manifest,
     block: pending && !isActiveTaskManifestWrite(filePath, source) ? pending : null,

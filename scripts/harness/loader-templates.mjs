@@ -347,7 +347,8 @@ test-failure, and test-flake after an explicit request or a recorded insufficien
 diagnosis. Those tiers are parent policy, not hook gates. Skill invocation mode is
 \`${invocation.mode}\`: follow the matched route \`invoke\`; do not load an unmapped
 marketplace plugin. The skill hook enforces the allow-list and \`skillLanes\` only.
-Backend writes and pytest runs require a validated active manifest selected by \`FHF_ACTIVE_TASK\`;
+Backend writes and pytest runs require a validated active manifest, resolved from the ticket or task
+title the prompt names (\`FHF_ACTIVE_TASK\` overrides; ADR-0043);
 application source remains read-only.
 Root \`.claude/\`, Cursor, Copilot, and Gemini loaders are generated from \`fhf-harness-os\`; never
 hand-edit generated copies. Agent changes stay uncommitted for owner review.
@@ -377,7 +378,8 @@ Read this file, then the selected repository's own \`CLAUDE.md\`. Do not preload
 | Backend API / Oracle | \`fhf-backend-automation\` | \`master\`, task-scoped |
 
 Application source is read-only. Production smoke must never mutate, submit, export, download, or
-send. Backend writes and pytest runs require an active, validated \`FHF_ACTIVE_TASK\` manifest.
+send. Backend writes and pytest runs require an active, validated task manifest: name its ticket or
+title in the prompt and the router selects it (\`FHF_ACTIVE_TASK\` overrides; ADR-0043).
 
 Two unrelated repositories are named \`fhf-dashboards\`, and both declare \`"name": "fhf-dashboards"\`
 in \`package.json\`: \`fhf-dashboards/\` at the workspace root is the React application and is

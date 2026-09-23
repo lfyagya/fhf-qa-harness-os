@@ -73,7 +73,8 @@ restate the sequence. Cypress, Smoke, API, Oracle, and third-party flows require
 evidence; they cannot claim RED/GREEN from a synthetic Git replay. Stubbed external proof cannot
 complete a `same` or `accepted` row. A classified `defect` blocks verified/complete.
 
-For backend authoring or execution, set FHF_ACTIVE_TASK to the absolute validated manifest path.
+For backend authoring or execution, name the ticket (or, for a local task, its title) in the prompt;
+the router selects its manifest under `.harness/tasks/` (ADR-0043). FHF_ACTIVE_TASK is an override.
 File hooks allow only fhf-backend-automation paths selected by both grounding.repositories and
 plan.changeUnits. Shell hooks allow only the exact backend-api-oracle pytest path selected in
 plan.tests, and only when that test records Dev or QA. Application source, credentials, dependency

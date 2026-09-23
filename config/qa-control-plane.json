@@ -1708,6 +1708,23 @@
       "mode": "one-job-task-scoped-snapshot",
       "manifestPath": ".harness/tasks/<task-id>.json",
       "activeManifestEnv": "FHF_ACTIVE_TASK",
+      "activeTask": {
+        "adr": "ADR-0043",
+        "resolution": [
+          "env-override",
+          "prompt-focus"
+        ],
+        "focusFile": ".harness/tasks/.focus.json",
+        "identity": {
+          "jira": "ticketFamily.primary, then a single ticketFamily.related match",
+          "local": "ticketFamily.source=local, matched by title"
+        },
+        "titleMatch": {
+          "minSharedTerms": 3,
+          "minCoverage": 0.6
+        },
+        "focusGatesOnlyAutomationWrites": true
+      },
       "stages": [
         "intake",
         "grounded",
@@ -1794,6 +1811,7 @@
         "boundFields": [
           "ticketFamily",
           "grounding.jira.issueDigest",
+          "grounding.intent",
           "grounding.acceptanceCriteriaDigest",
           "grounding.catalogVersion",
           "grounding.repositories",
@@ -1814,6 +1832,7 @@
             "boundFields": [
               "ticketFamily",
               "grounding.jira.issueDigest",
+              "grounding.intent",
               "grounding.acceptanceCriteriaDigest",
               "grounding.catalogVersion",
               "grounding.repositories",
@@ -3418,6 +3437,7 @@
       "governance": {
         "ownerOverrideEnv": "FHF_ALLOW_HARNESS_EDIT",
         "protectedPaths": [
+          ".harness/tasks/.focus.json",
           "config/qa-control-plane.json",
           ".claude/settings.json",
           ".claude/harness.config.json",

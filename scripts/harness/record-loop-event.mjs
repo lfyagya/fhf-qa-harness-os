@@ -8,6 +8,7 @@ import {
   updateLoopState,
   writeRuntimeArtifact,
 } from "./portable-runtime-state.mjs";
+import { resolveActiveTask } from "./task-protocol-lib.mjs";
 
 const ROOT = path.resolve(process.env.CLAUDE_PROJECT_DIR ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd());
 
@@ -30,8 +31,7 @@ const config = await loadConfig();
 
 function activeExecutionBudget() {
   const policy = config.engineering?.taskProtocol?.executionBudget;
-  const envName = config.engineering?.taskProtocol?.activeManifestEnv;
-  const manifestFile = envName ? process.env[envName] : null;
+  const manifestFile = resolveActiveTask({ root: ROOT, config }).file;
   if (!manifestFile) return null;
   let manifest;
   try {

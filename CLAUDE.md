@@ -9,7 +9,8 @@ payload side of the workspace.
 
 The workspace root receives the generated projection (`.claude/`, adapters, `.harness/` CLIs). A
 lane receives no `.claude/` of its own (ADR-0032). Application source stays read-only; automation
-writes and runs require an active, validated `FHF_ACTIVE_TASK` manifest.
+writes and runs require an active, validated task manifest, resolved from the ticket or title the
+prompt names (`FHF_ACTIVE_TASK` overrides; ADR-0043).
 
 Read next: [`docs/framework/harness-engineering.md`](docs/framework/harness-engineering.md) —
 system overview, control-plane order, current gate and sync behavior.

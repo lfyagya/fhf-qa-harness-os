@@ -31,3 +31,8 @@ The hook-ordering work (ADR-0041, `check-hook-order.mjs`, `hookPhaseOrder` in
 `loader-templates.mjs`, and the three reordered hook lists) ships as its own commit, with the
 roster section and the ADR amendment above. `check-hook-order.mjs` passes and is in
 `engineering.harness.verify.canonical`.
+
+ADR-0043 (active task resolved from the ticket or title the prompt names) ships as its own
+commit. It updates the active-task wording in `CLAUDE.md`, `harness-engineering.md`,
+`qa-control-plane.md`, `repository-routing.md`, and the two generated rules. The earlier ADRs that
+name `FHF_ACTIVE_TASK` stay as written; ADR-0043 amends them.

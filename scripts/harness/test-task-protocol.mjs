@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -19,7 +19,12 @@ import {
   selectProofMode,
   sha256,
   stampGate,
+  canonicalTaskPath,
+  resolveActiveTask,
+  resolveTaskFromText,
+  taskSlug,
   validateTaskManifest,
+  writeTaskFocus,
 } from "./task-protocol-lib.mjs";
 
 const SHA = "a".repeat(40);
@@ -174,6 +179,43 @@ const options = {
   frontendTestData,
 };
 assert.deepEqual(validateTaskManifest(fixture(), options), []);
+
+// ADR-0043: a local task is identified by its title and grounded on a recorded intent digest.
+const localTask = fixture();
+localTask.ticketFamily = { source: "local" };
+localTask.title = "Harden the export audit trail";
+delete localTask.grounding.jira;
+localTask.grounding.intent = { text: "Harden the export audit trail", digest: sha256("Harden the export audit trail") };
+assert.deepEqual(validateTaskManifest(localTask, options), []);
+const untitledLocal = structuredClone(localTask);
+delete untitledLocal.title;
+assert.match(validateTaskManifest(untitledLocal, options).join("\n"), /local task .* must record a title/);
+const undigestedLocal = structuredClone(localTask);
+delete undigestedLocal.grounding.intent;
+assert.match(validateTaskManifest(undigestedLocal, options).join("\n"), /grounding\.intent\.digest/);
+assert.match(validateTaskManifest({ ...fixture(), ticketFamily: {} }, options).join("\n"), /ticketFamily\.primary must be a SERV ticket/);
+
+const resolverRoot = mkdtempSync(path.join(tmpdir(), "task-resolver-"));
+const resolverConfig = { engineering: { taskProtocol: { manifestPath: ".harness/tasks/<task-id>.json", activeManifestEnv: "FHF_ACTIVE_TASK" } } };
+assert.equal(taskSlug("Harden the Export audit trail!"), "harden-the-export-audit-trail");
+assert.equal(path.basename(canonicalTaskPath(resolverRoot, resolverConfig, { title: "Harden the export audit trail" })), "harden-the-export-audit-trail.json");
+assert.equal(path.basename(canonicalTaskPath(resolverRoot, resolverConfig, { ticket: "serv-42" })), "SERV-42.json");
+// No task directory: nothing to resolve, and no focus is written into an arbitrary root.
+assert.equal(writeTaskFocus(resolverRoot, resolverConfig, { file: "x.json" }), false);
+const resolverTasks = path.join(resolverRoot, ".harness", "tasks");
+mkdirSync(resolverTasks, { recursive: true });
+writeFileSync(path.join(resolverTasks, "harden-the-export-audit-trail.json"), JSON.stringify({ ...localTask, id: "harden-the-export-audit-trail" }));
+writeFileSync(path.join(resolverTasks, "SERV-42.json"), JSON.stringify({ ...fixture(), id: "SERV-42", ticketFamily: { primary: "SERV-42", related: ["SERV-41"] } }));
+assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "pick up SERV-42" }).match.manifest.id, "SERV-42");
+assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "about SERV-41" }).match.manifest.id, "SERV-42");
+assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "harden the export audit trail next" }).match.manifest.id, "harden-the-export-audit-trail");
+assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "yes" }).match, null);
+assert.equal(resolveActiveTask({ root: resolverRoot, config: resolverConfig, env: { FHF_ACTIVE_TASK: "/abs/override.json" } }).source, "env");
+assert.equal(writeTaskFocus(resolverRoot, resolverConfig, { file: "../../escape.json" }), true);
+assert.equal(resolveActiveTask({ root: resolverRoot, config: resolverConfig, env: {} }).file, null, "a focus may not point outside the task directory");
+writeTaskFocus(resolverRoot, resolverConfig, { file: "SERV-42.json" });
+assert.equal(path.basename(resolveActiveTask({ root: resolverRoot, config: resolverConfig, env: {} }).file), "SERV-42.json");
+rmSync(resolverRoot, { recursive: true, force: true });
 const forbiddenFrontendData = fixture();
 forbiddenFrontendData.plan.tests[1].testData.source = "production-pii";
 assert.match(validateTaskManifest(forbiddenFrontendData, options).join("\n"), /source must be allowed/);

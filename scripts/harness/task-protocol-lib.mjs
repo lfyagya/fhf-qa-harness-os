@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 export const TASK_SCHEMA = "fhf-harness/task/v1";
 export const TASK_STAGES = Object.freeze([
@@ -29,6 +31,7 @@ export const TEST_HONESTY = Object.freeze(["live", "stubbed", "seeded"]);
 const DEFAULT_APPROVAL_FIELDS = Object.freeze([
   "ticketFamily",
   "grounding.jira.issueDigest",
+  "grounding.intent",
   "grounding.acceptanceCriteriaDigest",
   "grounding.catalogVersion",
   "grounding.repositories",
@@ -235,7 +238,11 @@ function isRelativeSafePath(value) {
 
 function validateGrounding(manifest, repoIds = []) {
   const issues = [];
-  if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.jira?.issueDigest ?? "")) {
+  if (isLocalTask(manifest)) {
+    if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.intent?.digest ?? "")) {
+      issues.push("grounding.intent.digest must be a sha256 digest of the recorded intent");
+    }
+  } else if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.jira?.issueDigest ?? "")) {
     issues.push("grounding.jira.issueDigest must be a sha256 digest");
   }
   if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.acceptanceCriteriaDigest ?? "")) {
@@ -592,9 +599,7 @@ export function validateTaskManifest(manifest, {
   if (manifest.schema !== TASK_SCHEMA) issues.push(`schema must be ${TASK_SCHEMA}`);
   if (typeof manifest.id !== "string" || !manifest.id) issues.push("id must be a non-empty string");
   if (!TASK_STAGES.includes(manifest.stage)) issues.push("stage is not recognized");
-  if (!/^SERV-\d+$/.test(manifest.ticketFamily?.primary ?? "")) {
-    issues.push("ticketFamily.primary must be a SERV ticket");
-  }
+  issues.push(...taskIdentityIssues(manifest));
   issues.push(...validateGrounding(manifest, repoIds));
   issues.push(...validateIntentVsBuilt(manifest));
 
@@ -689,7 +694,7 @@ export function nextStep(manifest, options = {}) {
   if (manifest?.schema !== TASK_SCHEMA) identityIssues.push(`schema must be ${TASK_SCHEMA}`);
   if (typeof manifest?.id !== "string" || !manifest.id) identityIssues.push("id must be a non-empty string");
   if (!TASK_STAGES.includes(manifest?.stage)) identityIssues.push("stage is not recognized");
-  if (!/^SERV-\d+$/.test(manifest?.ticketFamily?.primary ?? "")) identityIssues.push("ticketFamily.primary must be a SERV ticket");
+  identityIssues.push(...taskIdentityIssues(manifest));
   if (identityIssues.length) {
     return { action: "repair-task-manifest", stage: manifest?.stage ?? null, blocked: true, issues: identityIssues };
   }
@@ -792,4 +797,166 @@ export function nextStep(manifest, options = {}) {
     complete: "none",
   };
   return { action: actions[manifest.stage], stage: manifest.stage, blocked: false, approval };
+}
+
+// ADR-0043. A task is a Jira family (ticketFamily.primary = SERV-n) or a local task
+// (ticketFamily.source = "local") identified by its title. Both live at manifestPath.
+export function isLocalTask(manifest) {
+  return manifest?.ticketFamily?.source === "local";
+}
+
+export function taskIdentityIssues(manifest) {
+  if (isLocalTask(manifest)) {
+    return typeof manifest.title === "string" && manifest.title.trim()
+      ? []
+      : ["a local task (ticketFamily.source=local) must record a title"];
+  }
+  return /^SERV-\d+$/.test(manifest?.ticketFamily?.primary ?? "")
+    ? []
+    : ["ticketFamily.primary must be a SERV ticket"];
+}
+
+export function taskSlug(title) {
+  return String(title ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, "");
+}
+
+// ADR-0043. Which manifest is active is resolved from the work, not exported per shell.
+// Order: the explicit env override, then the focus the prompt router recorded.
+const TASK_KEY = /\bSERV-\d+\b/i;
+const TERMINAL_STAGES = new Set(["complete", "blocked"]);
+const STOP_TERMS = new Set(
+  "the and for with from into this that are was were has have not but its our your their via add fix use make update task".split(" "),
+);
+
+function activeTaskPolicy(config) {
+  return config?.engineering?.taskProtocol?.activeTask ?? {};
+}
+
+export function taskDirectory(root, config) {
+  const pattern = config?.engineering?.taskProtocol?.manifestPath ?? ".harness/tasks/<task-id>.json";
+  return path.resolve(root, path.dirname(pattern));
+}
+
+export function canonicalTaskPath(root, config, { ticket, title } = {}) {
+  const id = ticket ? String(ticket).toUpperCase() : taskSlug(title);
+  return id ? path.join(taskDirectory(root, config), `${id}.json`) : null;
+}
+
+export function listTaskManifests(root, config) {
+  const dir = taskDirectory(root, config);
+  let names = [];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((name) => name.endsWith(".json") && !name.startsWith("."))
+    .flatMap((name) => {
+      const file = path.join(dir, name);
+      try {
+        const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+        return manifest?.schema === TASK_SCHEMA ? [{ file, manifest }] : [];
+      } catch {
+        return [];
+      }
+    });
+}
+
+function preferOpen(entries) {
+  const open = entries.filter((entry) => !TERMINAL_STAGES.has(entry.manifest.stage));
+  return open.length ? open : entries;
+}
+
+function matchByTicket(entries, key) {
+  const primary = preferOpen(entries.filter((entry) =>
+    String(entry.manifest.ticketFamily?.primary ?? "").toUpperCase() === key));
+  if (primary.length === 1) return { match: primary[0], candidates: primary };
+  if (primary.length > 1) return { match: null, candidates: primary };
+  const related = preferOpen(entries.filter((entry) =>
+    (entry.manifest.ticketFamily?.related ?? []).some((item) => String(item).toUpperCase() === key)));
+  return { match: related.length === 1 ? related[0] : null, candidates: related };
+}
+
+function terms(text) {
+  return new Set(String(text ?? "").toLowerCase().split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2 && !STOP_TERMS.has(word)));
+}
+
+// ponytail: shared-term overlap against manifest titles, not semantic search. It only has to
+// separate a handful of open manifests; upgrade to a ranked index if tasks number in the hundreds.
+function matchByTitle(entries, text, { minSharedTerms = 3, minCoverage = 0.6 } = {}) {
+  const wanted = terms(text);
+  const scored = entries
+    .map((entry) => {
+      const titleTerms = terms(entry.manifest.title);
+      let shared = 0;
+      for (const word of titleTerms) if (wanted.has(word)) shared += 1;
+      return { ...entry, shared, coverage: titleTerms.size ? shared / titleTerms.size : 0 };
+    })
+    .filter((entry) => entry.shared >= minSharedTerms && entry.coverage >= minCoverage)
+    .sort((a, b) => b.coverage - a.coverage || b.shared - a.shared);
+  const best = preferOpen(scored.filter((entry) =>
+    entry.coverage === scored[0]?.coverage && entry.shared === scored[0]?.shared));
+  return { match: best.length === 1 ? best[0] : null, candidates: scored.slice(0, 5) };
+}
+
+export function resolveTaskFromText({ root, config, text }) {
+  const entries = listTaskManifests(root, config);
+  const key = String(text ?? "").match(TASK_KEY)?.[0]?.toUpperCase();
+  if (key) {
+    return { kind: "jira", key, ...matchByTicket(entries, key), suggestedPath: canonicalTaskPath(root, config, { ticket: key }) };
+  }
+  return { kind: "title", ...matchByTitle(entries, text, activeTaskPolicy(config).titleMatch) };
+}
+
+export function taskFocusPath(root, config) {
+  return path.resolve(root, activeTaskPolicy(config).focusFile ?? ".harness/tasks/.focus.json");
+}
+
+export function readTaskFocus(root, config) {
+  try {
+    return JSON.parse(fs.readFileSync(taskFocusPath(root, config), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// A root with no task directory has no tasks to focus, so nothing is written there.
+export function writeTaskFocus(root, config, focus) {
+  const file = taskFocusPath(root, config);
+  if (!fs.existsSync(path.dirname(file))) return false;
+  fs.writeFileSync(file, `${JSON.stringify(focus, null, 2)}\n`, "utf8");
+  return true;
+}
+
+export function focusFromResolution(resolution, at = new Date().toISOString()) {
+  if (resolution.match) {
+    return {
+      id: resolution.match.manifest.id,
+      file: path.basename(resolution.match.file),
+      source: resolution.kind,
+      key: resolution.key ?? null,
+      at,
+    };
+  }
+  return { id: null, file: null, source: resolution.kind, key: resolution.key ?? null, at };
+}
+
+export function resolveActiveTask({ root, config, env = process.env }) {
+  const envName = config?.engineering?.taskProtocol?.activeManifestEnv;
+  const explicit = envName ? String(env[envName] ?? "").trim() : "";
+  if (explicit) return { source: "env", envName, file: explicit };
+  const focus = readTaskFocus(root, config);
+  if (focus?.file) {
+    const dir = taskDirectory(root, config);
+    const file = path.resolve(dir, String(focus.file));
+    // The focus names a file inside the task directory, never a path elsewhere.
+    if (path.dirname(file) === dir) return { source: "focus", envName, file, focus };
+  }
+  return { source: null, envName, file: null, focus };
 }
