@@ -1664,7 +1664,7 @@
     "letters": [],
     "loss-mitigation": [
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/common-loss-mitigation.yaml",
-      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/queue-ineligible-users.yaml",
+      "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/queue-eligible-users.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/common/loss-mitigation/state-to-region-map.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/assignment.yaml",
       "Test-Case-Automation-Using-Claude-Agents/specs/modules/loss-mitigation/impound.yaml",
