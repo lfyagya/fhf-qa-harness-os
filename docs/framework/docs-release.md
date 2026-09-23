@@ -16,6 +16,8 @@ Reader path for the spine itself: `ONBOARDING.md` → `CLAUDE.md` →
 | `ONBOARDING.md` | updated | Setup-only spine; sync projects the workspace root only (lanes get no `.claude/`); ends at `CLAUDE.md`. |
 | `CLAUDE.md` | updated | Slim router to the engine role and hand-off to `harness-engineering.md`; revision stamp links here. |
 | `docs/framework/harness-engineering.md` | updated | System overview and the single home for current gate and sync behavior; reader path connectors → harness → loops → task protocol. Removed the Context engineering, Memory engineering, and Graph engineering sections and collapsed eval/calibration duplication; `engineering.context`/`engineering.memory` keep one pointer naming the two keys that still bind an agent. Change protocol now carries the engine operating facts: `verify-canonical.mjs`, `core.hooksPath`, sync targets and their env overrides, and the hook rationale ratchet. |
+| `docs/framework/harness-engineering.md` | updated | New **Hooks, agents, and skills** section: what each roster is, who invokes it, the five hook classes with members and firing phases, the seven agents with when/why, the skills grouped by purpose with the `skillLanes` restriction, and the path one prompt takes through all three. Points at the generated `.claude/rules/agent-spawning-gate.md` as the runtime copy. |
+| `docs/adr/0041-hook-ordering-classes.md` | updated | Accepted; **As accepted** records the three reordered lists, the no-verdict-change argument, and the resulting per-tool class sequences. |
 | `docs/framework/repository-routing.md` | updated | Ticket source selection spine; read-next to QA control plane. Removed the Context engineering mindmap branch, execution-envelope taxonomy, and Obsidian retrieval paragraph. |
 | `docs/framework/qa-control-plane.md` | updated | Intake and command center; links the gate sequence instead of restating it; read-next to governance. Removed the Obsidian/memory restatement. |
 | `docs/governance.md` | updated | When an ADR is required; read-next to the cited ADR with 0001 as the process example. |
@@ -25,6 +27,7 @@ Reader path for the spine itself: `ONBOARDING.md` → `CLAUDE.md` →
 
 Every page above carries the `docs-2026-09-22` stamp.
 
-Not in this revision: the hook-ordering work (ADR-0041, `check-hook-order.mjs`, the
-`hookPhaseOrder` change in `loader-templates.mjs`). That ADR is still Proposed and its check does
-not yet pass; it ships on its own commit.
+The hook-ordering work (ADR-0041, `check-hook-order.mjs`, `hookPhaseOrder` in
+`loader-templates.mjs`, and the three reordered hook lists) ships as its own commit, with the
+roster section and the ADR amendment above. `check-hook-order.mjs` passes and is in
+`engineering.harness.verify.canonical`.

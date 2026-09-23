@@ -124,6 +124,40 @@ export function npmrcExample(lane) {
 
 export const VENDORED_HOOKS = "project-hooks";
 
+const PHASE_MATCHERS = {
+  preReadExceptE2e: "Read|Bash",
+  preWrite: "Edit|Write",
+  preShell: "Bash",
+  preSubagent: "Task|Agent",
+  preSkill: "Skill",
+  preRead: "Read",
+  postWrite: "Edit|Write",
+  stop: "Stop",
+};
+
+export function hookPhaseOrder(lane = "root") {
+  return [
+    ...(lane === "e2e" ? [] : ["preReadExceptE2e"]),
+    "preWrite",
+    "preShell",
+    "preSubagent",
+    "preSkill",
+    "preRead",
+  ];
+}
+
+export function hookChains(lane = "root") {
+  return [
+    ...hookPhaseOrder(lane).map((phase) => ({
+      phase,
+      tools: PHASE_MATCHERS[phase].split("|"),
+      scripts: HOOKS[phase] ?? [],
+    })),
+    { phase: "postWrite", tools: PHASE_MATCHERS.postWrite.split("|"), scripts: HOOKS.postWrite ?? [] },
+    { phase: "stop", tools: PHASE_MATCHERS.stop.split("|"), scripts: HOOKS.stop ?? [] },
+  ];
+}
+
 const cursorWriteMatcher = "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch";
 const cursorPostWriteMatcher = "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch";
 
@@ -145,43 +179,25 @@ function cursorCommand(root, script, { matcher, failClosed, loopLimit, args = ""
 }
 
 export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
-  const contextReadGuard = HOOKS.preRead.map((script) =>
-    cursorCommand(HARNESS_HOOKS, script, {
-      matcher: "Read|read",
-      failClosed: true,
-    }));
-  const productionArtifactGuard = lane === "e2e"
-    ? []
-    : HOOKS.preReadExceptE2e.map((script) =>
-        cursorCommand(HARNESS_HOOKS, script, {
-          matcher: "Read|Bash|read|bash",
-          failClosed: true,
-        }));
-
+  const cursorMatcher = {
+    preReadExceptE2e: "Read|Bash|read|bash",
+    preWrite: cursorWriteMatcher,
+    preShell: "Shell|Bash|shell|bash",
+    preSkill: "Skill|skill",
+    preRead: "Read|read",
+  };
   return {
     version: 1,
     hooks: {
       sessionStart: HOOKS.sessionStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
-      preToolUse: [
-        ...HOOKS.preWrite.map((script) =>
+      preToolUse: hookPhaseOrder(lane)
+        .filter((phase) => cursorMatcher[phase])
+        .flatMap((phase) => (HOOKS[phase] ?? []).map((script) =>
           cursorCommand(HARNESS_HOOKS, script, {
-            matcher: cursorWriteMatcher,
+            matcher: cursorMatcher[phase],
             failClosed: true,
-          })),
-        ...HOOKS.preShell.map((script) =>
-          cursorCommand(HARNESS_HOOKS, script, {
-            matcher: "Shell|Bash|shell|bash",
-            failClosed: true,
-          })),
-        ...HOOKS.preSkill.map((script) =>
-          cursorCommand(HARNESS_HOOKS, script, {
-            matcher: "Skill|skill",
-            failClosed: true,
-          })),
-        ...contextReadGuard,
-        ...productionArtifactGuard,
-      ],
+          }))),
       subagentStart: HOOKS.subagentStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, {
           matcher: ENGINEERING.harness.forbiddenAgents.flatMap((name) =>
@@ -226,19 +242,10 @@ function claudeGroup(root, scripts) {
 }
 
 export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
-  const preToolUse = [
-    { matcher: "Edit|Write", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
-    { matcher: "Bash", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
-    { matcher: "Task|Agent", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
-    { matcher: "Skill", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSkill) },
-    { matcher: "Read", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preRead) },
-  ];
-  if (lane !== "e2e") {
-    preToolUse.push({
-      matcher: "Read|Bash",
-      hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preReadExceptE2e),
-    });
-  }
+  const preToolUse = hookPhaseOrder(lane).map((phase) => ({
+    matcher: PHASE_MATCHERS[phase],
+    hooks: claudeGroup(HARNESS_HOOKS, HOOKS[phase] ?? []),
+  }));
 
   return {
     $schema: "https://json.schemastore.org/claude-code-settings.json",

@@ -231,6 +231,96 @@ parses changed Python and enforces test-layer contracts. Shell writes, credentia
 Git publication, uploads, and production backend execution stay blocked. Smoke GET-only remains a
 content rule on the spec, not an exemption from the write map.
 
+### Hooks, agents, and skills
+
+Three rosters, three different jobs. The distinction is who invokes them:
+
+| Roster | What it is | Who invokes it |
+|---|---|---|
+| **Hooks** | deterministic refusals wired to lifecycle events | the runtime, on every matching tool call — never you |
+| **Agents** | one specialist per phase, spawned with its own context | the parent, following the matched route's `invoke` |
+| **Skills** | instructions loaded into the current turn | the parent, for convention and explanation — a skill never replaces an agent's write |
+
+A hook you can call is not a gate. An agent you did not route to is not on the roster. A skill that
+writes a spec is a generator wearing the wrong hat.
+
+#### Hooks — by class, not by name
+
+26 hooks across 15 phases. `engineering.harness.hookOrder` classifies every one and fixes the order
+they run in on any shared tool (ADR-0041). The classes are the useful unit; the membership is in
+the control plane and changes more often than this page should.
+
+| Class | Refuses | Fires on | Members |
+|---|---|---|---|
+| **boundary** | what may never be touched, regardless of task | read, write, shell | `protect-harness-governance`, `protect-app-source`, `protect-prod-data`, `protect-second-brain-boundary` |
+| **scope** | what this task may touch | session, prompt, write, shell | `session-context`, `prompt-router`, `protect-automation-scope`, `enforce-task-gates`, `manual-task-guard` |
+| **roster** | who may be spawned or loaded | subagent, skill | `block-generic-agents`, `block-forbidden-skills` |
+| **content** | whether the artifact is correct | write, post-write, subagent stop, stop | `pre-validate-cypress-rules`, `validate-cypress-rules`, `validate-backend-automation`, `scenario-file-guard`, `scenario-content-guard`, `artifact-duplication-guard`, `coverage-strategy-guard`, `validate-spec-linkage`, `verify-subagent-citations`, `spec-sweep-stop-hook` |
+| **ergonomic** | nothing — it advises | read, post-write, failure, compact, stop | `context-read-guard`, `sync-reminder`, `failure-loop-guard`, `memory-checkpoint`, `session-end-reminder` |
+
+The order is the point. Hooks on a shared tool run in declared order and **the first refusal is the
+only message the caller sees**, so a class may never run ahead of an earlier one. An ergonomic nag
+in front of a boundary refusal tells someone to fix their `limit:` and retry a file they must not
+open at all — the verified case in ADR-0041. `check-hook-order.mjs` proves the property statically
+against the same `hookPhaseOrder()` the adapters emit, so the check grades the order actually
+generated rather than a second list kept by hand.
+
+Writing a hook: add the script to `.claude/hooks/`, add it to a phase in `engineering.harness.hooks`,
+classify it in `hookOrder.hooks`, state the model limitation in its header (ratcheted — see above),
+then sync and verify. Exit 2 blocks; exit 0 with `hookSpecificOutput` allows or advises.
+
+#### Agents — one per phase, generator and evaluator kept apart
+
+Seven, and the split is deliberate: the agent that writes a thing may not be the agent that judges
+it. Spawn exactly one, named by the matched route's `invoke`; `block-generic-agents` refuses
+anything off this list, including the 17 retired names in `forbiddenAgents`.
+
+| Agent | Use it when | Why it exists |
+|---|---|---|
+| `cypress-generator` | a Cypress spec must be written or changed | the only writer of FHF specs |
+| `cypress-gate` | before any PR touching Cypress | evaluator; drives bounded repair with the generator on BLOCK |
+| `cypress-debugger` | a spec is red, flaky, or slow | diagnosis needs the failure, not the intent |
+| `cypress-shipper` | the gate passed and the PR is next | shipping and coverage reporting, not authoring |
+| `qa-automation-generator` | backend-only, or combined frontend + backend | one manifest, one author across both layers |
+| `qa-automation-debugger` | a cross-layer or pytest failure | API/Oracle evidence the Cypress debugger cannot see |
+| `qa-automation-gate` | pre-merge on backend or coordinated change | read-only verdict: PASS, PASS_WITH_ACTIONS, or BLOCK |
+
+Every one of them reads the loop-state file before planning and records `phase_started` /
+`phase_completed` under the run's `runId` — the agent loop contract below, not optional.
+
+#### Skills — conventions, never a second writer
+
+Allow-listed in `engineering.harness.skills`; `block-forbidden-skills` refuses the rest and enforces
+`skillLanes` for the ones that only make sense in the engine.
+
+| Group | Skills | Use for |
+|---|---|---|
+| Cypress-native | `cypress-author`, `cypress-docs`, `cypress-explain`, `cypress-tap` | conventions, official behavior, explanation, live-session driving. `cypress-author` must not Write or Edit an FHF spec — spawn `cypress-generator` |
+| Backend scaffolding | `backend-test-author`, `setup-test-module`, `generate-api-client`, `generate-conftest`, `generate-data-builder`, `generate-test-file`, `e2e-tests-generator`, `smoke-test-cases`, `smoke-tests-writer` | pytest module shape and the rules that govern it |
+| Engine-only (`skillLanes: root`) | `hookify`, `skill-creator`, `claude-md-improver`, `ponytail-review`, `ralph-loop` | changing the harness itself; they propose, they do not edit gates |
+| Atlassian overlay | `twg`, `twg-jira`, `twg-confluence` | the same Atlassian path as Jira MCP, once `teamwork-graph-cli` is ready (ADR-0040). Not a second ticket oracle |
+
+#### How one prompt travels through all three
+
+```text
+prompt
+  → prompt-router (scope) matches a route, prints its invoke
+  → block-generic-agents / block-forbidden-skills (roster) allow that spawn or load
+  → boundary hooks refuse protected paths outright
+  → scope hooks refuse anything outside the active manifest's frozen paths
+  → the agent authors on the selected paths
+  → content hooks validate what was written
+  → the gate agent returns the verdict
+```
+
+The router's hint is advisory and task intent wins; the roster hooks are not advisory. That is the
+whole separation: routing suggests, hooks refuse, agents do the work, skills only inform it.
+
+This page explains the design. The runtime copy an agent reads is the generated
+`.claude/rules/agent-spawning-gate.md`, and the roster it is checked against is
+`engineering.harness.{agents,skills,skillLanes,forbiddenAgents}`. Both are projections of the same
+policy — change the control plane, never the projection.
+
 ### Vendor conformance
 
 Verified 2026-09-03 against the vendor sources, not against recollection: Claude Code hooks,

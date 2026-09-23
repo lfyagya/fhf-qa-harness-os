@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-09-22 |
 | **Relates to** | ADR-0038 (the deny seam — remedies make a refusal actionable; ordering decides which refusal arrives) |
 | **Amends** | `engineering.harness.hooks` |
@@ -111,3 +111,28 @@ This ADR does **not** decide:
 
 A hook can be correctly classed, correctly ordered, and still refuse for a bad reason. This checks the
 sequence, not the verdicts.
+
+## As accepted
+
+All 26 hooks are classified in `engineering.harness.hookOrder.hooks`. The verified `preRead` case is
+fixed by `hookPhaseOrder()` in `loader-templates.mjs`, which moves `preReadExceptE2e` ahead of the
+other pre-tool phases and is the single order both the adapters and the check read. Three declared
+lists were reordered to clear the remaining inversions, all of them the lesser cases graded above:
+
+- `preWrite` — `protect-second-brain-boundary.mjs` (boundary) moves ahead of the two task-conditional
+  scope guards;
+- `postWrite` — `sync-reminder.mjs` (ergonomic) moves behind `validate-spec-linkage.mjs` (content);
+- `stop` — `spec-sweep-stop-hook.mjs` (content) moves ahead of `session-end-reminder.mjs` (ergonomic).
+
+No verdict changes: every hook in those three phases returns the same answer regardless of position,
+and only `spec-sweep-stop-hook.mjs` writes state, which nothing reordered ahead of it reads.
+
+The resulting per-tool class sequences are `boundary → scope → content → ergonomic` on Edit and
+Write, `boundary → scope` on Bash, `boundary → ergonomic` on Read, and `content → ergonomic` on
+Stop, for both the root and e2e projections. `check-hook-order.mjs` joins
+`engineering.harness.verify.canonical` in the same change that makes it pass — a check that lands
+red teaches people to ignore it, which is the failure mode this ADR is about.
+
+The reader-facing class table is in
+[`../framework/harness-engineering.md`](../framework/harness-engineering.md) under Hooks, agents,
+and skills.

@@ -3627,6 +3627,43 @@
           }
         }
       },
+      "hookOrder": {
+        "classes": [
+          "boundary",
+          "scope",
+          "roster",
+          "content",
+          "ergonomic"
+        ],
+        "hooks": {
+          "protect-harness-governance.mjs": "boundary",
+          "protect-app-source.mjs": "boundary",
+          "protect-prod-data.mjs": "boundary",
+          "protect-second-brain-boundary.mjs": "boundary",
+          "session-context.mjs": "scope",
+          "prompt-router.mjs": "scope",
+          "protect-automation-scope.mjs": "scope",
+          "enforce-task-gates.mjs": "scope",
+          "manual-task-guard.mjs": "scope",
+          "block-generic-agents.mjs": "roster",
+          "block-forbidden-skills.mjs": "roster",
+          "pre-validate-cypress-rules.mjs": "content",
+          "validate-backend-automation.mjs": "content",
+          "validate-cypress-rules.mjs": "content",
+          "scenario-file-guard.mjs": "content",
+          "scenario-content-guard.mjs": "content",
+          "artifact-duplication-guard.mjs": "content",
+          "coverage-strategy-guard.mjs": "content",
+          "validate-spec-linkage.mjs": "content",
+          "verify-subagent-citations.mjs": "content",
+          "spec-sweep-stop-hook.mjs": "content",
+          "context-read-guard.mjs": "ergonomic",
+          "sync-reminder.mjs": "ergonomic",
+          "failure-loop-guard.mjs": "ergonomic",
+          "memory-checkpoint.mjs": "ergonomic",
+          "session-end-reminder.mjs": "ergonomic"
+        }
+      },
       "hooks": {
         "sessionStart": [
           "session-context.mjs"
@@ -3637,9 +3674,9 @@
         "preWrite": [
           "protect-harness-governance.mjs",
           "protect-app-source.mjs",
+          "protect-second-brain-boundary.mjs",
           "protect-automation-scope.mjs",
           "enforce-task-gates.mjs",
-          "protect-second-brain-boundary.mjs",
           "pre-validate-cypress-rules.mjs"
         ],
         "preShell": [
@@ -3671,8 +3708,8 @@
           "scenario-content-guard.mjs",
           "artifact-duplication-guard.mjs",
           "coverage-strategy-guard.mjs",
-          "sync-reminder.mjs",
-          "validate-spec-linkage.mjs"
+          "validate-spec-linkage.mjs",
+          "sync-reminder.mjs"
         ],
         "postToolFailure": [
           "failure-loop-guard.mjs"
@@ -3684,8 +3721,8 @@
           "memory-checkpoint.mjs"
         ],
         "stop": [
-          "session-end-reminder.mjs",
-          "spec-sweep-stop-hook.mjs"
+          "spec-sweep-stop-hook.mjs",
+          "session-end-reminder.mjs"
         ]
       },
       "adapters": {
@@ -3758,6 +3795,7 @@
         "canonical": [
           "scripts/harness/check-loader-drift.mjs",
           "scripts/harness/check-docs-links.mjs",
+          "scripts/harness/check-hook-order.mjs",
           "scripts/harness/test-hooks.mjs",
           "scripts/harness/test-import-graph.mjs",
           "scripts/harness/test-adapter-contract.mjs",
