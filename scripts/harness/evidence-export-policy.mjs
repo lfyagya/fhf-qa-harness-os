@@ -57,8 +57,11 @@ function validateEvidenceExport({
     `${evidenceRelative}/*.*.tmp`,
     `${evidenceRelative}/*.*.bak`,
   ];
+  const ignoreEntries = ignored.split(/\r?\n/).filter(Boolean);
+  const isIgnored = (entry) => ignoreEntries.includes(entry)
+    || ignoreEntries.some((pattern) => pattern.endsWith("/") && entry.startsWith(pattern));
   const missing = requiredIgnores
-    .filter((entry) => !ignored.split(/\r?\n/).includes(entry));
+    .filter((entry) => !isIgnored(entry));
   if (missing.length) {
     throw new Error(`Runtime evidence is not ignored by ${ignoreFile}: ${missing.join(", ")}`);
   }

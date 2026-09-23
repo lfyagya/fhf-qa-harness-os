@@ -132,6 +132,24 @@
     "chainRisk": "docs/planning/coverage/fullstack-chain-risk-matrix.md",
     "executionHistory": "docs/evidence/execution-history.md",
     "evidenceDir": "docs/evidence",
+    "traceability": {
+      "branchPolicy": "product-origin-master-else-remote-default;automation-configured-lane-ref",
+      "testRepositories": [
+        "front-end-automation-e2e",
+        "front-end-automation-smoke",
+        "fhf-backend-automation"
+      ],
+      "testRefs": {
+        "front-end-automation-e2e": "origin/dev",
+        "front-end-automation-smoke": "origin/staging",
+        "fhf-backend-automation": "origin/master"
+      },
+      "outputRoot": "docs/evidence/traceability",
+      "ledger": "traceability-ledger.json",
+      "index": "index.md",
+      "specGapReport": "spec-gap-proposals.md",
+      "moduleReportRoot": "modules"
+    },
     "lanes": {
       "e2e": {
         "rootEnv": "FHF_E2E_ROOT",
@@ -3841,6 +3859,7 @@
           "scripts/harness/test-sync-loader.mjs",
           "scripts/harness/test-runtime-state.mjs",
           "scripts/harness/test-evaluation-evidence.mjs",
+        "scripts/harness/test-traceability.mjs",
           "scripts/harness/test-calibration.mjs",
           "scripts/harness/test-consumer-runtime.mjs",
           "scripts/harness/test-workspace-contract.mjs",
