@@ -49,6 +49,85 @@ function repoPath(value) {
   return value.replaceAll("\\", "/").replace(/^\.?\//, "");
 }
 
+function assertAutomationRepository(issues, repositories, id, { requiredRunner, production }) {
+  const boundary = repositories?.[id];
+  if (!boundary || boundary.requiredRunner !== requiredRunner) {
+    issues.push(`automationSource must configure ${id} with ${requiredRunner}`);
+    return;
+  }
+  try {
+    new RegExp(boundary.pathPattern, "i");
+  } catch (error) {
+    issues.push(`automationSource ${id} pathPattern is invalid: ${error.message}`);
+  }
+  for (const field of [
+    "writeStages",
+    "runStages",
+    "allowedEnvironments",
+    "allowedWriteRoots",
+    "deniedWritePatterns",
+    "allowedRunPrefixes",
+  ]) {
+    if (!Array.isArray(boundary[field]) || boundary[field].length === 0) {
+      issues.push(`automationSource ${id} ${field} must not be empty`);
+    }
+  }
+  const colonSuffixes = boundary.allowedColonSuffixPrefixes ?? [];
+  if (!Array.isArray(colonSuffixes)) {
+    issues.push(`automationSource ${id} allowedColonSuffixPrefixes must be an array`);
+  } else {
+    for (const prefix of colonSuffixes) {
+      if (!(boundary.allowedRunPrefixes ?? []).includes(prefix)) {
+        issues.push(`automationSource ${id} allowedColonSuffixPrefixes must be a subset of allowedRunPrefixes`);
+      }
+    }
+    if (id === "front-end-automation-smoke" && !colonSuffixes.includes("npm run cy:run:smoke")) {
+      issues.push("automationSource front-end-automation-smoke must allow colon suffixes only on npm run cy:run:smoke");
+    }
+    if (id === "front-end-automation-e2e" && colonSuffixes.includes("npm run cy:run")) {
+      issues.push("automationSource front-end-automation-e2e must not treat npm run cy:run as a colon-suffix prefix");
+    }
+  }
+  const environments = boundary.allowedEnvironments ?? [];
+  if (production === "required") {
+    if (!environments.includes("production")) {
+      issues.push(`automationSource ${id} environments must include production`);
+    }
+  } else if (environments.includes("production")) {
+    issues.push(`automationSource ${id} environments must not include production`);
+  }
+  for (const [index, source] of (boundary.deniedWritePatterns ?? []).entries()) {
+    try {
+      new RegExp(source, "i");
+    } catch (error) {
+      issues.push(`automationSource ${id} deniedWritePatterns[${index}] is invalid: ${error.message}`);
+    }
+  }
+}
+
+// ADR-0026 separated the engine tree from the payload tree, but only fixed the five files that
+// were duplicated at the time. The class stayed open: an authored docs/ path can exist on both
+// the engine branch and at the workspace root, and nothing reports it. On 2026-09-20 six had
+// diverged again - documentation.owners resolves against the workspace, so the engine copies
+// were forks nobody published, and the onboarding page among them was the one engineers read.
+// check-loader-drift.mjs covers generated projections; this covers authored ones.
+function checkPayloadIsNotDuplicated(issues) {
+  if (path.resolve(FHF_ROOT) === path.resolve(HARNESS_ROOT)) return; // same tree: nothing to compare
+  let tracked;
+  try {
+    tracked = execFileSync("git", ["-C", HARNESS_ROOT, "ls-files", "docs"], { encoding: "utf8" });
+  } catch {
+    return; // no git, or docs/ untracked: the drift check is not the place to fail on that
+  }
+  for (const file of tracked.split("\n").map((line) => line.trim()).filter(Boolean)) {
+    if (!fs.existsSync(path.join(FHF_ROOT, file))) continue;
+    issues.push(
+      `${file} exists in this repository and at the workspace root. Authored documentation lives ` +
+        `in exactly one tree (ADR-0026): keep the copy the owner resolves to and delete the other`,
+    );
+  }
+}
+
 const issues = [];
 let config;
 let documentation;
@@ -58,6 +137,7 @@ try {
   documentation = config.documentation;
   engineering = config.engineering;
   checkSkillsAreUsable(issues, config);
+  checkPayloadIsNotDuplicated(issues);
 } catch (error) {
   issues.push(`Invalid harness config: ${error.message}`);
 }
@@ -512,6 +592,24 @@ if (engineering) {
     if (!taskProtocol.approval?.boundFields?.includes("grounding.intentVsBuilt")) {
       issues.push("task protocol approval must bind grounding.intentVsBuilt");
     }
+    const gateIds = (taskProtocol.approval?.gates ?? []).map((gate) => gate.id);
+    if (JSON.stringify(gateIds) !== JSON.stringify([
+      "manifest",
+      "scenarios",
+      "plan",
+      "test-cases",
+      "evidence",
+      "release",
+    ])) {
+      issues.push("task protocol approval gates must be manifest, scenarios, plan, test-cases, evidence, release");
+    }
+    if (taskProtocol.approval?.legacySingleDigestSatisfies !== "plan") {
+      issues.push("task protocol legacySingleDigestSatisfies must remain plan");
+    }
+    const reviewGates = taskProtocol.preHumanReview?.requiredBeforeGateConfirm ?? [];
+    if (reviewGates[0] !== "manifest" || reviewGates.includes("spec")) {
+      issues.push("preHumanReview.requiredBeforeGateConfirm must start from manifest, not spec");
+    }
     if (taskProtocol.preHumanReview?.appliesTo !== "every-task"
         || !taskProtocol.preHumanReview?.artefacts?.includes("grounding.intentVsBuilt")
         || taskProtocol.preHumanReview?.proactiveDefects?.action == null) {
@@ -651,38 +749,24 @@ if (engineering) {
       automationBoundary?.gitPublication !== "blocked") {
     issues.push("automationSource must block shell writes, dependency changes, and Git publication");
   }
-  const backendBoundary = automationBoundary?.repositories?.["fhf-backend-automation"];
-  if (!backendBoundary || backendBoundary.requiredRunner !== "backend-api-oracle") {
-    issues.push("automationSource must configure fhf-backend-automation with backend-api-oracle");
-  } else {
-    try {
-      new RegExp(backendBoundary.pathPattern, "i");
-    } catch (error) {
-      issues.push(`automationSource backend pathPattern is invalid: ${error.message}`);
-    }
-    for (const field of [
-      "writeStages",
-      "runStages",
-      "allowedEnvironments",
-      "allowedWriteRoots",
-      "deniedWritePatterns",
-      "allowedRunPrefixes",
-    ]) {
-      if (!Array.isArray(backendBoundary[field]) || backendBoundary[field].length === 0) {
-        issues.push(`automationSource backend ${field} must not be empty`);
-      }
-    }
-    if ((backendBoundary.allowedEnvironments ?? []).includes("production")) {
-      issues.push("automationSource backend environments must not include production");
-    }
-    for (const [index, source] of (backendBoundary.deniedWritePatterns ?? []).entries()) {
-      try {
-        new RegExp(source, "i");
-      } catch (error) {
-        issues.push(`automationSource backend deniedWritePatterns[${index}] is invalid: ${error.message}`);
-      }
-    }
-  }
+  assertAutomationRepository(
+    issues,
+    automationBoundary?.repositories,
+    "fhf-backend-automation",
+    { requiredRunner: "backend-api-oracle", production: "forbidden" },
+  );
+  assertAutomationRepository(
+    issues,
+    automationBoundary?.repositories,
+    "front-end-automation-e2e",
+    { requiredRunner: "frontend-e2e", production: "forbidden" },
+  );
+  assertAutomationRepository(
+    issues,
+    automationBoundary?.repositories,
+    "front-end-automation-smoke",
+    { requiredRunner: "production-smoke", production: "required" },
+  );
 
   const adapters = engineering.harness?.adapters;
   if (adapters?.claudeCode?.autoCompactWindowEnv !== "CLAUDE_CODE_AUTO_COMPACT_WINDOW") {
@@ -902,6 +986,32 @@ try {
   }
 } catch (error) {
   issues.push(`Unable to inspect tracked files for developer paths: ${error.message}`);
+}
+
+const twgCli = config?.connectors?.teamworkGraphCli;
+if (!twgCli) {
+  issues.push("connectors.teamworkGraphCli must be configured");
+} else {
+  if (twgCli.required !== false || twgCli.ticketOracle !== false || twgCli.configureThenUse !== true) {
+    issues.push("connectors.teamworkGraphCli must be optional, configure-then-use, and not a ticket oracle");
+  }
+  if (twgCli.agentsMd !== "https://teamwork-graph.atlassian.com/cli/AGENTS.md") {
+    issues.push("connectors.teamworkGraphCli.agentsMd must be the official Atlassian AGENTS.md");
+  }
+  if (twgCli.command !== "twg" || twgCli.capability !== "teamwork-graph-cli") {
+    issues.push("connectors.teamworkGraphCli must use command twg and capability teamwork-graph-cli");
+  }
+  if (!Array.isArray(twgCli.queryOrder) || twgCli.queryOrder.at(-1) !== "twg-cli" || twgCli.fallback !== "jira-ticket-read") {
+    issues.push("connectors.teamworkGraphCli must try Jira first and fall back to jira-ticket-read");
+  }
+  for (const name of twgCli.harnessSkills ?? []) {
+    if (!(config.engineering?.harness?.skills ?? []).includes(name)) {
+      issues.push(`connectors.teamworkGraphCli skill ${name} must be on engineering.harness.skills`);
+    }
+  }
+  if (!config.engineering?.capabilityControl?.capabilities?.["teamwork-graph-cli"]) {
+    issues.push("engineering.capabilityControl.capabilities must include teamwork-graph-cli");
+  }
 }
 
 const cloud = config?.connectors?.cypressCloud;

@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 export const TASK_SCHEMA = "fhf-harness/task/v1";
 export const TASK_STAGES = Object.freeze([
@@ -29,6 +31,7 @@ export const TEST_HONESTY = Object.freeze(["live", "stubbed", "seeded"]);
 const DEFAULT_APPROVAL_FIELDS = Object.freeze([
   "ticketFamily",
   "grounding.jira.issueDigest",
+  "grounding.intent",
   "grounding.acceptanceCriteriaDigest",
   "grounding.catalogVersion",
   "grounding.repositories",
@@ -133,12 +136,31 @@ export function firstPendingGate(manifest, gates, stage, options = {}) {
 export function stampGate(manifest, gate, { approvedBy, approvedAt }, {
   approvalFields = DEFAULT_APPROVAL_FIELDS,
   legacyGateId = "plan",
+  gates,
 } = {}) {
   if (typeof approvedBy !== "string" || !approvedBy.trim()) {
     throw new Error("approvedBy must be a non-empty string");
   }
   if (typeof approvedAt !== "string" || !Number.isFinite(Date.parse(approvedAt))) {
     throw new Error("approvedAt must be an ISO-8601 timestamp");
+  }
+  if (!Array.isArray(gates) || gates.length === 0) {
+    throw new Error("gates must be a non-empty array");
+  }
+  if (!gate?.id || !gates.some((item) => item.id === gate.id)) {
+    throw new Error(`unknown gate: ${gate?.id ?? "(missing)"}`);
+  }
+  const stage = manifest.stage;
+  const stageGates = requiredGates(gates, stage);
+  const gateIndex = stageGates.findIndex((item) => item.id === gate.id);
+  if (gateIndex < 0) {
+    throw new Error(`cannot stamp ${gate.id} at stage ${stage}`);
+  }
+  for (const prior of stageGates.slice(0, gateIndex)) {
+    const state = gateState(manifest, prior, { approvalFields, legacyGateId });
+    if (state.state !== "current") {
+      throw new Error(`cannot stamp ${gate.id} before ${prior.id} is current`);
+    }
   }
   const digest = gateDigest(manifest, gate);
   const approval = {
@@ -216,7 +238,11 @@ function isRelativeSafePath(value) {
 
 function validateGrounding(manifest, repoIds = []) {
   const issues = [];
-  if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.jira?.issueDigest ?? "")) {
+  if (isLocalTask(manifest)) {
+    if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.intent?.digest ?? "")) {
+      issues.push("grounding.intent.digest must be a sha256 digest of the recorded intent");
+    }
+  } else if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.jira?.issueDigest ?? "")) {
     issues.push("grounding.jira.issueDigest must be a sha256 digest");
   }
   if (!/^[a-f0-9]{64}$/.test(manifest.grounding?.acceptanceCriteriaDigest ?? "")) {
@@ -573,9 +599,7 @@ export function validateTaskManifest(manifest, {
   if (manifest.schema !== TASK_SCHEMA) issues.push(`schema must be ${TASK_SCHEMA}`);
   if (typeof manifest.id !== "string" || !manifest.id) issues.push("id must be a non-empty string");
   if (!TASK_STAGES.includes(manifest.stage)) issues.push("stage is not recognized");
-  if (!/^SERV-\d+$/.test(manifest.ticketFamily?.primary ?? "")) {
-    issues.push("ticketFamily.primary must be a SERV ticket");
-  }
+  issues.push(...taskIdentityIssues(manifest));
   issues.push(...validateGrounding(manifest, repoIds));
   issues.push(...validateIntentVsBuilt(manifest));
 
@@ -670,7 +694,7 @@ export function nextStep(manifest, options = {}) {
   if (manifest?.schema !== TASK_SCHEMA) identityIssues.push(`schema must be ${TASK_SCHEMA}`);
   if (typeof manifest?.id !== "string" || !manifest.id) identityIssues.push("id must be a non-empty string");
   if (!TASK_STAGES.includes(manifest?.stage)) identityIssues.push("stage is not recognized");
-  if (!/^SERV-\d+$/.test(manifest?.ticketFamily?.primary ?? "")) identityIssues.push("ticketFamily.primary must be a SERV ticket");
+  identityIssues.push(...taskIdentityIssues(manifest));
   if (identityIssues.length) {
     return { action: "repair-task-manifest", stage: manifest?.stage ?? null, blocked: true, issues: identityIssues };
   }
@@ -773,4 +797,303 @@ export function nextStep(manifest, options = {}) {
     complete: "none",
   };
   return { action: actions[manifest.stage], stage: manifest.stage, blocked: false, approval };
+}
+
+// ADR-0043. A task is a Jira family (ticketFamily.primary = SERV-n) or a local task
+// (ticketFamily.source = "local") identified by its title. Both live at manifestPath.
+export function isLocalTask(manifest) {
+  return manifest?.ticketFamily?.source === "local";
+}
+
+export function taskIdentityIssues(manifest) {
+  if (isLocalTask(manifest)) {
+    return typeof manifest.title === "string" && manifest.title.trim()
+      ? []
+      : ["a local task (ticketFamily.source=local) must record a title"];
+  }
+  return /^SERV-\d+$/.test(manifest?.ticketFamily?.primary ?? "")
+    ? []
+    : ["ticketFamily.primary must be a SERV ticket"];
+}
+
+export function taskSlug(title) {
+  return String(title ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, "");
+}
+
+// ADR-0043. Which manifest is active is resolved from the work, not exported per shell.
+// Order: the explicit env override, then the focus the prompt router recorded.
+const TASK_KEY = /\bSERV-\d+\b/i;
+const TERMINAL_STAGES = new Set(["complete", "blocked"]);
+const STOP_TERMS = new Set(
+  "the and for with from into this that are was were has have not but its our your their via add fix use make update task".split(" "),
+);
+
+function activeTaskPolicy(config) {
+  return config?.engineering?.taskProtocol?.activeTask ?? {};
+}
+
+export function taskDirectory(root, config) {
+  const pattern = config?.engineering?.taskProtocol?.manifestPath ?? ".harness/tasks/<task-id>.json";
+  return path.resolve(root, path.dirname(pattern));
+}
+
+export function canonicalTaskPath(root, config, { ticket, title } = {}) {
+  const id = ticket ? String(ticket).toUpperCase() : taskSlug(title);
+  return id ? path.join(taskDirectory(root, config), `${id}.json`) : null;
+}
+
+export function listTaskManifests(root, config) {
+  const dir = taskDirectory(root, config);
+  let names = [];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((name) => name.endsWith(".json") && !name.startsWith("."))
+    .flatMap((name) => {
+      const file = path.join(dir, name);
+      try {
+        const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+        return manifest?.schema === TASK_SCHEMA ? [{ file, manifest }] : [];
+      } catch {
+        return [];
+      }
+    });
+}
+
+function preferOpen(entries) {
+  const open = entries.filter((entry) => !TERMINAL_STAGES.has(entry.manifest.stage));
+  return open.length ? open : entries;
+}
+
+function matchByTicket(entries, key) {
+  const primary = preferOpen(entries.filter((entry) =>
+    String(entry.manifest.ticketFamily?.primary ?? "").toUpperCase() === key));
+  if (primary.length === 1) return { match: primary[0], candidates: primary };
+  if (primary.length > 1) return { match: null, candidates: primary };
+  const related = preferOpen(entries.filter((entry) =>
+    (entry.manifest.ticketFamily?.related ?? []).some((item) => String(item).toUpperCase() === key)));
+  return { match: related.length === 1 ? related[0] : null, candidates: related, via: "related" };
+}
+
+function terms(text) {
+  return new Set(String(text ?? "").toLowerCase().split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2 && !STOP_TERMS.has(word)));
+}
+
+// ponytail: shared-term overlap against manifest titles, not semantic search. It only has to
+// separate a handful of open manifests; upgrade to a ranked index if tasks number in the hundreds.
+function matchByTitle(entries, text, { minSharedTerms = 3, minCoverage = 0.6 } = {}) {
+  const wanted = terms(text);
+  const scored = entries
+    .map((entry) => {
+      const titleTerms = terms(entry.manifest.title);
+      let shared = 0;
+      for (const word of titleTerms) if (wanted.has(word)) shared += 1;
+      return { ...entry, shared, coverage: titleTerms.size ? shared / titleTerms.size : 0 };
+    })
+    .filter((entry) => entry.shared >= minSharedTerms && entry.coverage >= minCoverage)
+    .sort((a, b) => b.coverage - a.coverage || b.shared - a.shared);
+  const best = preferOpen(scored.filter((entry) =>
+    entry.coverage === scored[0]?.coverage && entry.shared === scored[0]?.shared));
+  return { match: best.length === 1 ? best[0] : null, candidates: scored.slice(0, 5) };
+}
+
+// An answer to the task question: every keyword the owner gave appears in one manifest's title or id.
+function matchByKeyword(entries, text) {
+  const wanted = [...terms(text)];
+  if (!wanted.length) return { match: null, candidates: [] };
+  const hits = preferOpen(entries.filter((entry) => {
+    const own = terms(`${entry.manifest.title ?? ""} ${entry.manifest.id ?? ""}`);
+    return wanted.every((word) => own.has(word));
+  }));
+  return { match: hits.length === 1 ? hits[0] : null, candidates: hits.slice(0, 5) };
+}
+
+// lenient: the owner is answering the task question, so a bare keyword is enough to select.
+export function resolveTaskFromText({ root, config, text, lenient = false }) {
+  const entries = listTaskManifests(root, config);
+  const value = String(text ?? "");
+  const named = (value.match(/[\w.-]+\.json\b/gi) ?? []).map((name) => name.toLowerCase());
+  const byFile = entries.filter((entry) => named.includes(path.basename(entry.file).toLowerCase()));
+  if (byFile.length === 1) return { kind: "file", match: byFile[0], candidates: byFile };
+  const key = value.match(TASK_KEY)?.[0]?.toUpperCase();
+  if (key) {
+    return { kind: "jira", key, ...matchByTicket(entries, key), suggestedPath: canonicalTaskPath(root, config, { ticket: key }) };
+  }
+  const byTitle = matchByTitle(entries, value, activeTaskPolicy(config).titleMatch);
+  if (byTitle.match || !lenient) return { kind: "title", ...byTitle };
+  return {
+    kind: "keyword",
+    ...matchByKeyword(entries, value),
+    suggestedPath: canonicalTaskPath(root, config, { title: value }),
+  };
+}
+
+// ADR-0043. What the owner is asked when the harness's own search finds no task. One question,
+// three answers; the reply is matched by the prompt router on the next turn.
+export function taskQuestion({ root, config, searched = [], key = null }) {
+  const open = preferOpen(listTaskManifests(root, config))
+    .filter((entry) => !TERMINAL_STAGES.has(entry.manifest.stage))
+    .slice(0, 8)
+    .map((entry) => path.basename(entry.file));
+  const lines = [
+    `TASK NEEDED: no task manifest selects this automation work${key ? ` (${key} has no manifest yet)` : ""}.`,
+    `Searched: ${searched.length ? searched.join("; ") : "prompt focus"}.`,
+    "Ask the owner in this turn, as one question with these options. Do not guess, create, or switch a task yourself:",
+    "  1. Jira task: reply with the SERV key (e.g. SERV-12669).",
+    `  2. Existing manifest: reply with its file name${open.length ? ` (open: ${open.join(", ")})` : ""}.`,
+    "  3. Not in Jira: reply with a keyword or the task title; it is matched to manifest titles, or named",
+    "     .harness/tasks/<title-slug>.json to create.",
+  ];
+  return lines.join("\n");
+}
+
+export function taskFocusPath(root, config) {
+  return path.resolve(root, activeTaskPolicy(config).focusFile ?? ".harness/tasks/.focus.json");
+}
+
+export function readTaskFocus(root, config) {
+  try {
+    return JSON.parse(fs.readFileSync(taskFocusPath(root, config), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// A root with no task directory has no tasks to focus, so nothing is written there.
+export function writeTaskFocus(root, config, focus) {
+  const file = taskFocusPath(root, config);
+  if (!fs.existsSync(path.dirname(file))) return false;
+  fs.writeFileSync(file, `${JSON.stringify(focus, null, 2)}\n`, "utf8");
+  return true;
+}
+
+export function focusFromResolution(resolution, at = new Date().toISOString()) {
+  if (resolution.match) {
+    return {
+      id: resolution.match.manifest.id,
+      file: path.basename(resolution.match.file),
+      source: resolution.kind,
+      key: resolution.key ?? null,
+      at,
+    };
+  }
+  return { id: null, file: null, source: resolution.kind, key: resolution.key ?? null, at };
+}
+
+// A focus belongs to the session that set it (one session, one job). A caller with no session
+// (the CLI, the backend runner) accepts any focus.
+export function sessionFocus(root, config, sessionId = null) {
+  const focus = readTaskFocus(root, config);
+  if (focus?.sessionId && sessionId && focus.sessionId !== sessionId) return null;
+  return focus;
+}
+
+export function resolveActiveTask({ root, config, env = process.env, sessionId = null }) {
+  const envName = config?.engineering?.taskProtocol?.activeManifestEnv;
+  const explicit = envName ? String(env[envName] ?? "").trim() : "";
+  if (explicit) return { source: "env", envName, file: explicit };
+  const focus = sessionFocus(root, config, sessionId);
+  if (focus?.file) {
+    const dir = taskDirectory(root, config);
+    const file = path.resolve(dir, String(focus.file));
+    // The focus names a file inside the task directory, never a path elsewhere.
+    if (path.dirname(file) === dir) return { source: "focus", envName, file, focus };
+  }
+  return { source: null, envName, file: null, focus };
+}
+
+// ADR-0044. Every prompt is a task. A prompt that names no SERV ticket is a quick task: its
+// intent is the prompt, it needs one owner confirm, and it carries no Jira grounding or gates.
+const AFFIRMATIVE = /^\s*(?:y|yes|yep|yeah|ok|okay|sure|confirm(?:ed)?|approve(?:d)?|go(?: ahead)?|proceed|do it|lgtm)\b/i;
+const NEGATIVE = /^\s*(?:n|no|nope|cancel|stop|don't|do not)\b/i;
+const SHORT_REPLY = /^\s*(?:y|yes|yep|yeah|ok|okay|sure|confirm(?:ed)?|approve(?:d)?|go(?: ahead)?|proceed|do it|lgtm|continue|next|n|no|nope|cancel|stop|thanks|thank you)\b[\s.!,]*$/i;
+
+export function isAffirmative(text) {
+  return AFFIRMATIVE.test(String(text ?? ""));
+}
+
+export function isNegative(text) {
+  return NEGATIVE.test(String(text ?? ""));
+}
+
+// A prompt that asks for work, as opposed to a reply such as "yes" or "continue".
+export function isInstruction(text) {
+  const value = String(text ?? "").trim();
+  return value.length >= 8 && !SHORT_REPLY.test(value);
+}
+
+export function quickTaskDirectory(root, config) {
+  return path.resolve(root, activeTaskPolicy(config).quick?.directory ?? ".harness/tasks/quick");
+}
+
+export function quickTaskFor(root, config, instruction) {
+  const text = String(instruction?.text ?? "").trim();
+  const digest = sha256(text);
+  const id = `quick-${taskSlug(text).slice(0, 40).replace(/-+$/, "")}-${digest.slice(0, 8)}`;
+  return { id, digest, title: text.slice(0, 120), file: path.join(quickTaskDirectory(root, config), `${id}.json`) };
+}
+
+export function readQuickTask(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// The quick task file is the record (intent, touched paths). Its confirmation lives in the
+// governance-protected focus, so editing this file cannot authorize anything.
+export function recordQuickTask(root, config, quick, { instruction, touched = null } = {}) {
+  if (!fs.existsSync(taskDirectory(root, config))) return false;
+  fs.mkdirSync(path.dirname(quick.file), { recursive: true });
+  const existing = readQuickTask(quick.file) ?? {
+    schema: "fhf-harness/quick-task/v1",
+    id: quick.id,
+    tier: "quick",
+    title: quick.title,
+    intent: { text: String(instruction?.text ?? quick.title), digest: quick.digest },
+    createdAt: new Date().toISOString(),
+    touched: [],
+  };
+  if (touched && !existing.touched.includes(touched)) existing.touched.push(touched);
+  fs.writeFileSync(quick.file, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
+  return true;
+}
+
+export function quickTaskQuestion({ quick, target, suggestions = [] }) {
+  return [
+    `QUICK TASK CONFIRM: "${quick.title}" wants to write ${target}.`,
+    ...suggestions.map((line) => `Note: ${line}`),
+    'Ask the owner in this turn with one question, header "Quick task", question text starting',
+    `"Quick task: ${quick.title}", and options "Yes, go ahead" / "No". Do not answer it yourself.`,
+    "One yes covers every automation write and own-file test run for this prompt's task.",
+  ].join("\n");
+}
+
+// One options builder for every nextStep/validate caller. The hooks once passed only the gate
+// options, so every planned manifest looked broken to them ("execution budget policy is unavailable").
+export function protocolOptions(config) {
+  const runners = config?.engineering?.executionRunners?.runners ?? {};
+  const approval = config?.engineering?.taskProtocol?.approval ?? {};
+  return {
+    repoIds: Object.keys(config?.productTopology?.repositories ?? {}),
+    bundleIds: Object.keys(config?.productTopology?.sourceBundles ?? {}),
+    runnerIds: Object.keys(runners),
+    runners,
+    approvalFields: approval.boundFields,
+    gates: approval.gates ?? [],
+    legacySingleDigestSatisfies: approval.legacySingleDigestSatisfies ?? "plan",
+    executionBudget: config?.engineering?.taskProtocol?.executionBudget,
+    crossRepositorySeam: config?.engineering?.taskProtocol?.crossRepositorySeam,
+    frontendTestData: config?.qualityAssurance?.frontendTestData,
+    capabilityControl: config?.engineering?.capabilityControl,
+  };
 }

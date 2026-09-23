@@ -75,7 +75,7 @@ try {
 const config = loadHarnessConfig();
 const cwd = payload.cwd ?? process.cwd();
 const filePath = hookFilePath(payload);
-const scope = authorizeAutomationWrite({ filePath, cwd, config });
+const scope = authorizeAutomationWrite({ filePath, cwd, config, sessionId: payload.session_id ?? null });
 if (!scope.applies) {
   emitAllow(payload);
   process.exit(0);

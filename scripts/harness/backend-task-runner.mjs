@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   approvalState,
+  resolveActiveTask,
   validateTaskManifest,
 } from "./task-protocol-lib.mjs";
 
@@ -124,9 +125,10 @@ export function buildBackendRunPlan({
   const configPath = path.join(root, ".claude", "harness.config.json");
   const config = readJson(configPath, "harness configuration");
   const manifest = readJson(manifestPath, "task manifest");
-  const activeEnv = config.engineering?.taskProtocol?.activeManifestEnv;
-  if (!activeEnv || path.resolve(env[activeEnv] ?? "") !== path.resolve(manifestPath)) {
-    fail(`${activeEnv ?? "FHF_ACTIVE_TASK"} must match --manifest`);
+  // ADR-0043: the active task is resolved (env override, then the prompt-selected focus).
+  const active = resolveActiveTask({ root, config, env });
+  if (!active.file || path.resolve(active.file) !== path.resolve(manifestPath)) {
+    fail(`--manifest must be the active task (${active.file ?? "none selected"}); name its ticket or title in the prompt, or set ${active.envName ?? "FHF_ACTIVE_TASK"}`);
   }
 
   const runners = config.engineering?.executionRunners?.runners ?? {};

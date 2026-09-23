@@ -23,14 +23,14 @@ const lines = [
   "- Pre-human review (every task): before a gate confirm, write review.<gate> comparing spec, scenario, planned test, and frozen source. Source-proven defects notify Dev before Cypress or pytest. Protocol validate is not that review.",
   `- Session scope=${memory.sessionScope}; preserve only configured exact facts in ${memory.handoffFile}.`,
   `- Application source boundary=${harness.boundaries.applicationSource.mode}; shell and file writes are guarded.`,
-  `- Backend automation boundary=${harness.boundaries.automationSource.mode}; active manifest env=${harness.boundaries.automationSource.activeManifestEnv}.`,
+  `- Automation boundary=${harness.boundaries.automationSource.mode}; the active task is resolved from the ticket or title the prompt names (${harness.boundaries.automationSource.activeManifestEnv} overrides).`,
   `- Same-failure limit=${loops.sameFailureLimit}; terminal states=${loops.terminalStates.join(", ")}.`,
 ];
 
 if (!workspace.ready) lines.push(formatWorkspacePreflight(workspace, config));
 else if (workspace.warnings.length > 0) lines.push(`- Optional integrations: ${workspace.warnings.join(" ")}`);
 
-const gateContext = formatTaskGateContext(inspectActiveTaskGates(config));
+const gateContext = formatTaskGateContext(inspectActiveTaskGates(config, process.env, payload));
 if (gateContext) lines.push(`- ${gateContext}`);
 
 if (handoff?.facts && Object.keys(handoff.facts).length > 0) {

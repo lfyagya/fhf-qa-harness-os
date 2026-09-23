@@ -41,7 +41,7 @@ authenticate.
 
 ## Pre-human review (every task)
 
-Before a spec, scenarios, plan, or test-cases stamp: write `review.<gate>` comparing
+Before a manifest, scenarios, plan, or test-cases stamp: write `review.<gate>` comparing
 `intentVsBuilt`, `scenarioRef`, planned `assertion`, and frozen source. MATCH only when
 they agree. A source-proven `defect` notifies Dev before any Cypress or pytest run.
 Accepted overlays, parked rows, and runtime-only claims are not bugs.

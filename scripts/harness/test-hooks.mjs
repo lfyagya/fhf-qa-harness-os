@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { approvalDigest, stampGate } from "./task-protocol-lib.mjs";
 import { loadHarnessConfig } from "../../.claude/hooks/lib/harness-config.mjs";
 import { recordCapabilityOutcome } from "../../.claude/hooks/lib/capability-control.mjs";
+import { authorizeAutomationRun } from "../../.claude/hooks/lib/task-scope.mjs";
 
 const HOOKS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".claude", "hooks");
 const HARNESS_ROOT = path.resolve(HOOKS, "..", "..");
@@ -30,6 +31,10 @@ for (const key of [
   "FHF_ALLOW_HARNESS_EDIT",
   "FHF_ALLOW_PROD_DATA",
   "FHF_ACTIVE_TASK",
+  // ADR-0043: the task root follows the project dir, so an inherited one would let a test
+  // prompt that names a ticket rewrite the operator's real task focus.
+  "CLAUDE_PROJECT_DIR",
+  "CURSOR_PROJECT_DIR",
 ]) delete isolatedGitEnv[key];
 
 function run(hook, payload, env = {}, args = []) {
@@ -160,6 +165,28 @@ const backendSha = execFileSync("git", ["-C", backendRoot, "rev-parse", "HEAD"],
   encoding: "utf8",
   env: fixtureGitEnv,
 }).trim();
+const e2eRoot = path.join(tmp, "front-end-automation-e2e");
+const e2eSpecPath = path.join(
+  e2eRoot,
+  "CypressFHF",
+  "fhf-dashboards",
+  "cypress",
+  "tests",
+  "missing-titles.cy.js",
+);
+mkdirSync(path.dirname(e2eSpecPath), { recursive: true });
+writeFileSync(e2eSpecPath, "describe('x', () => { it('y', () => {}); });\n");
+const smokeLaneRoot = path.join(tmp, "front-end-automation-smoke");
+const smokeLaneSpecPath = path.join(
+  smokeLaneRoot,
+  "CypressFHF",
+  "fhf-dashboards",
+  "cypress",
+  "tests",
+  "a.cy.js",
+);
+mkdirSync(path.dirname(smokeLaneSpecPath), { recursive: true });
+writeFileSync(smokeLaneSpecPath, "describe('x', () => { it('y', () => {}); });\n");
 const activeTaskPath = path.join(tmp, "active-task.json");
 const activeTask = {
   schema: "fhf-harness/task/v1",
@@ -232,6 +259,14 @@ if (backendConfig.workspaceContract?.lanes?.backend) {
   backendConfig.workspaceContract.lanes.backend.requiredLocalPaths = [];
   backendConfig.workspaceContract.lanes.backend.requiredWorkspacePaths = [];
 }
+for (const lane of ["e2e", "smoke"]) {
+  if (backendConfig.workspaceContract?.lanes?.[lane]) {
+    backendConfig.workspaceContract.lanes[lane].required = false;
+    backendConfig.workspaceContract.lanes[lane].requiredLocalPaths = [];
+    backendConfig.workspaceContract.lanes[lane].requiredWorkspacePaths = [];
+    backendConfig.workspaceContract.lanes[lane].requireBranch = false;
+  }
+}
 backendConfig.moduleSpecPaths = {};
 writeFileSync(backendConfigPath, JSON.stringify(backendConfig));
 const liveApproval = backendConfig.engineering.taskProtocol.approval;
@@ -244,6 +279,7 @@ for (const gate of (liveApproval.gates ?? []).filter((item) => (item.requiredFro
   }, {
     approvalFields: liveApproval.boundFields,
     legacyGateId: liveApproval.legacySingleDigestSatisfies ?? "plan",
+    gates: liveApproval.gates,
   });
 }
 writeFileSync(activeTaskPath, JSON.stringify(activeTask));
@@ -395,6 +431,12 @@ expect("protect-app-source leaves backend automation to its scoped boundary",
   run("protect-app-source.mjs", { tool_input: { file_path: backendTestPath } }), 0);
 expect("protect-automation-scope blocks backend writes without an active task",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
+expect("protect-automation-scope blocks e2e Cypress writes without an active task",
+  run("protect-automation-scope.mjs", { cwd: e2eRoot, tool_input: { file_path: e2eSpecPath } }, workspaceEnv),
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
+expect("protect-automation-scope blocks smoke Cypress writes without an active task",
+  run("protect-automation-scope.mjs", { cwd: smokeLaneRoot, tool_input: { file_path: smokeLaneSpecPath } }, workspaceEnv),
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
@@ -407,12 +449,133 @@ expect("enforce-task-gates allows writing the active task manifest while a gate 
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: ungatedTaskPath } }, ungatedTaskEnv), 0);
 expect("enforce-task-gates allows the next write after planned gates are stamped",
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: goodSpec } }, activeTaskEnv), 0);
+
+// ADR-0043: no FHF_ACTIVE_TASK. The prompt names the work and the router selects its manifest.
+const focusRoot = path.join(tmp, "focus-workspace");
+const focusTasks = path.join(focusRoot, ".harness", "tasks");
+mkdirSync(focusTasks, { recursive: true });
+writeFileSync(path.join(focusTasks, "SERV-12360.json"), JSON.stringify(activeTask));
+const titledTask = JSON.parse(readFileSync(ungatedTaskPath, "utf8"));
+titledTask.id = "SERV-12999";
+titledTask.ticketFamily = { primary: "SERV-12999", related: [] };
+titledTask.title = "Ungated coverage for dealer invoice export";
+writeFileSync(path.join(focusTasks, "SERV-12999.json"), JSON.stringify(titledTask));
+const focusFile = path.join(focusTasks, ".focus.json");
+const readFocus = () => JSON.parse(readFileSync(focusFile, "utf8"));
+const focusEnv = { ...workspaceEnv, CLAUDE_PROJECT_DIR: focusRoot, CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" };
+expect("prompt-router selects the manifest a ticket names",
+  run("prompt-router.mjs", { prompt: "work on SERV-12360 please" }, focusEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12360-agent-contact") && readFocus().file === "SERV-12360.json");
+expect("prompt-router keeps the focus when a prompt names no task",
+  run("prompt-router.mjs", { prompt: "yes continue" }, focusEnv),
+  (r) => r.code === 0 && readFocus().file === "SERV-12360.json");
+expect("protect-automation-scope authorizes a backend write through the prompt focus",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, focusEnv), 0);
+expect("prompt-router routes an unmatched ticket to the path its manifest belongs at",
+  run("prompt-router.mjs", { prompt: "start SERV-99999" }, focusEnv),
+  (r) => r.code === 0 && r.stdout.includes(".harness/tasks/SERV-99999.json") && readFocus().file === null);
+expect("protect-automation-scope names the ticket that still needs a manifest",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, focusEnv),
+  (r) => r.code === 2 && /SERV-99999 has no manifest yet/.test(r.stderr));
+expect("prompt-router selects a manifest by its title when no ticket is named",
+  run("prompt-router.mjs", { prompt: "let's continue the dealer invoice export coverage" }, focusEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12999 (title)") && readFocus().file === "SERV-12999.json");
+// SERV-12359 is only in SERV-12360's related list (an epic or sibling): context, not a switch.
+expect("prompt-router keeps the active task when a prompt names only a related ticket",
+  run("prompt-router.mjs", { prompt: "create a follow-up ticket under SERV-12359" }, focusEnv),
+  (r) => r.code === 0 && /SERV-12359 is only a related ticket/.test(r.stdout) && readFocus().file === "SERV-12999.json");
+expect("enforce-task-gates lets a prompt-selected task leave non-automation writes alone",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: path.join(focusRoot, "docs", "note.md") } }, focusEnv), 0);
+expect("enforce-task-gates still gates automation writes for a prompt-selected task",
+  run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: e2eSpecPath } }, focusEnv), 2);
+expect("governance guard blocks an agent write to the task focus",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: focusFile } }), 2);
+
+// ADR-0043/0044: with no task and no instruction on record, the guard asks which task it is.
+const searchRoot = path.join(tmp, "search-workspace");
+const searchTasks = path.join(searchRoot, ".harness", "tasks");
+mkdirSync(searchTasks, { recursive: true });
+writeFileSync(path.join(searchTasks, "SERV-12360.json"), JSON.stringify(activeTask));
+const searchEnv = { ...workspaceEnv, CLAUDE_PROJECT_DIR: searchRoot, CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" };
+const searchFocus = () => JSON.parse(readFileSync(path.join(searchTasks, ".focus.json"), "utf8"));
+writeFileSync(path.join(searchTasks, "SERV-12999.json"), JSON.stringify(titledTask));
+expect("protect-automation-scope asks the owner when its search is ambiguous",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, searchEnv),
+  (r) => r.code === 2 && /TASK NEEDED/.test(r.stderr) && /2 manifest\(s\) cover it/.test(r.stderr)
+    && /SERV-12360\.json, SERV-12999\.json/.test(r.stderr) && searchFocus().awaiting === true);
+expect("prompt-router takes a bare keyword as the answer to the task question",
+  run("prompt-router.mjs", { prompt: "dealer" }, searchEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12999 (keyword)") && searchFocus().awaiting !== true);
+expect("prompt-router takes a manifest file name as the answer",
+  run("prompt-router.mjs", { prompt: "use SERV-12360.json" }, searchEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12360-agent-contact (file)"));
+
+// ADR-0044: every prompt is a task. One that names no ticket is a quick task with one confirm.
+const quickRoot = path.join(tmp, "quick-workspace");
+const quickTasks = path.join(quickRoot, ".harness", "tasks");
+mkdirSync(quickTasks, { recursive: true });
+writeFileSync(path.join(quickTasks, "SERV-12360.json"), JSON.stringify(activeTask));
+const quickEnv = { ...workspaceEnv, CLAUDE_PROJECT_DIR: quickRoot, CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" };
+const quickFocus = () => JSON.parse(readFileSync(path.join(quickTasks, ".focus.json"), "utf8"));
+const quickWrite = (extra = {}) => run("protect-automation-scope.mjs",
+  { cwd: backendRoot, tool_input: { file_path: backendTestPath }, session_id: "s1", ...extra }, quickEnv);
+expect("prompt-router records an unticketed instruction as the prompt's quick task",
+  run("prompt-router.mjs", { session_id: "s1", prompt: "update the agent contact selector in the users test" }, quickEnv),
+  (r) => r.code === 0 && quickFocus().lastInstruction?.text === "update the agent contact selector in the users test");
+expect("a quick task asks for one confirm and names the full task that also covers the path",
+  quickWrite(),
+  (r) => r.code === 2 && /QUICK TASK CONFIRM/.test(r.stderr) && /SERV-12360-agent-contact .* also covers this/.test(r.stderr)
+    && quickFocus().quick?.state === "pending");
+expect("an agent cannot confirm by editing the quick task record",
+  run("protect-harness-governance.mjs", { tool_input: { file_path: path.join(quickTasks, "quick", "x.json") } }), 2);
+expect("a typed yes confirms the pending quick task",
+  run("prompt-router.mjs", { session_id: "s1", prompt: "yes" }, quickEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] quick task confirmed") && quickFocus().quick?.state === "confirmed");
+expect("a confirmed quick task writes inside the lane's allowed roots",
+  quickWrite(), 0);
+expect("a confirmed quick task records the path it wrote",
+  { code: 0, stdout: "", stderr: "" },
+  () => JSON.parse(readFileSync(path.join(quickTasks, "quick", quickFocus().quick.file), "utf8"))
+    .touched.includes("fhf-backend-automation/tests/api/users/test_users.py"));
+expect("a quick task runs the test file it wrote",
+  run("manual-task-guard.mjs", {
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "python -m pytest tests/api/users/test_users.py" },
+  }, quickEnv), 0);
+expect("a quick task refuses a test file it did not write or name",
+  run("manual-task-guard.mjs", {
+    cwd: backendRoot,
+    tool_input: { working_directory: backendRoot, command: "python -m pytest tests/api/users/test_other.py" },
+  }, quickEnv),
+  (r) => r.code === 2 && /quick task runs only the test files/.test(r.stderr));
+expect("the next instruction is a new task that needs its own confirm",
+  run("prompt-router.mjs", { session_id: "s1", prompt: "now tighten the dealer filter assertion" }, quickEnv),
+  (r) => r.code === 0 && quickFocus().quick === undefined && /dealer filter/.test(quickFocus().lastInstruction.text));
+quickWrite();
+expect("an AskUserQuestion answer confirms the quick task",
+  run("record-task-answer.mjs", {
+    session_id: "s1",
+    tool_name: "AskUserQuestion",
+    tool_response: { answers: { "Quick task: now tighten the dealer filter assertion": "Yes, go ahead" } },
+  }, quickEnv),
+  (r) => r.code === 0 && r.stdout.includes("quick task confirmed") && quickFocus().quick?.state === "confirmed");
+expect("a focus from another session does not carry over",
+  quickWrite({ session_id: "a-later-session" }),
+  (r) => r.code === 2 && /TASK NEEDED/.test(r.stderr));
 expect("session-context names the pending gate for an active task",
   run("session-context.mjs", {
     hook_event_name: "sessionStart",
     cwd: tmp,
   }, { ...ungatedTaskEnv, CLAUDE_CWD: tmp }),
-  (r) => r.code === 0 && r.stdout.includes("spec") && !r.stdout.includes("approve --manifest"));
+  (r) => {
+    let context = "";
+    try {
+      context = JSON.parse(r.stdout).hookSpecificOutput?.additionalContext ?? "";
+    } catch {
+      context = r.stdout;
+    }
+    return r.code === 0 && context.includes('gate "manifest"') && !context.includes("approve --manifest");
+  });
 expect("protect-automation-scope blocks stale task approval",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, staleTaskEnv), 2);
 expect("protect-automation-scope blocks a changed backend repository revision",
@@ -552,6 +715,25 @@ expect("manual-task-guard allows the exact selected backend pytest path",
     cwd: backendRoot,
     tool_input: { working_directory: backendRoot, command: "python -m pytest tests/api/users/test_users.py" },
   }, activeTaskEnv), 0);
+{
+  const livePolicy = JSON.parse(readFileSync(path.join(HARNESS_ROOT, "config", "qa-control-plane.json"), "utf8"));
+  const e2eColon = authorizeAutomationRun({
+    command: "npm run cy:run:custom CypressFHF/fhf-dashboards/cypress/tests/foo.cy.js",
+    cwd: "C:/work/front-end-automation-e2e",
+    config: livePolicy,
+  });
+  expect("e2e cy:run does not match arbitrary colon suffixes",
+    { code: e2eColon.allowed ? 0 : 2, stdout: "", stderr: e2eColon.reason ?? "" },
+    (result) => result.code === 2 && /only configured backend pytest commands/.test(result.stderr));
+  const smokeColon = authorizeAutomationRun({
+    command: "npm run cy:run:smoke:titles CypressFHF/fhf-dashboards/cypress/tests/foo.cy.js",
+    cwd: "C:/work/front-end-automation-smoke",
+    config: livePolicy,
+  });
+  expect("smoke cy:run:smoke still matches module colon suffixes",
+    { code: smokeColon.allowed ? 0 : 2, stdout: "", stderr: smokeColon.reason ?? "" },
+    (result) => /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(result.stderr));
+}
 expect("manual-task-guard blocks a broader backend pytest selection",
   run("manual-task-guard.mjs", {
     cwd: backendRoot,
@@ -688,6 +870,12 @@ expect("block-forbidden-skills allows cypress-tap",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-tap" } }), 0);
 expect("block-forbidden-skills allows cypress-author",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "cypress-author" } }), 0);
+expect("block-forbidden-skills allows twg",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "twg" } }), 0);
+expect("block-forbidden-skills allows twg-jira",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "twg-jira" } }), 0);
+expect("block-forbidden-skills allows twg-confluence",
+  run("block-forbidden-skills.mjs", { tool_input: { skill: "twg-confluence" } }), 0);
 expect("block-forbidden-skills matches skill names case-insensitively",
   run("block-forbidden-skills.mjs", { tool_input: { skill: "Cypress-Docs" } }), 0);
 expect("block-forbidden-skills noops on a payload without a skill",

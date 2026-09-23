@@ -1,5 +1,7 @@
 # ADR-0018 - Payload Remote Split
 
+Doc revision: docs-2026-09-22
+
 | Field | Value |
 |---|---|
 | **Status** | Accepted |
@@ -68,5 +70,10 @@ change plus an approval-gated publish run; it is not part of this decision.
 content, and ADR-0001's engine/payload boundary. The FHF workspace itself remains unversioned by
 design and reproducible through `node .harness/setup.mjs`.
 
-**Open:** the organization-owned repository is an owner decision and is not taken here. Until it
-exists, `fhf-docs` is a backup rather than a home.
+**Amendment:** ADR-0035 closes the Open target-state clause below. There is no new organization
+repository; `fhf-docs` on this remote is the payload home. Placement, storage, and never-merge
+decisions in this ADR stand. See [`0035-payload-home-is-the-engine-remote.md`](0035-payload-home-is-the-engine-remote.md).
+
+**Open (historical):** the organization-owned repository is an owner decision and is not taken here.
+Until it exists, `fhf-docs` is a backup rather than a home. **Closed by ADR-0035** — no new
+repository; this remote is the home.

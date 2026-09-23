@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs this harness's own canonical self-checks before every commit.
+#
+# Versioned on purpose. The previous hook lived in .git/hooks/, so it existed on exactly one
+# machine: a fresh clone of the engine enforced nothing at all. It also ran 4 of the 18 checks
+# named by engineering.harness.verify.canonical, which meant the other 14 were only ever run
+# when somebody remembered to.
+#
+# Enable it once per clone:
+#   git config core.hooksPath .githooks
+#
+# The full set is ~30s. That is the cost of not discovering a drifted consumer, a broken
+# documentation route, or a duplicated payload file days later.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+exec node scripts/harness/verify-canonical.mjs

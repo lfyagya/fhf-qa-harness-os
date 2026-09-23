@@ -9,7 +9,7 @@ paths:
 
 This is harness policy for every QA member and every ticket, not a one-off.
 
-Before asking a human to stamp **spec**, **scenarios**, **plan**, or **test-cases**:
+Before asking a human to stamp **manifest**, **scenarios**, **plan**, or **test-cases**:
 
 1. Stop. Do not write Cypress or pytest.
 2. Write `review.<gate>` on the task JSON.

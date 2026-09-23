@@ -7,7 +7,7 @@ alwaysApply: true
 
 Harness policy. Not ticket-specific.
 
-Before the in-chat stamp for **spec**, **scenarios**, **plan**, or **test-cases**:
+Before the in-chat stamp for **manifest**, **scenarios**, **plan**, or **test-cases**:
 
 1. Write `review.<gate>` on `.harness/tasks/<id>.json`.
 2. For each AC quote four artefacts already on that task:

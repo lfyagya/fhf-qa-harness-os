@@ -1,5 +1,7 @@
 # Governance — When an ADR Is Required
 
+Doc revision: docs-2026-09-22
+
 Every change has one owner, and structural harness changes leave a short decision record.
 
 ## An ADR is required for
@@ -34,6 +36,9 @@ scoped entirely to a consumer repository’s payload, such as Cypress specs or d
 No separate approval step — this is a solo-owned harness, not a team process. The ADR exists so a future session (yours or an agent's) can find out *why* a structural decision was made, not to add a review gate. This exception expires when another contributor receives write access, the harness becomes a shared CI/deployment dependency, or a product/security owner assumes responsibility for its policy. At that point, structural changes require review by a second maintainer or the designated owner before merge.
 
 First real ADR, worth reading as a worked example: [`docs/adr/0001-harness-relocation.md`](adr/0001-harness-relocation.md) — records why the harness itself was pulled out into this repo.
+
+Read next: the cited ADR for your change (see the trigger list above). Process example:
+[`docs/adr/0001-harness-relocation.md`](adr/0001-harness-relocation.md).
 
 ## Template
 

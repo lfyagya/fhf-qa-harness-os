@@ -8,10 +8,19 @@ import {
   TASK_SCHEMA,
   approvalDigest,
   approvalState,
+  canonicalTaskPath,
+  focusFromResolution,
   gateState,
+  isLocalTask,
+  listTaskManifests,
   nextStep,
+  protocolOptions,
+  readTaskFocus,
+  resolveActiveTask,
+  resolveTaskFromText,
   stampGate,
   validateTaskManifest,
+  writeTaskFocus,
 } from "./task-protocol-lib.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -298,23 +307,6 @@ function fixtureIssues(manifest, config) {
   return issues;
 }
 
-function protocolOptions(config) {
-  const runners = config.engineering?.executionRunners?.runners ?? {};
-  return {
-    repoIds: Object.keys(config.productTopology?.repositories ?? {}),
-    bundleIds: Object.keys(config.productTopology?.sourceBundles ?? {}),
-    runnerIds: Object.keys(runners),
-    runners,
-    approvalFields: config.engineering?.taskProtocol?.approval?.boundFields,
-    gates: config.engineering?.taskProtocol?.approval?.gates ?? [],
-    legacySingleDigestSatisfies: config.engineering?.taskProtocol?.approval?.legacySingleDigestSatisfies ?? "plan",
-    executionBudget: config.engineering?.taskProtocol?.executionBudget,
-    crossRepositorySeam: config.engineering?.taskProtocol?.crossRepositorySeam,
-    frontendTestData: config.qualityAssurance?.frontendTestData,
-    capabilityControl: config.engineering?.capabilityControl,
-  };
-}
-
 function print(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
@@ -417,6 +409,7 @@ async function approveCommand(options) {
   const approval = stampGate(manifest, gate, { approvedBy, approvedAt }, {
     approvalFields: options.approvalFields,
     legacyGateId: options.legacySingleDigestSatisfies,
+    gates: options.gates,
   });
   const next = { ...manifest, approval };
   fs.writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
@@ -426,6 +419,36 @@ async function approveCommand(options) {
     stamp: approval.stamps[gate.id],
     next: nextStep(next, options),
   });
+}
+
+function taskRootDir() {
+  return path.resolve(process.env.CLAUDE_PROJECT_DIR ?? process.env.CURSOR_PROJECT_DIR ?? process.cwd());
+}
+
+// ADR-0043. The prompt router normally sets the focus; this is the human's manual override.
+function focusCommand(config) {
+  const root = taskRootDir();
+  const ticket = option("--ticket");
+  const title = option("--title");
+  if (!ticket && !title && !args.includes("--clear")) {
+    print({ focus: readTaskFocus(root, config), active: resolveActiveTask({ root, config }) });
+    return;
+  }
+  if (isAgentProcess()) {
+    throw new Error("changing the task focus from a shell needs a human; an agent session selects its task by the ticket or title the prompt names");
+  }
+  if (args.includes("--clear")) {
+    writeTaskFocus(root, config, { id: null, file: null, source: "cli", key: null, at: new Date().toISOString() });
+    print({ cleared: true });
+    return;
+  }
+  const resolution = resolveTaskFromText({ root, config, text: ticket ?? title });
+  if (!resolution.match) {
+    throw new Error(`no single manifest matches ${ticket ?? JSON.stringify(title)}; candidates: ${resolution.candidates.map((entry) => entry.manifest.id).join(", ") || "none"}; create it at ${canonicalTaskPath(root, config, { ticket, title })}`);
+  }
+  const focus = { ...focusFromResolution(resolution), source: "cli" };
+  writeTaskFocus(root, config, focus);
+  print({ focus });
 }
 
 function contract(config) {
@@ -477,6 +500,9 @@ function contract(config) {
       digest: "node .harness/task-protocol.mjs digest --manifest <task.json>",
       next: "node .harness/task-protocol.mjs next --manifest <task.json>",
       approve: "node .harness/task-protocol.mjs approve --manifest <task.json> --gate <id>",
+      list: "node .harness/task-protocol.mjs list",
+      path: "node .harness/task-protocol.mjs path --ticket <SERV-n> | --title <text>",
+      focus: "node .harness/task-protocol.mjs focus [--ticket <SERV-n> | --title <text> | --clear]",
       backendPreflight: "node .harness/backend-task-runner.mjs preflight --manifest <absolute-task.json> --test-id <id>",
     },
   });
@@ -509,8 +535,23 @@ try {
     print(nextStep(loadManifest(), options));
   } else if (command === "approve") {
     await approveCommand(options);
+  } else if (command === "list") {
+    const active = resolveActiveTask({ root: taskRootDir(), config });
+    print(listTaskManifests(taskRootDir(), config).map(({ file, manifest }) => ({
+      id: manifest.id,
+      stage: manifest.stage,
+      ticket: manifest.ticketFamily?.primary ?? (isLocalTask(manifest) ? "local" : null),
+      title: manifest.title ?? null,
+      file,
+      active: active.file ? path.resolve(active.file) === path.resolve(file) : false,
+    })));
+  } else if (command === "path") {
+    // Maps a ticket or a title to the one path its manifest belongs at.
+    print({ path: canonicalTaskPath(taskRootDir(), config, { ticket: option("--ticket"), title: option("--title") }) });
+  } else if (command === "focus") {
+    focusCommand(config);
   } else {
-    throw new Error("Usage: task-protocol.mjs <contract|validate|digest|next|approve> [--manifest <task.json>] [--gate <id>]");
+    throw new Error("Usage: task-protocol.mjs <contract|validate|digest|next|approve|list|path|focus> [--manifest <task.json>] [--gate <id>] [--ticket <SERV-n>] [--title <text>] [--clear]");
   }
 } catch (error) {
   console.error(`Task protocol error: ${error.message}`);

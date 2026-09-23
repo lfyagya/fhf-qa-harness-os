@@ -51,10 +51,12 @@ const BLOCKED_PATTERNS = [
 ];
 
 if (isExternalBackend && !readOnlyBackendCommand.test(cmd)) {
-  const decision = authorizeAutomationRun({ command, cwd: workingDirectory, config });
+  const decision = authorizeAutomationRun({ command, cwd: workingDirectory, config, sessionId: payload.session_id ?? null });
   if (!decision.allowed) {
     console.error(`BASH BLOCKED: ${decision.reason}`);
-    console.error('Backend writes use scoped file tools; pytest runs require FHF_ACTIVE_TASK and an exact selected test path.');
+    if (!decision.ask) {
+      console.error('Backend writes use scoped file tools; pytest runs need the active task and its exact selected test path.');
+    }
     process.exit(2);
   }
 }

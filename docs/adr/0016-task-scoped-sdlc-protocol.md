@@ -1,5 +1,7 @@
 # ADR-0016 — Task-Scoped Cross-Repository SDLC Protocol
 
+Doc revision: docs-2026-09-22
+
 | Field | Value |
 |---|---|
 | **Status** | Accepted |
@@ -69,3 +71,8 @@ Independent live or seeded oracles are required.
 - Repository-local rules and security boundaries remain authoritative; this protocol grants no new
   write access.
 - `scripts/harness/test-task-protocol.mjs` and routing goldens verify the deterministic mechanics.
+
+**Later gate decisions (amendments):** multi-gate human stamps are in
+[`0036-human-gate-stamps.md`](0036-human-gate-stamps.md). `manifest` as the first gate (absorbing
+`spec`) and Cypress E2E/Smoke on the same `automationSource` write map as backend are in
+[`0039-one-task-one-approved-manifest.md`](0039-one-task-one-approved-manifest.md).

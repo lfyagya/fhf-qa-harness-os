@@ -8,6 +8,7 @@ import {
   HARNESS_CONFIG_TEXT,
   PORTABLE_RUNTIME_STATE_TEXT,
   RECORD_LOOP_EVENT_TEXT,
+  TASK_PROTOCOL_LIB_TEXT,
 } from "./loader-templates.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -20,6 +21,7 @@ try {
   fs.mkdirSync(claudeDir, { recursive: true });
   fs.writeFileSync(path.join(harnessDir, "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT, "utf8");
   fs.writeFileSync(path.join(harnessDir, "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT, "utf8");
+  fs.writeFileSync(path.join(harnessDir, "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT, "utf8");
   fs.writeFileSync(path.join(claudeDir, "harness.config.json"), HARNESS_CONFIG_TEXT, "utf8");
   const taskDir = path.join(harnessDir, "tasks");
   fs.mkdirSync(taskDir, { recursive: true });
@@ -86,6 +88,7 @@ try {
   fs.mkdirSync(libDir, { recursive: true });
   fs.writeFileSync(path.join(harnessDir, "portable-runtime-state.mjs"), PORTABLE_RUNTIME_STATE_TEXT, "utf8");
   fs.writeFileSync(path.join(harnessDir, "record-loop-event.mjs"), RECORD_LOOP_EVENT_TEXT, "utf8");
+  fs.writeFileSync(path.join(harnessDir, "task-protocol-lib.mjs"), TASK_PROTOCOL_LIB_TEXT, "utf8");
   fs.writeFileSync(path.join(phaseTemp, ".claude", "harness.config.json"), HARNESS_CONFIG_TEXT, "utf8");
   // The recorder resolves the memory library by probe, so the real canonical
   // files are copied in rather than stubbed.

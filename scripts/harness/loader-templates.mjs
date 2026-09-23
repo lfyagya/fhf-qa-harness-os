@@ -104,6 +104,7 @@ export function workspaceExample(lane) {
     cypressCloud: false,
     figmaMcp: false,
     testRail: false,
+    teamworkGraphCli: false,
   };
   return `${JSON.stringify(example, null, 2)}\n`;
 }
@@ -122,6 +123,42 @@ export function npmrcExample(lane) {
 }
 
 export const VENDORED_HOOKS = "project-hooks";
+
+const PHASE_MATCHERS = {
+  preReadExceptE2e: "Read|Bash",
+  preWrite: "Edit|Write",
+  preShell: "Bash",
+  preSubagent: "Task|Agent",
+  preSkill: "Skill",
+  preRead: "Read",
+  postWrite: "Edit|Write",
+  postAsk: "AskUserQuestion",
+  stop: "Stop",
+};
+
+export function hookPhaseOrder(lane = "root") {
+  return [
+    ...(lane === "e2e" ? [] : ["preReadExceptE2e"]),
+    "preWrite",
+    "preShell",
+    "preSubagent",
+    "preSkill",
+    "preRead",
+  ];
+}
+
+export function hookChains(lane = "root") {
+  return [
+    ...hookPhaseOrder(lane).map((phase) => ({
+      phase,
+      tools: PHASE_MATCHERS[phase].split("|"),
+      scripts: HOOKS[phase] ?? [],
+    })),
+    { phase: "postWrite", tools: PHASE_MATCHERS.postWrite.split("|"), scripts: HOOKS.postWrite ?? [] },
+    { phase: "postAsk", tools: PHASE_MATCHERS.postAsk.split("|"), scripts: HOOKS.postAsk ?? [] },
+    { phase: "stop", tools: PHASE_MATCHERS.stop.split("|"), scripts: HOOKS.stop ?? [] },
+  ];
+}
 
 const cursorWriteMatcher = "Write|StrReplace|Edit|ApplyPatch|write|str_replace|apply_patch";
 const cursorPostWriteMatcher = "Write|StrReplace|write|str_replace|apply_patch|ApplyPatch";
@@ -144,43 +181,25 @@ function cursorCommand(root, script, { matcher, failClosed, loopLimit, args = ""
 }
 
 export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
-  const contextReadGuard = HOOKS.preRead.map((script) =>
-    cursorCommand(HARNESS_HOOKS, script, {
-      matcher: "Read|read",
-      failClosed: true,
-    }));
-  const productionArtifactGuard = lane === "e2e"
-    ? []
-    : HOOKS.preReadExceptE2e.map((script) =>
-        cursorCommand(HARNESS_HOOKS, script, {
-          matcher: "Read|Bash|read|bash",
-          failClosed: true,
-        }));
-
+  const cursorMatcher = {
+    preReadExceptE2e: "Read|Bash|read|bash",
+    preWrite: cursorWriteMatcher,
+    preShell: "Shell|Bash|shell|bash",
+    preSkill: "Skill|skill",
+    preRead: "Read|read",
+  };
   return {
     version: 1,
     hooks: {
       sessionStart: HOOKS.sessionStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, { failClosed: false })),
-      preToolUse: [
-        ...HOOKS.preWrite.map((script) =>
+      preToolUse: hookPhaseOrder(lane)
+        .filter((phase) => cursorMatcher[phase])
+        .flatMap((phase) => (HOOKS[phase] ?? []).map((script) =>
           cursorCommand(HARNESS_HOOKS, script, {
-            matcher: cursorWriteMatcher,
+            matcher: cursorMatcher[phase],
             failClosed: true,
-          })),
-        ...HOOKS.preShell.map((script) =>
-          cursorCommand(HARNESS_HOOKS, script, {
-            matcher: "Shell|Bash|shell|bash",
-            failClosed: true,
-          })),
-        ...HOOKS.preSkill.map((script) =>
-          cursorCommand(HARNESS_HOOKS, script, {
-            matcher: "Skill|skill",
-            failClosed: true,
-          })),
-        ...contextReadGuard,
-        ...productionArtifactGuard,
-      ],
+          }))),
       subagentStart: HOOKS.subagentStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, {
           matcher: ENGINEERING.harness.forbiddenAgents.flatMap((name) =>
@@ -225,19 +244,10 @@ function claudeGroup(root, scripts) {
 }
 
 export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
-  const preToolUse = [
-    { matcher: "Edit|Write", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preWrite) },
-    { matcher: "Bash", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preShell) },
-    { matcher: "Task|Agent", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSubagent) },
-    { matcher: "Skill", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preSkill) },
-    { matcher: "Read", hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preRead) },
-  ];
-  if (lane !== "e2e") {
-    preToolUse.push({
-      matcher: "Read|Bash",
-      hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preReadExceptE2e),
-    });
-  }
+  const preToolUse = hookPhaseOrder(lane).map((phase) => ({
+    matcher: PHASE_MATCHERS[phase],
+    hooks: claudeGroup(HARNESS_HOOKS, HOOKS[phase] ?? []),
+  }));
 
   return {
     $schema: "https://json.schemastore.org/claude-code-settings.json",
@@ -259,10 +269,13 @@ export function claudeSettings(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
       Stop: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.stop) }],
       PreCompact: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.preCompact) }],
       SessionEnd: [{ hooks: claudeGroup(HARNESS_HOOKS, HOOKS.sessionEnd) }],
-      PostToolUse: [{
-        matcher: "Edit|Write",
-        hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postWrite),
-      }],
+      PostToolUse: [
+        { matcher: PHASE_MATCHERS.postWrite, hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postWrite) },
+        // ADR-0044. Cursor has no question tool; there the typed reply reaches the prompt router.
+        ...((HOOKS.postAsk ?? []).length
+          ? [{ matcher: PHASE_MATCHERS.postAsk, hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postAsk) }]
+          : []),
+      ],
       PostToolUseFailure: [{
         hooks: claudeGroup(HARNESS_HOOKS, HOOKS.postToolFailure),
       }],
@@ -293,7 +306,7 @@ export function parentAgents() {
   const tiers = ENGINEERING.harness.modelTiers ?? { default: "standard" };
   const invocation = ENGINEERING.harness.skillInvocation ?? { mode: "route-or-explicit" };
   const extraSkills = (ENGINEERING.harness.skills ?? []).filter((name) =>
-    !["cypress-explain", "cypress-docs", "cypress-tap", "cypress-author", "backend-test-author"].includes(name),
+    !["cypress-explain", "cypress-docs", "cypress-tap", "cypress-author", "backend-test-author", "twg", "twg-jira", "twg-confluence"].includes(name),
   );
   const extraLines = extraSkills.length
     ? extraSkills.map((name) => `- \`${name}\` — root-lane only; invoke when the matched route names it`).join("\n")
@@ -326,6 +339,7 @@ Allowed Cypress AI Toolkit skills stay in the parent (do not spawn). Read
 - \`cypress-tap\` — drive a live \`cypress open\` session (Cypress 15.21+, Chromium; not headless \`cypress run\`)
 - \`cypress-author\` — Cypress-native conventions only on FHF work; must not Write specs. Parent spawns \`cypress-generator\`
 - \`backend-test-author\` — backend pytest/API/Oracle work under the active task manifest
+- \`twg\` / \`twg-jira\` / \`twg-confluence\` — same Atlassian overlay as MCP graph. Configure then use: install from \`connectors.teamworkGraphCli.agentsMd\`, \`twg doctor\`, then \`capability-doctor teamwork-graph-cli\`. Not a second ticket oracle.
 ${extraLines ? `${extraLines}\n` : ""}
 \`cypress-author\` may load; on FHF work it must not write specs. New Cypress specs spawn
 \`cypress-generator\`.
@@ -338,7 +352,8 @@ test-failure, and test-flake after an explicit request or a recorded insufficien
 diagnosis. Those tiers are parent policy, not hook gates. Skill invocation mode is
 \`${invocation.mode}\`: follow the matched route \`invoke\`; do not load an unmapped
 marketplace plugin. The skill hook enforces the allow-list and \`skillLanes\` only.
-Backend writes and pytest runs require a validated active manifest selected by \`FHF_ACTIVE_TASK\`;
+Every prompt is a task (ADR-0044): with no SERV ticket named it is a quick task that needs one owner
+confirm before automation writes; a named ticket selects its full, gated manifest (ADR-0043);
 application source remains read-only.
 Root \`.claude/\`, Cursor, Copilot, and Gemini loaders are generated from \`fhf-harness-os\`; never
 hand-edit generated copies. Agent changes stay uncommitted for owner review.
@@ -368,7 +383,8 @@ Read this file, then the selected repository's own \`CLAUDE.md\`. Do not preload
 | Backend API / Oracle | \`fhf-backend-automation\` | \`master\`, task-scoped |
 
 Application source is read-only. Production smoke must never mutate, submit, export, download, or
-send. Backend writes and pytest runs require an active, validated \`FHF_ACTIVE_TASK\` manifest.
+send. Every prompt is a task: an unticketed prompt is a quick task confirmed once by the owner; a
+named SERV ticket, manifest file or title selects its full, gated manifest (ADR-0043, ADR-0044).
 
 Two unrelated repositories are named \`fhf-dashboards\`, and both declare \`"name": "fhf-dashboards"\`
 in \`package.json\`: \`fhf-dashboards/\` at the workspace root is the React application and is
@@ -575,6 +591,7 @@ ${isE2e
   : "Production smoke is GET-only. Never mutate, submit, export, download, upload, or send."}
 For a Jira ticket, run \`node .harness/capability-doctor.mjs --capability jira-ticket-read --subject <SERV-ID>\` before grounding.
 If it requests access, stop and request OAuth Jira Browse/Read or a sanitized ticket export; a declared connector still requires a successful live ticket read.
+Teamwork Graph CLI skills (\`twg\`, \`twg-jira\`, \`twg-confluence\`) are on the same allow-list. Do not treat them as ready until \`teamwork-graph-cli\` is ready. Jira MCP remains the ticket oracle.
 `;
 }
 
