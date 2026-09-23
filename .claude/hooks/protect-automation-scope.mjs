@@ -25,7 +25,9 @@ const decision = authorizeAutomationWrite({
 });
 if (decision.applies && !decision.allowed) {
   console.error(`BLOCKED: ${decision.reason}`);
-  console.error("Set FHF_ACTIVE_TASK to a validated manifest that selects this backend automation path.");
+  if (!decision.ask) {
+    console.error("The active task's manifest must select this path in grounding.repositories and plan.changeUnits.");
+  }
   process.exit(2);
 }
 emitAllow(payload);

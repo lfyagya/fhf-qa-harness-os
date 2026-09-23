@@ -2,7 +2,17 @@ import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { humanApprovalBlock, isLocalTask, resolveActiveTask, taskRoot } from "./task-protocol.mjs";
+import {
+  focusFromResolution,
+  humanApprovalBlock,
+  isLocalTask,
+  listTaskManifests,
+  resolveActiveTask,
+  resolveTaskFromText,
+  taskQuestion,
+  taskRoot,
+  writeTaskFocus,
+} from "./task-protocol.mjs";
 
 function normalized(value) {
   if (Array.isArray(value)) return value.map(normalized);
@@ -140,7 +150,36 @@ function verifyRepositoryRevision({ filePath, cwd, repositoryId, expectedSha }) 
   return { ok: true, root, actualSha };
 }
 
-function activeTask(config, env, stages, root) {
+// ADR-0043. No focus yet: find the task ourselves before asking. First the one open manifest that
+// selects this exact path (or test), then a SERV key in the target repository's branch name.
+function searchTask({ root, config, repository, relative, command, filePath, cwd }) {
+  const open = listTaskManifests(root, config)
+    .filter(({ manifest }) => !["complete", "blocked"].includes(manifest.stage));
+  const normalizedCommand = normalizePath(command).toLowerCase();
+  const covering = open.filter(({ manifest }) => (relative
+    ? (repositorySelection(manifest, repository.id)?.selectedPaths ?? []).some((item) => containsPath(relative, item))
+      && repositoryChangePaths(manifest, repository.id).some((item) => containsPath(relative, item))
+    : (manifest.plan?.tests ?? []).some((test) => test.repoId === repository.id && test.path
+      && normalizedCommand.includes(normalizePath(test.path).toLowerCase()))));
+  const searched = ["prompt focus: none", `${relative ? `path ${relative}` : "selected test"}: ${covering.length} manifest(s) cover it`];
+  if (covering.length === 1) return { entry: covering[0], via: "path", searched };
+
+  const repoRoot = repositoryRoot(filePath, cwd, repository.id);
+  const branch = repoRoot
+    ? String(spawnSync("git", ["-C", repoRoot, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8", timeout: 5000 }).stdout ?? "").trim()
+    : "";
+  const key = branch.match(/SERV-\d+/i)?.[0]?.toUpperCase() ?? null;
+  if (key) {
+    const byBranch = resolveTaskFromText({ root, config, text: key });
+    searched.push(`branch ${branch}: ${byBranch.match ? byBranch.match.manifest.id : "no manifest"}`);
+    if (byBranch.match) return { entry: byBranch.match, via: "branch", searched };
+  } else if (branch) {
+    searched.push(`branch ${branch}: no ticket in its name`);
+  }
+  return { entry: null, key, searched };
+}
+
+function activeTask(config, env, stages, root, hint = null) {
   const protocol = config.engineering?.taskProtocol;
   const boundary = config.engineering?.harness?.boundaries?.automationSource;
   const envName = boundary?.activeManifestEnv ?? protocol?.activeManifestEnv;
@@ -148,10 +187,18 @@ function activeTask(config, env, stages, root) {
     return { ok: false, reason: "active task manifest environment is not configured consistently" };
   }
   const resolved = resolveActiveTask({ root, config, env });
-  const source = resolved.file;
+  let source = resolved.file;
   if (!source) {
-    const pending = resolved.focus?.key ? ` (${resolved.focus.key} has no manifest yet)` : "";
-    return { ok: false, reason: `no active task${pending}: name the ticket or task title in the prompt so its manifest is selected, or set ${envName}` };
+    const found = hint ? searchTask({ root, config, ...hint }) : { entry: null, key: null, searched: [] };
+    if (found.entry) {
+      source = found.entry.file;
+      writeTaskFocus(root, config, focusFromResolution({ match: found.entry, kind: found.via }));
+    } else {
+      // Nothing found: ask the owner. The awaiting mark lets the router take a bare keyword reply.
+      const key = resolved.focus?.key ?? found.key;
+      writeTaskFocus(root, config, { id: null, file: null, source: "ask", key, awaiting: true, at: new Date().toISOString() });
+      return { ok: false, ask: true, reason: taskQuestion({ root, config, searched: found.searched, key }) };
+    }
   }
   if (!path.isAbsolute(source)) return { ok: false, reason: `${envName} must be an absolute path` };
 
@@ -232,8 +279,8 @@ export function authorizeAutomationWrite({ filePath, cwd, config, env = process.
     return { applies: true, allowed: false, reason: `backend automation path is protected: ${relative}` };
   }
 
-  const task = activeTask(config, env, repository.policy.writeStages ?? [], taskRoot({}, cwd));
-  if (!task.ok) return { applies: true, allowed: false, reason: task.reason };
+  const task = activeTask(config, env, repository.policy.writeStages ?? [], taskRoot({}, cwd), { repository, relative, filePath, cwd });
+  if (!task.ok) return { applies: true, allowed: false, ask: task.ask === true, reason: task.reason };
   const selected = repositorySelection(task.manifest, repository.id);
   if (!selected || !(selected.selectedPaths ?? []).some((item) => containsPath(relative, item))) {
     return { applies: true, allowed: false, reason: `path is outside grounding.repositories.selectedPaths: ${relative}` };
@@ -286,8 +333,8 @@ export function authorizeAutomationRun({ command, cwd, config, env = process.env
     return { applies: true, allowed: false, reason: "only configured backend pytest commands are executable" };
   }
 
-  const task = activeTask(config, env, repository.policy.runStages ?? [], taskRoot({}, cwd));
-  if (!task.ok) return { applies: true, allowed: false, reason: task.reason };
+  const task = activeTask(config, env, repository.policy.runStages ?? [], taskRoot({}, cwd), { repository, command: trimmed, cwd });
+  if (!task.ok) return { applies: true, allowed: false, ask: task.ask === true, reason: task.reason };
   const selected = repositorySelection(task.manifest, repository.id);
   if (!selected) return { applies: true, allowed: false, reason: "backend automation repository is not selected by the active task" };
 

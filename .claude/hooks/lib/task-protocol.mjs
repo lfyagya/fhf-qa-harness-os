@@ -17,6 +17,12 @@ const protocol = await import(pathToFileURL(selected).href);
 export const firstPendingGate = protocol.firstPendingGate;
 export const nextStep = protocol.nextStep;
 export const isLocalTask = protocol.isLocalTask;
+export const listTaskManifests = protocol.listTaskManifests;
+export const resolveTaskFromText = protocol.resolveTaskFromText;
+export const readTaskFocus = protocol.readTaskFocus;
+export const writeTaskFocus = protocol.writeTaskFocus;
+export const focusFromResolution = protocol.focusFromResolution;
+export const taskQuestion = protocol.taskQuestion;
 
 export function gateOptions(config) {
   const approval = config.engineering?.taskProtocol?.approval ?? {};
@@ -72,13 +78,21 @@ export function resolveActiveTask({ root, config, env = process.env }) {
 export function routeTaskFocus({ root, config, text, env = process.env }) {
   const envName = config.engineering?.taskProtocol?.activeManifestEnv;
   if (envName && String(env[envName] ?? "").trim()) return null;
-  const resolution = protocol.resolveTaskFromText({ root, config, text });
+  const current = protocol.readTaskFocus(root, config);
+  const resolution = protocol.resolveTaskFromText({ root, config, text, lenient: current?.awaiting === true });
   const relative = (file) => path.relative(root, file).replace(/\\/g, "/");
   const listed = resolution.candidates.map((entry) => entry.manifest.id).join(", ");
   if (resolution.match) {
     const focus = protocol.focusFromResolution(resolution);
-    if (protocol.readTaskFocus(root, config)?.file !== focus.file) protocol.writeTaskFocus(root, config, focus);
+    if (current?.file !== focus.file || current?.awaiting) protocol.writeTaskFocus(root, config, focus);
     return `[task] active: ${focus.id} (${resolution.kind}) -> ${relative(resolution.match.file)}`;
+  }
+  if (resolution.kind === "keyword") {
+    // One lenient reply per question; the next automation write asks again if still unresolved.
+    protocol.writeTaskFocus(root, config, { ...current, awaiting: false });
+    return resolution.candidates.length
+      ? `[task] the keyword matches several manifests (${listed}); ask the owner which one, by ticket or file name.`
+      : `[task] no manifest matches that keyword. Ask the owner for the SERV key or manifest file, or confirm a new local task at ${relative(resolution.suggestedPath)}.`;
   }
   if (resolution.kind === "jira") {
     protocol.writeTaskFocus(root, config, protocol.focusFromResolution(resolution));

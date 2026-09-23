@@ -48,6 +48,30 @@ gate hooks, `backend-task-runner`, `record-loop-event`, and `doctor`. Resolution
   (`.harness/tasks/SERV-n.json`). Automation writes then refuse with that ticket named.
 - A prompt with no task signal ("yes", "continue") leaves the focus alone.
 
+**When no task is selected, the guard searches first and asks only if the search fails.** A
+refusal that just says "no active task" is a dead end, so an automation write or run with no focus
+runs its own search, in order:
+
+1. the prompt focus;
+2. the one open manifest whose `grounding.repositories` and `plan.changeUnits` both select the
+   path being written (or whose `plan.tests` names the test being run);
+3. a `SERV-n` key in the target repository's branch name (backend on `SERV-12669` selects
+   `SERV-12669.json`).
+
+If the search finds one manifest, it becomes the focus (`source: path` or `branch`) and the
+normal approval and scope checks apply to it. If the search finds none, or more than one, the
+refusal is a question for the owner (`TASK NEEDED`). It lists what was searched and offers three
+answers: the Jira key, an existing manifest file name (the open ones are listed), or, for work
+outside Jira, a keyword or title. The agent asks it as one question and must not guess, create,
+or switch a task itself. The focus is marked `awaiting`, so the router matches the next reply
+leniently: a file name selects that manifest, and a bare keyword selects the one manifest whose
+title or id contains every keyword. An unmatched reply names the file to create and clears the
+awaiting mark, so the question is asked once per attempt rather than on every prompt.
+
+The write itself still does not pass without a task. There is no manifest to scope it against,
+and allowing it would undo ADR-0039. What changes is that the refusal carries the search and the
+question, instead of telling the owner to export an environment variable.
+
 **Local tasks are first-class.** A manifest with `ticketFamily.source: "local"` needs a `title`
 and `grounding.intent.digest` (the sha256 of the recorded intent) in place of
 `grounding.jira.issueDigest`. Its canonical path is the title slug:

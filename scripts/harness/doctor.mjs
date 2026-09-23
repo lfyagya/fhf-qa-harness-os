@@ -38,11 +38,11 @@ const LANES = CONTROL_PLANE.paths?.lanes ?? {};
 // enforcing something the docs should explain, not the doctor.
 const REMEDIES = [
   {
-    match: /no active task|must point to the selected task manifest|must be an absolute path/i,
-    hooks: ["protect-automation-scope", "validate-backend-automation"],
-    means: "Automation writes are task-scoped and no manifest is selected for this work (ADR-0043).",
+    match: /TASK NEEDED|no active task|must point to the selected task manifest|must be an absolute path/i,
+    hooks: ["protect-automation-scope", "validate-backend-automation", "manual-task-guard"],
+    means: "Automation work is task-scoped. The harness searched (prompt focus, the path or test, the branch) and found no manifest, so it asks (ADR-0043).",
     dos: [
-      "Name the ticket (SERV-n) or the task title in the prompt; the router selects its manifest.",
+      "Answer the question: a SERV key, an existing manifest file name, or a keyword/title for non-Jira work.",
       "node .harness/task-protocol.mjs list            # which manifests exist, which is active",
       "node .harness/task-protocol.mjs path --ticket SERV-n   # where a missing manifest belongs",
     ],

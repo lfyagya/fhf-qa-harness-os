@@ -433,10 +433,10 @@ expect("protect-automation-scope blocks backend writes without an active task",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
 expect("protect-automation-scope blocks e2e Cypress writes without an active task",
   run("protect-automation-scope.mjs", { cwd: e2eRoot, tool_input: { file_path: e2eSpecPath } }, workspaceEnv),
-  (r) => r.code === 2 && /FHF_ACTIVE_TASK|selected task manifest/.test(r.stderr));
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
 expect("protect-automation-scope blocks smoke Cypress writes without an active task",
   run("protect-automation-scope.mjs", { cwd: smokeLaneRoot, tool_input: { file_path: smokeLaneSpecPath } }, workspaceEnv),
-  (r) => r.code === 2 && /FHF_ACTIVE_TASK|selected task manifest/.test(r.stderr));
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
@@ -486,6 +486,29 @@ expect("enforce-task-gates still gates automation writes for a prompt-selected t
   run("enforce-task-gates.mjs", { cwd: tmp, tool_input: { file_path: e2eSpecPath } }, focusEnv), 2);
 expect("governance guard blocks an agent write to the task focus",
   run("protect-harness-governance.mjs", { tool_input: { file_path: focusFile } }), 2);
+
+// ADR-0043: with no focus the guard searches first, and asks only when its search comes up empty.
+const searchRoot = path.join(tmp, "search-workspace");
+const searchTasks = path.join(searchRoot, ".harness", "tasks");
+mkdirSync(searchTasks, { recursive: true });
+writeFileSync(path.join(searchTasks, "SERV-12360.json"), JSON.stringify(activeTask));
+const searchEnv = { ...workspaceEnv, CLAUDE_PROJECT_DIR: searchRoot, CLAUDE_CWD: tmp, FHF_JIRA_MCP: "true" };
+const searchFocus = () => JSON.parse(readFileSync(path.join(searchTasks, ".focus.json"), "utf8"));
+expect("protect-automation-scope finds the one manifest that selects the path, with no focus",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, searchEnv),
+  (r) => r.code === 0 && searchFocus().source === "path" && searchFocus().file === "SERV-12360.json");
+rmSync(path.join(searchTasks, ".focus.json"));
+writeFileSync(path.join(searchTasks, "SERV-12999.json"), JSON.stringify(titledTask));
+expect("protect-automation-scope asks the owner when its search is ambiguous",
+  run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, searchEnv),
+  (r) => r.code === 2 && /TASK NEEDED/.test(r.stderr) && /2 manifest\(s\) cover it/.test(r.stderr)
+    && /SERV-12360\.json, SERV-12999\.json/.test(r.stderr) && searchFocus().awaiting === true);
+expect("prompt-router takes a bare keyword as the answer to the task question",
+  run("prompt-router.mjs", { prompt: "dealer" }, searchEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12999 (keyword)") && searchFocus().awaiting !== true);
+expect("prompt-router takes a manifest file name as the answer",
+  run("prompt-router.mjs", { prompt: "use SERV-12360.json" }, searchEnv),
+  (r) => r.code === 0 && r.stdout.includes("[task] active: SERV-12360-agent-contact (file)"));
 expect("session-context names the pending gate for an active task",
   run("session-context.mjs", {
     hook_event_name: "sessionStart",
@@ -656,7 +679,7 @@ expect("manual-task-guard allows the exact selected backend pytest path",
   });
   expect("smoke cy:run:smoke still matches module colon suffixes",
     { code: smokeColon.allowed ? 0 : 2, stdout: "", stderr: smokeColon.reason ?? "" },
-    (result) => /FHF_ACTIVE_TASK|selected task manifest/.test(result.stderr));
+    (result) => /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(result.stderr));
 }
 expect("manual-task-guard blocks a broader backend pytest selection",
   run("manual-task-guard.mjs", {

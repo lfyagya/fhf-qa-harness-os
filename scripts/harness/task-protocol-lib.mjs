@@ -905,13 +905,54 @@ function matchByTitle(entries, text, { minSharedTerms = 3, minCoverage = 0.6 } =
   return { match: best.length === 1 ? best[0] : null, candidates: scored.slice(0, 5) };
 }
 
-export function resolveTaskFromText({ root, config, text }) {
+// An answer to the task question: every keyword the owner gave appears in one manifest's title or id.
+function matchByKeyword(entries, text) {
+  const wanted = [...terms(text)];
+  if (!wanted.length) return { match: null, candidates: [] };
+  const hits = preferOpen(entries.filter((entry) => {
+    const own = terms(`${entry.manifest.title ?? ""} ${entry.manifest.id ?? ""}`);
+    return wanted.every((word) => own.has(word));
+  }));
+  return { match: hits.length === 1 ? hits[0] : null, candidates: hits.slice(0, 5) };
+}
+
+// lenient: the owner is answering the task question, so a bare keyword is enough to select.
+export function resolveTaskFromText({ root, config, text, lenient = false }) {
   const entries = listTaskManifests(root, config);
-  const key = String(text ?? "").match(TASK_KEY)?.[0]?.toUpperCase();
+  const value = String(text ?? "");
+  const named = (value.match(/[\w.-]+\.json\b/gi) ?? []).map((name) => name.toLowerCase());
+  const byFile = entries.filter((entry) => named.includes(path.basename(entry.file).toLowerCase()));
+  if (byFile.length === 1) return { kind: "file", match: byFile[0], candidates: byFile };
+  const key = value.match(TASK_KEY)?.[0]?.toUpperCase();
   if (key) {
     return { kind: "jira", key, ...matchByTicket(entries, key), suggestedPath: canonicalTaskPath(root, config, { ticket: key }) };
   }
-  return { kind: "title", ...matchByTitle(entries, text, activeTaskPolicy(config).titleMatch) };
+  const byTitle = matchByTitle(entries, value, activeTaskPolicy(config).titleMatch);
+  if (byTitle.match || !lenient) return { kind: "title", ...byTitle };
+  return {
+    kind: "keyword",
+    ...matchByKeyword(entries, value),
+    suggestedPath: canonicalTaskPath(root, config, { title: value }),
+  };
+}
+
+// ADR-0043. What the owner is asked when the harness's own search finds no task. One question,
+// three answers; the reply is matched by the prompt router on the next turn.
+export function taskQuestion({ root, config, searched = [], key = null }) {
+  const open = preferOpen(listTaskManifests(root, config))
+    .filter((entry) => !TERMINAL_STAGES.has(entry.manifest.stage))
+    .slice(0, 8)
+    .map((entry) => path.basename(entry.file));
+  const lines = [
+    `TASK NEEDED: no task manifest selects this automation work${key ? ` (${key} has no manifest yet)` : ""}.`,
+    `Searched: ${searched.length ? searched.join("; ") : "prompt focus"}.`,
+    "Ask the owner in this turn, as one question with these options. Do not guess, create, or switch a task yourself:",
+    "  1. Jira task: reply with the SERV key (e.g. SERV-12669).",
+    `  2. Existing manifest: reply with its file name${open.length ? ` (open: ${open.join(", ")})` : ""}.`,
+    "  3. Not in Jira: reply with a keyword or the task title; it is matched to manifest titles, or named",
+    "     .harness/tasks/<title-slug>.json to create.",
+  ];
+  return lines.join("\n");
 }
 
 export function taskFocusPath(root, config) {
