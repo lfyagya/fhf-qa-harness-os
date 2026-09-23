@@ -511,7 +511,7 @@ hooks. The research is strongly supportive:
    training biases).
 2. **Deterministic hooks compensate for LLM non-determinism.** The documented failure
    modes — hallucinated assertions, false confidence, drift, flakiness — are exactly what
-   deterministic gates (the 15 PreToolUse/PostToolUse/Stop/UserPromptSubmit hooks,
+   deterministic gates (the 27 hooks across ten lifecycle events,
    assertion-precision rules, retry limits, handoff rules) are designed to constrain.
    The research says: never gate a release on un-reproducible agent behavior.
 3. **Evidence over confidence.** Replayable artifacts (screenshots, videos, logs, handoff
