@@ -12,7 +12,7 @@ Use this skill only after the active task manifest selects fhf-backend-automatio
 
 ## Load in this order
 
-1. fhf-backend-automation/CLAUDE.md.
+1. REPOSITORY.md in this skill (setup, commands, layout).
 2. The exact existing module under api/, tests/, and, only when selected, dao/ or db/.
 3. Only the repository-local rules needed by the task:
    - always: .claude/rules/testing.md, api-standards.md, assertions.md, security.md;
@@ -26,7 +26,7 @@ Use this skill only after the active task manifest selects fhf-backend-automatio
    - builder/factory: generate-data-builder;
    - test file: generate-test-file.
 
-Do not preload all local skills. Current CLAUDE.md and .claude/rules/*.md override any stale
+Do not preload all local skills. Current .claude/rules/*.md override any stale
 example inside a generator skill.
 
 ## Contract
@@ -39,8 +39,9 @@ example inside a generator skill.
   connections or embed credentials.
 - Use Faker/anonymized owned data, wait_for, exact response/error contracts, exact Oracle state
   when applicable, and verified cleanup for persistent mutations.
-- Put known TestRail IDs in test docstrings. If Jira/TestRail mapping is absent, report UNKNOWN
-  rather than inventing an ID.
+- Name a test for TestRail with `@allure.title` or `allure.dynamic.title`, never a `[C<id>]`
+  docstring marker (`.claude/rules/testing.md`). If the Jira/TestRail mapping is absent, report
+  UNKNOWN rather than inventing one.
 - Execute only the active-manifest backend-api-oracle test path in Dev/QA through the FHF-root
   `.harness/backend-task-runner.mjs`. Its default is sequential; parallelism requires selected-file
   evidence of independent data, verified cleanup, and no cross-file state.
