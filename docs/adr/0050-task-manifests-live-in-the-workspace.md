@@ -12,10 +12,10 @@ A task manifest is created once, at `FHF/.harness/tasks/<key>.json`. Writes into
 
 ## Decision
 
-`taskRoot` resolves an E2E, Smoke, or backend checkout to the FHF workspace before any manifest or focus lookup.
+`taskRoot` in `scripts/harness/task-protocol-lib.mjs` is the only resolver. Hooks and the task CLI call it. Lane names come from `paths.lanes` and the setup file from `workspaceContract.setupFile`. It resolves a lane checkout to the FHF workspace before any manifest or focus lookup.
 
 1. A directory whose `.harness/lane.json` says `root` is the workspace.
-2. A directory whose lane is `e2e`, `smoke`, or `backend` uses `consumerRoot` from its `.harness/workspace.local.json` when that path exists and is not the lane itself.
+2. A directory whose lane is one of `paths.lanes` uses `consumerRoot` from that setup file when the path exists and is not the lane itself.
 3. Otherwise the parent of that lane is used when it is the root lane or already contains `.harness/tasks`.
 4. A directory that is not a lane checkout stays the task root, as before.
 

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
+import { loadHarnessConfig } from "./harness-config.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const candidates = [
@@ -58,57 +59,9 @@ export function humanApprovalBlock(manifest, config) {
   };
 }
 
-// One root for every task reader: the project the session opened, then the payload cwd.
-const LANE_CHECKOUTS = new Set(["e2e", "smoke", "backend"]);
-
-function readJson(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-function laneOf(dir) {
-  const lane = readJson(path.join(dir, ".harness", "lane.json"))?.lane;
-  return typeof lane === "string" ? lane : null;
-}
-
-function consumerRootOf(dir) {
-  const raw = readJson(path.join(dir, ".harness", "workspace.local.json"))?.consumerRoot;
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  const resolved = path.resolve(dir, raw.trim());
-  return fs.existsSync(resolved) ? resolved : null;
-}
-
-// Task manifests live in the FHF workspace (.harness/tasks), not in an E2E, Smoke, or
-// backend checkout. A write whose cwd is the lane still resolves that workspace.
-export function taskRoot(payload = {}, cwd = "") {
-  const start = path.resolve(
-    process.env.CLAUDE_PROJECT_DIR
-      ?? process.env.CURSOR_PROJECT_DIR
-      ?? payload?.cwd
-      ?? (cwd || process.cwd()),
-  );
-  let current = start;
-  let laneCheckout = null;
-  while (true) {
-    const lane = laneOf(current);
-    if (lane === "root") return current;
-    if (LANE_CHECKOUTS.has(lane)) {
-      laneCheckout = current;
-      const consumer = consumerRootOf(current);
-      if (consumer && path.resolve(consumer) !== path.resolve(current)) return consumer;
-    }
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-  if (laneCheckout) {
-    const parent = path.dirname(laneCheckout);
-    if (laneOf(parent) === "root" || fs.existsSync(path.join(parent, ".harness", "tasks"))) return parent;
-  }
-  return start;
+// One root for every task reader. Lane names come from the control plane when the caller omits config.
+export function taskRoot(payload = {}, cwd = "", config = null) {
+  return protocol.taskRoot(payload, cwd, config ?? loadHarnessConfig());
 }
 
 export function resolveActiveTask({ root, config, env = process.env, sessionId = null }) {

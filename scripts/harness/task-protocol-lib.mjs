@@ -836,6 +836,56 @@ function activeTaskPolicy(config) {
   return config?.engineering?.taskProtocol?.activeTask ?? {};
 }
 
+function readJsonFile(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// One resolver for hooks and the CLI. Lane names come from paths.lanes.
+// A lane checkout is not a second task home: the manifest stays in the FHF workspace.
+export function taskRoot(payload = {}, cwd = "", config = null) {
+  const lanes = new Set(Object.keys(config?.paths?.lanes ?? {}));
+  const setupFile = config?.workspaceContract?.setupFile ?? ".harness/workspace.local.json";
+  const start = path.resolve(
+    process.env.CLAUDE_PROJECT_DIR
+      ?? process.env.CURSOR_PROJECT_DIR
+      ?? payload?.cwd
+      ?? (cwd || process.cwd()),
+  );
+  const laneOf = (dir) => {
+    const lane = readJsonFile(path.join(dir, ".harness", "lane.json"))?.lane;
+    return typeof lane === "string" ? lane : null;
+  };
+  const consumerOf = (dir) => {
+    const raw = readJsonFile(path.join(dir, setupFile))?.consumerRoot;
+    if (typeof raw !== "string" || !raw.trim()) return null;
+    const resolved = path.resolve(dir, raw.trim());
+    return fs.existsSync(resolved) ? resolved : null;
+  };
+  let current = start;
+  let laneCheckout = null;
+  while (true) {
+    const lane = laneOf(current);
+    if (lane === "root") return current;
+    if (lanes.has(lane)) {
+      laneCheckout = current;
+      const consumer = consumerOf(current);
+      if (consumer && path.resolve(consumer) !== path.resolve(current)) return consumer;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  if (laneCheckout) {
+    const parent = path.dirname(laneCheckout);
+    if (laneOf(parent) === "root" || fs.existsSync(taskDirectory(parent, config))) return parent;
+  }
+  return start;
+}
+
 export function taskDirectory(root, config) {
   const pattern = config?.engineering?.taskProtocol?.manifestPath ?? ".harness/tasks/<task-id>.json";
   return path.resolve(root, path.dirname(pattern));

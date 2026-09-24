@@ -20,9 +20,9 @@ import {
   resolveTaskFromText,
   stampGate,
   validateTaskManifest,
+  taskRoot,
   writeTaskFocus,
 } from "./task-protocol-lib.mjs";
-import { taskRoot } from "../../.claude/hooks/lib/task-protocol.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -423,7 +423,7 @@ async function approveCommand(options) {
 }
 
 function taskRootDir() {
-  return taskRoot({}, process.cwd());
+  return taskRoot({}, process.cwd(), loadConfig());
 }
 
 // ADR-0043. The prompt router normally sets the focus; this is the human's manual override.
