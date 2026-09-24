@@ -1144,6 +1144,24 @@ expect("prompt-router injects one owner for documentation work",
 expect("prompt-router prioritizes test creation over generic documentation",
   run("prompt-router.mjs", { prompt: "write a new test and document the scenario" }),
   (r) => r.code === 0 && r.stdout.includes("[router:new-test]") && !r.stdout.includes("[router:documentation]"));
+const preMergeRoute = loadHarnessConfig().engineering?.context?.routes?.find((route) => route.id === "pre-merge");
+const cypressPreMerge = loadHarnessConfig().engineering?.context?.routes?.find((route) => route.id === "cypress-pre-merge");
+if (preMergeRoute?.invoke?.kind === "parent" && cypressPreMerge) {
+  expect("prompt-router keeps generic ready-to-merge in the parent",
+    run("prompt-router.mjs", { prompt: "is this ready to merge?" }),
+    (r) => r.code === 0 && r.stdout.includes("[router:pre-merge]") && r.stdout.includes("[router] invoke: stay in parent") && !r.stdout.includes("spawn agent cypress-gate"));
+  expect("prompt-router spawns cypress-gate only when the prompt names Cypress",
+    run("prompt-router.mjs", { prompt: "is this Cypress spec ready to merge?" }),
+    (r) => r.code === 0 && r.stdout.includes("[router:cypress-pre-merge]") && r.stdout.includes("spawn agent cypress-gate"));
+} else {
+  expect("ADR-0052 is pending and its apply script ships the change",
+    { code: 0, stdout: "", stderr: "" },
+    () => existsSync(path.join(HARNESS_ROOT, "docs", "adr", "0052-apply.mjs")));
+  expect("ADR-0052 pending: generic ready-to-merge still spawns cypress-gate",
+    run("prompt-router.mjs", { prompt: "is this ready to merge?" }),
+    (r) => r.code === 0 && r.stdout.includes("spawn agent cypress-gate"));
+}
+
 expect("prompt-router emits invoke for new-test",
   run("prompt-router.mjs", { prompt: "write a new cypress test" }),
   (r) => r.code === 0 && r.stdout.includes("[router] invoke: spawn agent cypress-generator"));
