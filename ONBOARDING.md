@@ -240,6 +240,29 @@ cursor .
 If `cursor` is not on `PATH`, set the variable, then open this folder in Cursor and start a new
 Agent chat. Production-artifact reads use the same three forms with `FHF_ALLOW_PROD_DATA`.
 
+## Inspecting a gate
+
+`config/qa-control-plane.json`, `.claude/settings.json` and `.claude/hooks/` refuse agent writes by
+default (ADR-0027). Looking at one is not a write. After `docs/adr/0051-apply.mjs` has run, the
+guard judges a command **step by step**, so these are allowed from any shell:
+
+| Shell | Example |
+|---|---|
+| POSIX | `cd <engine-clone> && ls .claude/hooks` |
+| POSIX | `rg protectedPaths config/qa-control-plane.json \| head -40` |
+| POSIX | `git log -- config/qa-control-plane.json` |
+| PowerShell | `Get-Content .claude/settings.json \| Select-String matcher` |
+| cmd.exe | `cd /d %CD% & type config\qa-control-plane.json` |
+
+A redirect, a backtick, a `$(…)` substitution or an interpreter (`sed -i`, `node -e`, `python -c`)
+is a write and stays refused. If a gate is genuinely wrong, the route is this ADR plus the apply
+script the owner runs with `FHF_ALLOW_HARNESS_EDIT=1`. Never ask an agent to set that for itself.
+
+`context-read-guard.mjs` refuses a whole-file read and tells a client that can send `limit` to do
+so. Cursor's read payload has no bounds field. Those clients are named in
+`engineering.context.readOutput.boundsUnsupportedClients`, where the guard advises instead of
+refusing.
+
 ## Staying current
 
 You never need another zip. In the engine clone:
