@@ -5,7 +5,8 @@
 | **Status** | Accepted |
 | **Date** | 2026-09-24 |
 | **Amends** | ADR-0027 (owner opt-in is a session environment variable), ADR-0045 (every shell tool is a shell) |
-| **Relates to** | `ONBOARDING.md`, `scripts/harness/doctor.mjs` |
+| **Relates to** | `ONBOARDING.md`, `scripts/harness/doctor.mjs`, `scripts/harness/test-hooks.mjs`, `protect-harness-governance.mjs`, `protect-prod-data.mjs`, `context-read-guard.mjs` |
+| **Applied by** | `docs/adr/0051-apply.mjs` (owner runs it with `FHF_ALLOW_HARNESS_EDIT=1`) |
 
 ## Context
 
@@ -30,12 +31,33 @@ The engine must not pick a house shell. Linux, macOS, and Windows members use th
    Then relaunch the agent from **that same** terminal (or set the variable on the Cloud Agent environment and start a new run). Chat text and an agent `export`/`set` cannot grant Edit/Write; only the process environment can (ADR-0027).
 4. **Doctor and gate copy name the variable, then the three assignment forms.** They do not print only the POSIX line.
 
+5. **Read intent is classified per step, in one control-plane vocabulary.**
+   `engineering.harness.shellInspection` names the chain operators, the tokens that
+   disqualify a command, the navigation commands, the POSIX/PowerShell/cmd readers,
+   the `git` read subcommands, and the metadata-only list `protect-prod-data.mjs` uses.
+   A command is an inspection when every step is one of those. One writing step denies
+   the whole command. `cd <root> && ls .claude/hooks`, `Set-Location x; Get-Content y`
+   and `cd /d x & type y` are therefore reads, not writes. `git log` / `show` / `diff`
+   / `status` / `blame` read; `git apply` / `checkout` / `restore` still write.
+
+6. **A client that cannot express a read bound is not a violation.**
+   `engineering.context.readOutput.boundsUnsupportedClients` names those clients
+   (`cursor` today). `context-read-guard.mjs` advises on stderr and allows the read.
+   A client that can send `limit` is gated as before.
+
+7. **The control plane and the three guards are protected paths.** They land through
+   `docs/adr/0051-apply.mjs`, which refuses unless the owner has already set
+   `FHF_ALLOW_HARNESS_EDIT=1` on the agent process. `--target <copy>` previews the
+   patch without the opt-in. The agent must not set the variable for itself.
+
 ## Consequences
 
 Windows cmd, PowerShell, Linux, and macOS follow the same setup. Cypress npm scripts may still require Git Bash as a *script-shell* on Windows; that is a Cypress/npm constraint, not the operator opt-in language.
 
 A cmd window already sitting in the engine clone runs `set FHF_ALLOW_HARNESS_EDIT=1` then `cursor .`. It does not `cd` to a POSIX placeholder and it does not run `export`.
 
+The apply script is the remaining half of this ADR: operator docs can land without the opt-in; the classifier, the two shell guards and the read guard cannot. Until it runs, `test-hooks.mjs` pins today's chained-inspection refusals and names them pending.
+
 ## What this does not decide
 
-It does not change `protectedPaths`, the opt-in variable names, or which tools the hooks match. It does not make cmd a Cypress test runner.
+It does not change `protectedPaths`, the opt-in variable names, or which tools the hooks match (ADR-0045 already covers Claude `Bash`/`PowerShell` and Cursor `Shell`). It does not make cmd a Cypress test runner. Cursor `Delete` as a write-matcher gap is a separate hook-topology change.
