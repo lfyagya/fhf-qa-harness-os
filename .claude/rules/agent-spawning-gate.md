@@ -17,7 +17,7 @@ Read `.claude/harness.config.json`:
 - engineering.harness.agents owns the Cypress and cross-layer agent roster.
 - `engineering.harness.forbiddenAgents` owns blocked and retired agent types.
 
-`general-purpose` and `explore` (Cursor aliases `generalPurpose` and `Explore`) may start. They stay inside the one active task from ADR-0043/0044: the hook states that scope and exits 0. Retired names in `forbiddenAgents` stay blocked. One specialist writer still applies (`cypress-generator` or `qa-automation-generator`). `cypress-gate` is on-demand (ADR-0052): spawn it when the change includes Cypress specs or Cypress config, or when the prompt names Cypress together with pre-merge. A generic “ready to merge” on engine, harness, or docs work stays in the parent — do not spawn it for a N/A verdict.
+`general-purpose` and `explore` (Cursor aliases `generalPurpose` and `Explore`) may start. They stay inside the one active task from ADR-0043/0044: the hook states that scope and exits 0. Retired names in `forbiddenAgents` stay blocked. One specialist writer still applies (`cypress-generator` or `qa-automation-generator`). `cypress-gate` is on-demand (ADR-0052): spawn it when the change includes Cypress specs or Cypress config, or when the prompt names Cypress together with pre-merge. A generic “ready to merge” on engine, harness, or docs work stays in the parent — do not spawn it for a N/A verdict. For engine configuration, run node scripts/harness/test-hooks.mjs, node scripts/harness/doctor.mjs --selftest, and node scripts/harness/verify-canonical.mjs and answer from those exits.
 
 A prompt hint is advisory; quoted keywords or harness/meta discussion do not force a route.
 

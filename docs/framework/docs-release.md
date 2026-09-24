@@ -24,7 +24,7 @@ Reader path for the spine itself: `ONBOARDING.md` → `CLAUDE.md` →
 | `docs/adr/0016-task-scoped-sdlc-protocol.md` | updated | Amendment pointers to ADR-0036 and ADR-0039. |
 | `docs/adr/0018-payload-remote-split.md` | updated | Open target-state closed by ADR-0035 — no new repository; this remote is home. |
 | `docs/adr/0051-shell-agnostic-operator-commands.md` | new | Operator commands, owner opt-in, and read-intent classification are the same in POSIX, PowerShell, and cmd. Protected files land through `0051-apply.mjs`. |
-| `docs/adr/0052-on-demand-lane-evaluators.md` | new | Generic pre-merge stays in the parent; spawn `cypress-gate` only when Cypress is in the prompt or the diff. |
+| `docs/adr/0052-on-demand-lane-evaluators.md` | new | Generic pre-merge stays in the parent; engine configuration runs verify-canonical; `cypress-gate` only when Cypress is in the prompt or the diff. |
 | `docs/framework/docs-release.md` | new | This note. |
 
 Every page above carries the `docs-2026-09-22` stamp.

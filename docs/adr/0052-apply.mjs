@@ -27,10 +27,19 @@ const PRE_MERGE_OLD = `          "id": "pre-merge",
 const PRE_MERGE_NEW = `          "id": "cypress-pre-merge",
           "priority": 108,
           "match": "(?=.*\\\\b(?:pre-?merge|ready to (?:commit|merge)|review before merge)\\\\b)(?=.*\\\\b(?:cypress|\\\\.cy\\\\.js|cypress-gate)\\\\b)",
-          "hint": "Cypress pre-merge → spawn cypress-gate because this prompt named Cypress. It reviews specs and must not merge. Engine, docs, or harness-only diffs stay on the generic pre-merge route.",
+          "hint": "Cypress pre-merge → spawn cypress-gate because this prompt named Cypress. It reviews specs and must not merge. Engine configuration uses engine-pre-merge, not this route.",
           "invoke": {
             "kind": "agent",
             "name": "cypress-gate"
+          }
+        },
+        {
+          "id": "engine-pre-merge",
+          "priority": 107,
+          "match": "(?=.*\\\\b(?:pre-?merge|ready to (?:commit|merge)|review before merge)\\\\b)(?=.*\\\\b(?:harness|engine|control[- ]plane|qa-control-plane|hooks?|ADR-00\\\\d{2}|verify-canonical)\\\\b)",
+          "hint": "Engine pre-merge → stay in parent and run engine verification: node scripts/harness/test-hooks.mjs, node scripts/harness/doctor.mjs --selftest, node scripts/harness/verify-canonical.mjs. Do not spawn cypress-gate. Merge-readiness is those exits, not a lane evaluator.",
+          "invoke": {
+            "kind": "parent"
           }
         },
         {
@@ -59,7 +68,7 @@ if (ROOT === SELF_ROOT && process.env.FHF_ALLOW_HARNESS_EDIT !== "1") {
 }
 
 const { text, eol } = readNormalized(CONFIG);
-if (text.includes('"id": "cypress-pre-merge"')) {
+if (text.includes('"id": "cypress-pre-merge"') && text.includes('"id": "engine-pre-merge"')) {
   console.log("control plane cypress-pre-merge: already applied");
 } else {
   if (!text.includes(PRE_MERGE_OLD)) throw new Error("control plane: pre-merge block not found");
@@ -71,6 +80,9 @@ if (text.includes('"id": "cypress-pre-merge"')) {
   }
   const generic = routes.find((route) => route.id === "pre-merge");
   if (generic?.invoke?.kind !== "parent") throw new Error("control plane: pre-merge invoke is not parent");
+  if (!routes.some((route) => route.id === "engine-pre-merge")) {
+    throw new Error("control plane: engine-pre-merge did not land");
+  }
   console.log("control plane pre-merge: patched");
 }
 
@@ -85,6 +97,15 @@ if (fs.existsSync(GOLDEN)) {
       prompt: "is this Cypress spec ready to merge?",
       expectedRoute: "cypress-pre-merge",
       expectedAgent: "cypress-gate",
+    });
+  }
+  if (!golden.cases.some((item) => item.id === "engine-pre-merge")) {
+    const index = golden.cases.findIndex((item) => item.id === "pre-merge");
+    golden.cases.splice(index + 1, 0, {
+      id: "engine-pre-merge",
+      prompt: "is this harness config ready to merge?",
+      expectedRoute: "engine-pre-merge",
+      expectedAgent: null,
     });
   }
   fs.writeFileSync(GOLDEN, `${JSON.stringify(golden, null, 2)}\n`);
