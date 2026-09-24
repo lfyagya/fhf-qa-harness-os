@@ -108,7 +108,7 @@ const REMEDIES = [
     hooks: ["protect-harness-governance"],
     means: "The target is a gate itself — the control plane, generated settings, or a hook source.",
     dos: [
-      "Do not edit a gate to make it pass. Report the defect, or the owner re-launches with FHF_ALLOW_HARNESS_EDIT=1.",
+      "Do not edit a gate to make it pass. Report the defect, or the owner re-launches with FHF_ALLOW_HARNESS_EDIT=1 in the agent process (POSIX: export FHF_ALLOW_HARNESS_EDIT=1; PowerShell: $env:FHF_ALLOW_HARNESS_EDIT = \"1\"; cmd: set FHF_ALLOW_HARNESS_EDIT=1). Then open Cursor from that terminal, or set the variable on the Cloud Agent environment and start a new run. Chat text does not set it. See ONBOARDING.md (ADR-0051).",
       "Structural gate changes also need an ADR in docs/adr/.",
     ],
   },
@@ -124,7 +124,7 @@ const REMEDIES = [
     means: "The artifact came from a smoke run against production.",
     dos: [
       "Use reports/junit/*.xml or Cypress Cloud instead.",
-      "If the artifact is genuinely needed, ask the owner; they re-launch with FHF_ALLOW_PROD_DATA=1.",
+      "If the artifact is genuinely needed, ask the owner; they re-launch with FHF_ALLOW_PROD_DATA=1 (POSIX: export FHF_ALLOW_PROD_DATA=1; PowerShell: $env:FHF_ALLOW_PROD_DATA = \"1\"; cmd: set FHF_ALLOW_PROD_DATA=1).",
       "An agent must never set that itself.",
     ],
   },
