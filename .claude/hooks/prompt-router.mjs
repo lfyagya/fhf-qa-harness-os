@@ -22,10 +22,13 @@ try {
   config = loadHarnessConfig();
   engineering = config.engineering;
 } catch (error) {
-  console.error("WORKSPACE BLOCKED: Harness configuration is unavailable or invalid.");
-  console.error(`- ${error.message}`);
-  console.error("Repair the canonical policy or regenerate the consumer projection, then run node .harness/verify.mjs change.");
-  process.exit(2);
+  const message = [
+    "WORKSPACE BLOCKED: Harness configuration is unavailable or invalid.",
+    `- ${error.message}`,
+    "Repair the canonical policy or regenerate the consumer projection, then run node .harness/verify.mjs change.",
+  ].join("\n");
+  emitContext(payload, "UserPromptSubmit", message);
+  process.exit(0);
 }
 const { context, memory } = engineering;
 const overlay = config.runtimeOverlay;
@@ -33,13 +36,7 @@ const cwd = payload.cwd ?? process.env.CLAUDE_CWD ?? process.cwd();
 const lane = detectLane(cwd);
 const workspace = workspacePreflight({ root: cwd, config });
 if (!workspace.ready) {
-  const setupPrompt = /(?:workspace|harness)\s+setup|\.harness[\\/]setup\.mjs|\.harness[\\/]verify\.mjs/i.test(prompt);
-  if (!setupPrompt) {
-    console.error(formatWorkspacePreflight(workspace, config));
-    process.exit(2);
-  }
-  emitContext(payload, "UserPromptSubmit", formatWorkspacePreflight(workspace, config));
-  process.exit(0);
+  lines.push(formatWorkspacePreflight(workspace, config));
 }
 const ticket = ticketKeyFromPrompt(payload.prompt ?? "", config);
 if (ticket) {
@@ -47,14 +44,12 @@ if (ticket) {
   try {
     access = capabilityStatus({ id: "jira-ticket-read", subject: ticket, root: cwd, config });
   } catch (error) {
-    console.error("JIRA ACCESS REQUIRED");
-    console.error(`- ${error.message}`);
-    process.exit(2);
+    lines.push(`JIRA ACCESS REQUIRED\n- ${error.message}\nAsk the owner in this turn, then continue. Do not invent ticket contents.`);
   }
   // Cursor fail-closes UserPromptSubmit on exit 2 and shows only Retry. That
   // overlay cannot collect OAuth. Inject the ask into the turn instead.
-  lines.push(formatCapabilityStatus(access));
-  if (access.exitCode !== 0) {
+  if (access) lines.push(formatCapabilityStatus(access));
+  if (access && access.exitCode !== 0) {
     const ask = access.ownerAction
       ? `Ask the owner in this turn to authenticate, authorize, or choose a declared fallback.`
       : `Use the active connector to authenticate if needed, then complete the live probe.`;

@@ -888,23 +888,23 @@ expect("prompt-router rejects an overlay that changes topology",
     FHF_HARNESS_CONFIG: customConfigPath,
     FHF_HARNESS_OVERLAY: JSON.stringify({ version: 1, harness: { agents: [] } }),
   }),
-  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED") && r.stderr.includes("section is not allowed"));
-expect("prompt-router blocks malformed harness config with repair guidance",
+  (r) => r.code === 0 && r.stdout.includes("WORKSPACE BLOCKED") && r.stdout.includes("section is not allowed"));
+expect("prompt-router surfaces malformed harness config without blocking the prompt",
   run("prompt-router.mjs", { prompt: "ordinary prompt" }, {
     FHF_HARNESS_CONFIG: invalidConfigPath,
   }),
-  (r) => r.code === 2 && r.stderr.includes("Harness configuration is unavailable or invalid") && r.stderr.includes("Harness config is invalid"));
+  (r) => r.code === 0 && r.stdout.includes("Harness configuration is unavailable or invalid") && r.stdout.includes("Harness config is invalid"));
 expect("prompt-router asks for Jira OAuth without blocking the turn",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "false", CLAUDE_CWD: tmp }),
   (r) => r.code === 0 && r.stdout.includes("CAPABILITY BLOCKED") && r.stdout.includes("OAuth") && r.stdout.includes("sanitized ticket export") && r.stdout.includes("Ask the owner") && !r.stderr.includes("CAPABILITY BLOCKED"));
 expect("prompt-router asks for a live ticket read without blocking the turn",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "true", CLAUDE_CWD: tmp }),
   (r) => r.code === 0 && r.stdout.includes("no observed probe result") && r.stdout.includes("authenticate if needed") && r.stdout.includes("ticket contents remain outside runtime state") && !r.stderr.includes("CAPABILITY BLOCKED"));
-expect("prompt-router blocks an unconfigured Smoke workspace",
+expect("prompt-router surfaces an unconfigured Smoke workspace without blocking the prompt",
   run("prompt-router.mjs", { cwd: smokeRoot, prompt: "write a new smoke test" }, {
     FHF_HARNESS_CONFIG: smokeConfigPath,
   }),
-  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED"));
+  (r) => r.code === 0 && r.stdout.includes("WORKSPACE BLOCKED"));
 expect("prompt-router exposes setup guidance for a setup prompt",
   run("prompt-router.mjs", { cwd: smokeRoot, prompt: "run the workspace setup" }, {
     FHF_HARNESS_CONFIG: smokeConfigPath,
