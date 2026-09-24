@@ -58,6 +58,30 @@ A cmd window already sitting in the engine clone runs `set FHF_ALLOW_HARNESS_EDI
 
 The apply script is the remaining half of this ADR: operator docs can land without the opt-in; the classifier, the two shell guards and the read guard cannot. Until it runs, `test-hooks.mjs` pins today's chained-inspection refusals and names them pending.
 
+## Evidence
+
+Session 2026-09-24, Cursor Cloud Agent on this branch, both guards driven directly with client
+payloads (`/opt/cursor/artifacts/adr-0051-read-guard-repro.log`). Before, against the engine clone;
+after, against a `--target` copy.
+
+| Case | Before | After |
+|---|---|---|
+| Claude `Read`, `limit: 80` | allow | allow |
+| Claude `Read`, no limit | block | block |
+| Cursor `Read`, agent asked for `limit: 80` | **block** | allow, advice on stderr |
+| Cursor pre-edit read of a file that does not exist yet | **block** | allow, advice on stderr |
+| `cd <root> && stat <gate>` | **block** | allow |
+| `cd <root> && git log -- <gate>` | **block** | allow |
+| `type <gate>` (cmd) | **block** | allow |
+| `cd <root> && echo x > <gate>` | block | block |
+| `cat <gate> && rm <gate>` | block | block |
+
+The pre-edit case has the widest blast radius: Cursor reads a file before its own edit tools, so an
+unpatched session cannot create a new file at any size, and cannot edit an existing file over
+`unboundedReadMaxBytes` - including files the harness does not protect. The refusal prints "use
+`limit`", advice the client has no field to follow. `test-hooks.mjs` (259 assertions) and
+`check-hook-order.mjs` both pass on the patched copy.
+
 ## What this does not decide
 
 It does not change `protectedPaths`, the opt-in variable names, or which tools the hooks match (ADR-0045 already covers Claude `Bash`/`PowerShell` and Cursor `Shell`). It does not make cmd a Cypress test runner. Cursor `Delete` as a write-matcher gap is a separate hook-topology change.
