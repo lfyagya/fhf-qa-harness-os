@@ -73,12 +73,12 @@ restate the sequence. Cypress, Smoke, API, Oracle, and third-party flows require
 evidence; they cannot claim RED/GREEN from a synthetic Git replay. Stubbed external proof cannot
 complete a `same` or `accepted` row. A classified `defect` blocks verified/complete.
 
-Every prompt is a task (ADR-0044). A prompt that names no SERV ticket is a quick task: one owner
+Every prompt is a task (ADR-0044). A prompt that names no FirstHelp ticket (SERV, GEARS, LOS, or SDX) is a quick task: one owner
 confirm, then it writes inside the lane's allowed roots and runs only its own test files. To work
 under a full task, name the ticket (or, for a local task, its title); the router selects its
 manifest under `.harness/tasks/` (ADR-0043). A full task whose paths or branch match the target is
 named in the quick-task confirm as a suggestion, never selected silently. Only with no instruction
-on record at all does the guard ask for the SERV key, the manifest file, or a keyword.
+on record at all does the guard ask for the FirstHelp key (SERV, GEARS, LOS, or SDX), the manifest file, or a keyword.
 FHF_ACTIVE_TASK is an override.
 File hooks allow only fhf-backend-automation paths selected by both grounding.repositories and
 plan.changeUnits. Shell hooks allow only the exact backend-api-oracle pytest path selected in

@@ -3,6 +3,12 @@
   "atlassian": {
     "siteUrl": "https://firsthelpfinancial.atlassian.net",
     "projectKey": "SERV",
+    "projectKeys": [
+      { "key": "SERV", "name": "Services Team Scrum" },
+      { "key": "GEARS", "name": "GEARS: SharedTech" },
+      { "key": "LOS", "name": "Loan Team Scrum" },
+      { "key": "SDX", "name": "Spark Dealer Experience" }
+    ],
     "serviceApp": "Callcenter",
     "currentSprintJql": "project = SERV AND sprint in openSprints() ORDER BY updated DESC",
     "confluenceSpaces": [
@@ -2686,6 +2692,7 @@
             "fhf-serv-template"
           ],
           "workingDirectory": "<selected-repository-or-package-root>",
+          "interpreters": ["python3", "python", "py"],
           "command": "python -m pytest <selected-test-path>",
           "testKinds": [
             "unit",
@@ -3349,7 +3356,7 @@
       "factExtractors": [
         {
           "name": "ticket-ids",
-          "match": "\\bSERV-\\d+\\b",
+          "match": "\\b(?:GEARS|SERV|SDX|LOS)-\\d+\\b",
           "flags": "gi"
         },
         {
@@ -3547,6 +3554,10 @@
       "laneLocalPaths": [],
       "laneLocalPathsNote": "Repo-relative paths (file or directory) a lane owns and canonical does not. sync-loader-shims never deletes these, including under --force. Prefer promoting shared infrastructure to canonical; use this only for genuinely lane-specific files inside a synced directory.",
       "boundaries": {
+        "secondBrain": {
+          "vaultDirectory": "claude-obsidian",
+          "scaffoldDirectories": ["wiki", ".raw"]
+        },
         "applicationSource": {
           "mode": "read-only",
           "pathPatterns": [
@@ -3827,9 +3838,11 @@
         "general-purpose",
         "explore"
       ],
+      "agentTypeAliases": {
+        "general-purpose": ["generalPurpose"],
+        "explore": ["Explore"]
+      },
       "forbiddenAgents": [
-        "general-purpose",
-        "explore",
         "documentation-writer",
         "test-execution-planner",
         "cypress-bug-hunter",

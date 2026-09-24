@@ -41,11 +41,17 @@ for node in ast.walk(tree):
 print(json.dumps(issues))
 `;
 
-function pythonCheck(source) {
-  const commands = [
-    ["python", ["-c", PYTHON_CHECK]],
-    ["py", ["-3", "-c", PYTHON_CHECK]],
-  ];
+function pythonCommands(config) {
+  const listed = config?.engineering?.executionRunners?.runners?.["python-service-test"]?.interpreters;
+  const names = Array.isArray(listed) && listed.length ? listed : ["python3", "python", "py"];
+  return names.map((name) => {
+    const command = String(name);
+    return command === "py" ? [command, ["-3", "-c", PYTHON_CHECK]] : [command, ["-c", PYTHON_CHECK]];
+  });
+}
+
+function pythonCheck(source, config) {
+  const commands = pythonCommands(config);
   for (const [command, args] of commands) {
     const result = spawnSync(command, args, { input: source, encoding: "utf8", timeout: 10000 });
     if (result.error?.code === "ENOENT") continue;
@@ -96,7 +102,7 @@ const absolute = candidate && existsSync(candidate)
   ? candidate
   : null;
 const source = absolute ? readFileSync(absolute, "utf8") : hookContent(payload);
-const parsed = pythonCheck(source);
+const parsed = pythonCheck(source, config);
 if (!parsed.ok) {
   console.error(parsed.issues.join("\n"));
   process.exit(2);

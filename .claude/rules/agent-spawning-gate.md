@@ -17,6 +17,8 @@ Read `.claude/harness.config.json`:
 - engineering.harness.agents owns the Cypress and cross-layer agent roster.
 - `engineering.harness.forbiddenAgents` owns blocked and retired agent types.
 
+`general-purpose` and `explore` (Cursor aliases `generalPurpose` and `Explore`) may start. They stay inside the one active task from ADR-0043/0044: the hook states that scope and exits 0. Retired names in `forbiddenAgents` stay blocked. One specialist writer still applies (`cypress-generator` or `qa-automation-generator`).
+
 A prompt hint is advisory; quoted keywords or harness/meta discussion do not force a route.
 
 Order:

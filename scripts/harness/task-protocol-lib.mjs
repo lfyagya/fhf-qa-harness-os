@@ -294,8 +294,8 @@ export function validateIntentVsBuilt(manifest, { allowAskProduct = false } = {}
     if (row.classification === "accepted" && (typeof row.acceptedBy !== "string" || !row.acceptedBy.trim())) {
       issues.push(`${label} accepted rows must record acceptedBy`);
     }
-    if (row.classification === "parked" && !/^SERV-\d+$/.test(row.parkedOn ?? "")) {
-      issues.push(`${label} parked rows must name parkedOn SERV ticket`);
+    if (row.classification === "parked" && !isAcceptedTicket(row.parkedOn)) {
+      issues.push(`${label} parked rows must name parkedOn FirstHelp ticket`);
     }
     if (!allowAskProduct && row.classification === "ask-product") {
       issues.push(`${label} ask-product rows block planning until product classifies the delta`);
@@ -805,15 +805,46 @@ export function isLocalTask(manifest) {
   return manifest?.ticketFamily?.source === "local";
 }
 
-export function taskIdentityIssues(manifest) {
+export const DEFAULT_PROJECT_KEYS = Object.freeze(["SERV", "GEARS", "LOS", "SDX"]);
+
+export function listedProjectKeys(projectKeys) {
+  const source = Array.isArray(projectKeys) && projectKeys.length ? projectKeys : DEFAULT_PROJECT_KEYS;
+  const keys = source
+    .map((item) => String(item?.key ?? item ?? "").trim().toUpperCase())
+    .filter((key) => /^[A-Z][A-Z0-9]+$/.test(key));
+  return keys.length ? keys : [...DEFAULT_PROJECT_KEYS];
+}
+
+export function normalizeProjectKeys(projectKeys) {
+  return [...new Set(listedProjectKeys(projectKeys))].sort((a, b) => b.length - a.length || a.localeCompare(b));
+}
+
+export function projectKeysFromConfig(config) {
+  return normalizeProjectKeys(config?.atlassian?.projectKeys);
+}
+
+export function ticketScanPattern(projectKeys = DEFAULT_PROJECT_KEYS) {
+  return new RegExp(`\\b(?:${normalizeProjectKeys(projectKeys).join("|")})-\\d+\\b`, "i");
+}
+
+export function isAcceptedTicket(value, projectKeys = DEFAULT_PROJECT_KEYS) {
+  return new RegExp(`^(?:${normalizeProjectKeys(projectKeys).join("|")})-\\d+$`, "i").test(String(value ?? "").trim());
+}
+
+export function ticketKeyFromValue(value, projectKeys = DEFAULT_PROJECT_KEYS) {
+  const match = String(value ?? "").match(new RegExp(`\\b((?:${normalizeProjectKeys(projectKeys).join("|")})-\\d+)\\b`, "i"));
+  return match ? match[1].toUpperCase() : null;
+}
+
+export function taskIdentityIssues(manifest, projectKeys = DEFAULT_PROJECT_KEYS) {
   if (isLocalTask(manifest)) {
     return typeof manifest.title === "string" && manifest.title.trim()
       ? []
       : ["a local task (ticketFamily.source=local) must record a title"];
   }
-  return /^SERV-\d+$/.test(manifest?.ticketFamily?.primary ?? "")
+  return isAcceptedTicket(manifest?.ticketFamily?.primary, projectKeys)
     ? []
-    : ["ticketFamily.primary must be a SERV ticket"];
+    : ["ticketFamily.primary must be a FirstHelp ticket (SERV, GEARS, LOS, or SDX)"];
 }
 
 export function taskSlug(title) {
@@ -826,7 +857,6 @@ export function taskSlug(title) {
 
 // ADR-0043. Which manifest is active is resolved from the work, not exported per shell.
 // Order: the explicit env override, then the focus the prompt router recorded.
-const TASK_KEY = /\bSERV-\d+\b/i;
 const TERMINAL_STAGES = new Set(["complete", "blocked"]);
 const STOP_TERMS = new Set(
   "the and for with from into this that are was were has have not but its our your their via add fix use make update task".split(" "),
@@ -973,7 +1003,7 @@ export function resolveTaskFromText({ root, config, text, lenient = false }) {
   const named = (value.match(/[\w.-]+\.json\b/gi) ?? []).map((name) => name.toLowerCase());
   const byFile = entries.filter((entry) => named.includes(path.basename(entry.file).toLowerCase()));
   if (byFile.length === 1) return { kind: "file", match: byFile[0], candidates: byFile };
-  const key = value.match(TASK_KEY)?.[0]?.toUpperCase();
+  const key = ticketKeyFromValue(value, projectKeysFromConfig(config));
   if (key) {
     return { kind: "jira", key, ...matchByTicket(entries, key), suggestedPath: canonicalTaskPath(root, config, { ticket: key }) };
   }
@@ -997,7 +1027,7 @@ export function taskQuestion({ root, config, searched = [], key = null }) {
     `TASK NEEDED: no task manifest selects this automation work${key ? ` (${key} has no manifest yet)` : ""}.`,
     `Searched: ${searched.length ? searched.join("; ") : "prompt focus"}.`,
     "Ask the owner in this turn, as one question with these options. Do not guess, create, or switch a task yourself:",
-    "  1. Jira task: reply with the SERV key (e.g. SERV-12669).",
+    "  1. Jira task: reply with the FirstHelp key (SERV, GEARS, LOS, or SDX; e.g. SERV-12669).",
     `  2. Existing manifest: reply with its file name${open.length ? ` (open: ${open.join(", ")})` : ""}.`,
     "  3. Not in Jira: reply with a keyword or the task title; it is matched to manifest titles, or named",
     "     .harness/tasks/<title-slug>.json to create.",
@@ -1060,7 +1090,7 @@ export function resolveActiveTask({ root, config, env = process.env, sessionId =
   return { source: null, envName, file: null, focus };
 }
 
-// ADR-0044. Every prompt is a task. A prompt that names no SERV ticket is a quick task: its
+// ADR-0044/0049. Every prompt is a task. A prompt that names no FirstHelp ticket is a quick task: its
 // intent is the prompt, it needs one owner confirm, and it carries no Jira grounding or gates.
 const AFFIRMATIVE = /^\s*(?:y|yes|yep|yeah|ok|okay|sure|confirm(?:ed)?|approve(?:d)?|go(?: ahead)?|proceed|do it|lgtm)\b/i;
 const NEGATIVE = /^\s*(?:n|no|nope|cancel|stop|don't|do not)\b/i;

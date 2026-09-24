@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { ticketKeyFromValue } from "./task-protocol-lib.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -30,7 +31,7 @@ function routeFromOutput(stdout) {
 }
 
 function runRouter(prompt, env = {}) {
-  const ticket = String(prompt).match(/\b(SERV-\d+)\b/i)?.[1]?.toUpperCase();
+  const ticket = ticketKeyFromValue(prompt);
   if (ticket) {
     // A ticket key trips the jira-ticket-read capability gate, which would block before any
     // route hint is emitted. Record an observed read through the harness's own writer rather

@@ -2,6 +2,7 @@
 // UserPromptSubmit — tool-neutral router engine with runtime-specific output.
 // Replaces: session-topic-guard.mjs, prompt-duplication-guard.mjs, model-routing-guard.mjs.
 import { readFileSync } from 'fs';
+import path from 'node:path';
 import { execSync } from 'child_process';
 import { loadHarnessConfig, detectLane } from './lib/harness-config.mjs';
 import { emitContext, emitEmpty } from './lib/hook-runtime.mjs';
@@ -9,7 +10,7 @@ import { extractFacts, isExternalBackendWorkspace, mergeHandoff } from './lib/me
 import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
 import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
 import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
-import { formatTaskGateContext, inspectActiveTaskGates, routeTaskFocus, taskRoot } from './lib/task-protocol.mjs';
+import { canonicalTaskPath, formatTaskGateContext, inspectActiveTaskGates, routeTaskFocus, taskRoot } from './lib/task-protocol.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -22,10 +23,13 @@ try {
   config = loadHarnessConfig();
   engineering = config.engineering;
 } catch (error) {
-  console.error("WORKSPACE BLOCKED: Harness configuration is unavailable or invalid.");
-  console.error(`- ${error.message}`);
-  console.error("Repair the canonical policy or regenerate the consumer projection, then run node .harness/verify.mjs change.");
-  process.exit(2);
+  const message = [
+    "WORKSPACE BLOCKED: Harness configuration is unavailable or invalid.",
+    `- ${error.message}`,
+    "Repair the canonical policy or regenerate the consumer projection, then run node .harness/verify.mjs change.",
+  ].join("\n");
+  emitContext(payload, "UserPromptSubmit", message);
+  process.exit(0);
 }
 const { context, memory } = engineering;
 const overlay = config.runtimeOverlay;
@@ -33,32 +37,31 @@ const cwd = payload.cwd ?? process.env.CLAUDE_CWD ?? process.cwd();
 const lane = detectLane(cwd);
 const workspace = workspacePreflight({ root: cwd, config });
 if (!workspace.ready) {
-  const setupPrompt = /(?:workspace|harness)\s+setup|\.harness[\\/]setup\.mjs|\.harness[\\/]verify\.mjs/i.test(prompt);
-  if (!setupPrompt) {
-    console.error(formatWorkspacePreflight(workspace, config));
-    process.exit(2);
-  }
-  emitContext(payload, "UserPromptSubmit", formatWorkspacePreflight(workspace, config));
-  process.exit(0);
+  lines.push(formatWorkspacePreflight(workspace, config));
 }
-const ticket = ticketKeyFromPrompt(payload.prompt ?? "");
+const ticket = ticketKeyFromPrompt(payload.prompt ?? "", config);
 if (ticket) {
   let access;
   try {
     access = capabilityStatus({ id: "jira-ticket-read", subject: ticket, root: cwd, config });
   } catch (error) {
-    console.error("JIRA ACCESS REQUIRED");
-    console.error(`- ${error.message}`);
-    process.exit(2);
+    lines.push(`JIRA ACCESS REQUIRED\n- ${error.message}\nAsk the owner in this turn, then continue. Do not invent ticket contents.`);
   }
   // Cursor fail-closes UserPromptSubmit on exit 2 and shows only Retry. That
   // overlay cannot collect OAuth. Inject the ask into the turn instead.
-  lines.push(formatCapabilityStatus(access));
-  if (access.exitCode !== 0) {
-    const ask = access.ownerAction
-      ? `Ask the owner in this turn to authenticate, authorize, or choose a declared fallback.`
-      : `Use the active connector to authenticate if needed, then complete the live probe.`;
-    lines.push(`[jira] ${ticket} is not ready (${access.status}). ${ask} Do not invent ticket contents or pick a fallback unprompted.`);
+  const gather = access && (access.status === "live-probe-required" || access.status === "retry-required");
+  if (gather) {
+    const root = taskRoot(payload);
+    const file = path.relative(root, canonicalTaskPath(root, config, { ticket })).replaceAll("\\", "/");
+    lines.push(`[jira] ${ticket}: the Atlassian connector is connected. Read the ticket, record it on ${file}, and continue the main goal.`);
+  } else if (access) {
+    lines.push(formatCapabilityStatus(access));
+    if (access.exitCode !== 0) {
+      const ask = access.ownerAction
+        ? `Ask the owner in this turn to authenticate, authorize, or choose a declared fallback.`
+        : `Use the active connector to authenticate if needed, then complete the live probe.`;
+      lines.push(`[jira] ${ticket} is not ready (${access.status}). ${ask} Do not invent ticket contents or pick a fallback unprompted.`);
+    }
   }
 }
 const isExternalBackend = isExternalBackendWorkspace({ cwd });

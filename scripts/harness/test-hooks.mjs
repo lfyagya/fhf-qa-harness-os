@@ -434,10 +434,10 @@ expect("protect-automation-scope blocks backend writes without an active task",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
 expect("protect-automation-scope blocks e2e Cypress writes without an active task",
   run("protect-automation-scope.mjs", { cwd: e2eRoot, tool_input: { file_path: e2eSpecPath } }, workspaceEnv),
-  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*FirstHelp key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
 expect("protect-automation-scope blocks smoke Cypress writes without an active task",
   run("protect-automation-scope.mjs", { cwd: smokeLaneRoot, tool_input: { file_path: smokeLaneSpecPath } }, workspaceEnv),
-  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*FirstHelp key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
@@ -733,7 +733,7 @@ expect("manual-task-guard allows the exact selected backend pytest path",
   });
   expect("smoke cy:run:smoke still matches module colon suffixes",
     { code: smokeColon.allowed ? 0 : 2, stdout: "", stderr: smokeColon.reason ?? "" },
-    (result) => /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(result.stderr));
+    (result) => /TASK NEEDED[\s\S]*FirstHelp key[\s\S]*manifest[\s\S]*keyword/.test(result.stderr));
 }
 expect("manual-task-guard blocks a broader backend pytest selection",
   run("manual-task-guard.mjs", {
@@ -851,18 +851,25 @@ expect("manual-task-guard consumes central Cloud CLI credential policy",
   }), 2);
 expect("manual-task-guard allows git status",
   run("manual-task-guard.mjs", { tool_input: { command: "git status" } }), 0);
-expect("block-generic-agents blocks general-purpose",
-  run("block-generic-agents.mjs", { tool_input: { subagent_type: "general-purpose" } }), 2);
+expect("block-generic-agents allows general-purpose inside the task",
+  run("block-generic-agents.mjs", { tool_input: { subagent_type: "general-purpose" } }),
+  (r) => r.code === 0 && r.stderr.includes("TASK SCOPE") && r.stdout.includes("permissionDecision"));
+expect("block-generic-agents maps generalPurpose and Explore",
+  run("block-generic-agents.mjs", { tool_input: { subagentType: "generalPurpose" } }),
+  (r) => r.code === 0 && r.stderr.includes("TASK SCOPE"));
+expect("block-generic-agents allows explore",
+  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "Explore" }),
+  (r) => r.code === 0 && r.stderr.includes("TASK SCOPE") && !r.stderr.includes("BLOCKED"));
 expect("block-generic-agents allows cypress-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-generator" } }), 0);
 expect("block-generic-agents allows qa-automation-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "qa-automation-generator" } }), 0);
 expect("block-generic-agents blocks retired agent names",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-runner" } }), 2);
-expect("block-generic-agents denies a Cursor-matched subagent",
-  run("block-generic-agents.mjs", {}, {}, ["--deny-matched-subagent"]), 2);
-expect("block-generic-agents warns (not BLOCKED) on a forbidden agent_type via SubagentStart",
-  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "general-purpose" }),
+expect("block-generic-agents ignores a bare deny-matched flag",
+  run("block-generic-agents.mjs", {}, {}, ["--deny-matched-subagent"]), 0);
+expect("block-generic-agents warns (not BLOCKED) on a retired agent_type via SubagentStart",
+  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "cypress-runner" }),
   (r) => r.code === 2 && r.stderr.includes("WARNING") && !r.stderr.includes("BLOCKED"));
 expect("block-generic-agents allows an approved agent_type via SubagentStart",
   run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "cypress-generator" }), 0);
@@ -881,23 +888,23 @@ expect("prompt-router rejects an overlay that changes topology",
     FHF_HARNESS_CONFIG: customConfigPath,
     FHF_HARNESS_OVERLAY: JSON.stringify({ version: 1, harness: { agents: [] } }),
   }),
-  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED") && r.stderr.includes("section is not allowed"));
-expect("prompt-router blocks malformed harness config with repair guidance",
+  (r) => r.code === 0 && r.stdout.includes("WORKSPACE BLOCKED") && r.stdout.includes("section is not allowed"));
+expect("prompt-router surfaces malformed harness config without blocking the prompt",
   run("prompt-router.mjs", { prompt: "ordinary prompt" }, {
     FHF_HARNESS_CONFIG: invalidConfigPath,
   }),
-  (r) => r.code === 2 && r.stderr.includes("Harness configuration is unavailable or invalid") && r.stderr.includes("Harness config is invalid"));
+  (r) => r.code === 0 && r.stdout.includes("Harness configuration is unavailable or invalid") && r.stdout.includes("Harness config is invalid"));
 expect("prompt-router asks for Jira OAuth without blocking the turn",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "false", CLAUDE_CWD: tmp }),
   (r) => r.code === 0 && r.stdout.includes("CAPABILITY BLOCKED") && r.stdout.includes("OAuth") && r.stdout.includes("sanitized ticket export") && r.stdout.includes("Ask the owner") && !r.stderr.includes("CAPABILITY BLOCKED"));
-expect("prompt-router asks for a live ticket read without blocking the turn",
+expect("prompt-router gathers a connected Jira ticket onto its task file",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "true", CLAUDE_CWD: tmp }),
-  (r) => r.code === 0 && r.stdout.includes("no observed probe result") && r.stdout.includes("authenticate if needed") && r.stdout.includes("ticket contents remain outside runtime state") && !r.stderr.includes("CAPABILITY BLOCKED"));
-expect("prompt-router blocks an unconfigured Smoke workspace",
+  (r) => r.code === 0 && r.stdout.includes("connector is connected") && r.stdout.includes("SERV-11887.json") && r.stdout.includes("continue the main goal") && !r.stdout.includes("CAPABILITY BLOCKED"));
+expect("prompt-router surfaces an unconfigured Smoke workspace without blocking the prompt",
   run("prompt-router.mjs", { cwd: smokeRoot, prompt: "write a new smoke test" }, {
     FHF_HARNESS_CONFIG: smokeConfigPath,
   }),
-  (r) => r.code === 2 && r.stderr.includes("WORKSPACE BLOCKED"));
+  (r) => r.code === 0 && r.stdout.includes("WORKSPACE BLOCKED"));
 expect("prompt-router exposes setup guidance for a setup prompt",
   run("prompt-router.mjs", { cwd: smokeRoot, prompt: "run the workspace setup" }, {
     FHF_HARNESS_CONFIG: smokeConfigPath,

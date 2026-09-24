@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { workspaceConnectorDeclarations } from "./workspace-contract.mjs";
 import { capabilityStatus, formatCapabilityStatus, recordCapabilityOutcome } from "./capability-control.mjs";
+import { projectKeysFromConfig, ticketKeyFromValue } from "./task-protocol.mjs";
 
-export function ticketKeyFromPrompt(value = "") {
-  const match = String(value).match(/\b(SERV-\d+)\b/i);
-  return match?.[1].toUpperCase() ?? null;
+export function ticketKeyFromPrompt(value = "", config) {
+  return ticketKeyFromValue(value, config ? projectKeysFromConfig(config) : undefined);
 }
 
 function ticketPolicy(config) {
@@ -84,8 +84,8 @@ function outcomeDecision({ policy, ticket, state, declared }) {
 }
 
 export function recordJiraTicketAccessOutcome({ ticket, root, config, outcome } = {}) {
-  const key = ticketKeyFromPrompt(ticket);
-  if (!key) throw new Error("A Jira ticket key such as SERV-11887 is required");
+  const key = ticketKeyFromPrompt(ticket, config);
+  if (!key) throw new Error("A Jira ticket key such as SERV-11887, GEARS-1, LOS-1, or SDX-1 is required");
   const mapped = {
     readable: "ready",
     "sanitized-export-provided": "fallback-ready",
@@ -111,8 +111,8 @@ export function recordJiraTicketAccessOutcome({ ticket, root, config, outcome } 
 }
 
 export function jiraTicketAccess({ ticket, root, config } = {}) {
-  const key = ticketKeyFromPrompt(ticket);
-  if (!key) throw new Error("A Jira ticket key such as SERV-11887 is required");
+  const key = ticketKeyFromPrompt(ticket, config);
+  if (!key) throw new Error("A Jira ticket key such as SERV-11887, GEARS-1, LOS-1, or SDX-1 is required");
   if (config?.engineering?.capabilityControl) {
     const result = capabilityStatus({ id: "jira-ticket-read", subject: key, root, config });
     return { ...result, ticket: key, connector: "atlassianMcp", status: result.status === "ready" ? "ready-to-ground" : result.status };

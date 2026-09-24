@@ -42,7 +42,7 @@ const REMEDIES = [
     hooks: ["protect-automation-scope", "validate-backend-automation", "manual-task-guard"],
     means: "Automation work is task-scoped. The harness searched (prompt focus, the path or test, the branch) and found no manifest, so it asks (ADR-0043).",
     dos: [
-      "Answer the question: a SERV key, an existing manifest file name, or a keyword/title for non-Jira work.",
+      "Answer the question: a FirstHelp key (SERV, GEARS, LOS, or SDX), an existing manifest file name, or a keyword/title for non-Jira work.",
       "node .harness/task-protocol.mjs list            # which manifests exist, which is active",
       "node .harness/task-protocol.mjs path --ticket SERV-n   # where a missing manifest belongs",
     ],

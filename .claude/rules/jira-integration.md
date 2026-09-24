@@ -11,8 +11,7 @@ reference, the Jira instance is the source of truth.
 
 ## Scope
 
-Project: **SERV** ("Services Team Scrum") — the only project this harness's tickets belong to
-(confirmed via every `SERV-XXXXX` reference across generator/gate/shipper). Issue types relevant
+Full-task keys (ADR-0049): **SERV** ("Services Team Scrum"), **GEARS** ("GEARS: SharedTech"), **LOS** ("Loan Team Scrum"), and **SDX** ("Spark Dealer Experience"). `atlassian.projectKey` and the services sprint stay **SERV**. The field guide below is the SERV scheme. NLOS is not LOS. There is no SPARK key. Issue types relevant
 to QA automation work: **Bug**, **Task**, **Sub-task**. This harness never touches any of the
 other 52 projects in this Jira instance.
 
