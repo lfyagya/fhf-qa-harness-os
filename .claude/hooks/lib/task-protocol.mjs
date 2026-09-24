@@ -17,6 +17,9 @@ const protocol = await import(pathToFileURL(selected).href);
 export const firstPendingGate = protocol.firstPendingGate;
 export const nextStep = protocol.nextStep;
 export const isLocalTask = protocol.isLocalTask;
+export const isAcceptedTicket = protocol.isAcceptedTicket;
+export const ticketKeyFromValue = protocol.ticketKeyFromValue;
+export const projectKeysFromConfig = protocol.projectKeysFromConfig;
 export const listTaskManifests = protocol.listTaskManifests;
 export const resolveTaskFromText = protocol.resolveTaskFromText;
 export const readTaskFocus = protocol.readTaskFocus;
@@ -97,7 +100,7 @@ export function answerQuickTask({ root, config, focus, affirmative }) {
 }
 
 // ADR-0043/0044. The prompt names the work; this maps it to its manifest and records the focus.
-// It never blocks. A SERV key, manifest file or title selects a full task; any other instruction
+// It never blocks. A FirstHelp key (SERV, GEARS, LOS, or SDX), manifest file or title selects a full task; any other instruction
 // becomes the session's quick task; a reply ("yes", "continue") leaves the focus alone.
 export function routeTaskFocus({ root, config, text, env = process.env, sessionId = null }) {
   const envName = config.engineering?.taskProtocol?.activeManifestEnv;
@@ -126,7 +129,7 @@ export function routeTaskFocus({ root, config, text, env = process.env, sessionI
     write({ ...current, awaiting: false });
     return resolution.candidates.length
       ? `[task] the keyword matches several manifests (${listed}); ask the owner which one, by ticket or file name.`
-      : `[task] no manifest matches that keyword. Ask the owner for the SERV key or manifest file, or confirm a new local task at ${relative(resolution.suggestedPath)}.`;
+      : `[task] no manifest matches that keyword. Ask the owner for the FirstHelp key or manifest file, or confirm a new local task at ${relative(resolution.suggestedPath)}.`;
   }
   if (resolution.kind === "jira") {
     write(protocol.focusFromResolution(resolution));
@@ -142,7 +145,7 @@ export function routeTaskFocus({ root, config, text, env = process.env, sessionI
     const lastInstruction = { text: String(text).trim().slice(0, 500), at: new Date().toISOString() };
     const recorded = write({ id: null, file: null, source: "prompt", key: null, lastInstruction, at: lastInstruction.at });
     if (!recorded) return null;
-    return "[task] tier=quick: no SERV ticket named, so any route step that says \"create or refresh the task manifest\" applies only to full tasks. This prompt proceeds as a quick task: one owner confirm at its first automation write, no Jira grounding or gates.";
+    return "[task] tier=quick: no FirstHelp ticket named, so any route step that says \"create or refresh the task manifest\" applies only to full tasks. This prompt proceeds as a quick task: one owner confirm at its first automation write, no Jira grounding or gates.";
   }
   return null;
 }

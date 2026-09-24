@@ -6,6 +6,7 @@
 | **Date** | 2026-09-23 |
 | **Relates to** | ADR-0039 (one task, one approved manifest), ADR-0043 (resolve the active task from the work) |
 | **Amends** | ADR-0043 (path and branch search become suggestions), `engineering.taskProtocol.activeTask.quick`, `engineering.harness.hooks.postAsk`, `engineering.harness.governance.protectedPaths` |
+| **Amended by** | ADR-0049: SERV, GEARS, LOS, and SDX name a full task; `projectKey` stays SERV |
 
 ## Context
 

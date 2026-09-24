@@ -30,7 +30,7 @@ function routeFromOutput(stdout) {
 }
 
 function runRouter(prompt, env = {}) {
-  const ticket = String(prompt).match(/\b(SERV-\d+)\b/i)?.[1]?.toUpperCase();
+  const ticket = String(prompt).match(/\b((?:GEARS|SERV|SDX|LOS)-\d+)\b/i)?.[1]?.toUpperCase();
   if (ticket) {
     // A ticket key trips the jira-ticket-read capability gate, which would block before any
     // route hint is emitted. Record an observed read through the harness's own writer rather

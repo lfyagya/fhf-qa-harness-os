@@ -41,7 +41,7 @@ if (!workspace.ready) {
   emitContext(payload, "UserPromptSubmit", formatWorkspacePreflight(workspace, config));
   process.exit(0);
 }
-const ticket = ticketKeyFromPrompt(payload.prompt ?? "");
+const ticket = ticketKeyFromPrompt(payload.prompt ?? "", config);
 if (ticket) {
   let access;
   try {

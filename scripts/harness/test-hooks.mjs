@@ -434,10 +434,10 @@ expect("protect-automation-scope blocks backend writes without an active task",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }), 2);
 expect("protect-automation-scope blocks e2e Cypress writes without an active task",
   run("protect-automation-scope.mjs", { cwd: e2eRoot, tool_input: { file_path: e2eSpecPath } }, workspaceEnv),
-  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*FirstHelp key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
 expect("protect-automation-scope blocks smoke Cypress writes without an active task",
   run("protect-automation-scope.mjs", { cwd: smokeLaneRoot, tool_input: { file_path: smokeLaneSpecPath } }, workspaceEnv),
-  (r) => r.code === 2 && /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
+  (r) => r.code === 2 && /TASK NEEDED[\s\S]*FirstHelp key[\s\S]*manifest[\s\S]*keyword/.test(r.stderr));
 expect("protect-automation-scope allows a selected backend test path",
   run("protect-automation-scope.mjs", { cwd: backendRoot, tool_input: { file_path: backendTestPath } }, activeTaskEnv), 0);
 expect("protect-automation-scope blocks a current digest that is missing ordered gate stamps",
@@ -733,7 +733,7 @@ expect("manual-task-guard allows the exact selected backend pytest path",
   });
   expect("smoke cy:run:smoke still matches module colon suffixes",
     { code: smokeColon.allowed ? 0 : 2, stdout: "", stderr: smokeColon.reason ?? "" },
-    (result) => /TASK NEEDED[\s\S]*SERV key[\s\S]*manifest[\s\S]*keyword/.test(result.stderr));
+    (result) => /TASK NEEDED[\s\S]*FirstHelp key[\s\S]*manifest[\s\S]*keyword/.test(result.stderr));
 }
 expect("manual-task-guard blocks a broader backend pytest selection",
   run("manual-task-guard.mjs", {
@@ -851,18 +851,25 @@ expect("manual-task-guard consumes central Cloud CLI credential policy",
   }), 2);
 expect("manual-task-guard allows git status",
   run("manual-task-guard.mjs", { tool_input: { command: "git status" } }), 0);
-expect("block-generic-agents blocks general-purpose",
-  run("block-generic-agents.mjs", { tool_input: { subagent_type: "general-purpose" } }), 2);
+expect("block-generic-agents allows general-purpose inside the task",
+  run("block-generic-agents.mjs", { tool_input: { subagent_type: "general-purpose" } }),
+  (r) => r.code === 0 && r.stderr.includes("TASK SCOPE") && r.stdout.includes("permissionDecision"));
+expect("block-generic-agents maps generalPurpose and Explore",
+  run("block-generic-agents.mjs", { tool_input: { subagentType: "generalPurpose" } }),
+  (r) => r.code === 0 && r.stderr.includes("TASK SCOPE"));
+expect("block-generic-agents allows explore",
+  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "Explore" }),
+  (r) => r.code === 0 && r.stderr.includes("TASK SCOPE") && !r.stderr.includes("BLOCKED"));
 expect("block-generic-agents allows cypress-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-generator" } }), 0);
 expect("block-generic-agents allows qa-automation-generator",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "qa-automation-generator" } }), 0);
 expect("block-generic-agents blocks retired agent names",
   run("block-generic-agents.mjs", { tool_input: { subagent_type: "cypress-runner" } }), 2);
-expect("block-generic-agents denies a Cursor-matched subagent",
-  run("block-generic-agents.mjs", {}, {}, ["--deny-matched-subagent"]), 2);
-expect("block-generic-agents warns (not BLOCKED) on a forbidden agent_type via SubagentStart",
-  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "general-purpose" }),
+expect("block-generic-agents ignores a bare deny-matched flag",
+  run("block-generic-agents.mjs", {}, {}, ["--deny-matched-subagent"]), 0);
+expect("block-generic-agents warns (not BLOCKED) on a retired agent_type via SubagentStart",
+  run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "cypress-runner" }),
   (r) => r.code === 2 && r.stderr.includes("WARNING") && !r.stderr.includes("BLOCKED"));
 expect("block-generic-agents allows an approved agent_type via SubagentStart",
   run("block-generic-agents.mjs", { hook_event_name: "SubagentStart", agent_type: "cypress-generator" }), 0);

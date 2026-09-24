@@ -20,6 +20,8 @@ import {
   sha256,
   stampGate,
   canonicalTaskPath,
+  isAcceptedTicket,
+  ticketKeyFromValue,
   resolveActiveTask,
   resolveTaskFromText,
   taskSlug,
@@ -193,7 +195,12 @@ assert.match(validateTaskManifest(untitledLocal, options).join("\n"), /local tas
 const undigestedLocal = structuredClone(localTask);
 delete undigestedLocal.grounding.intent;
 assert.match(validateTaskManifest(undigestedLocal, options).join("\n"), /grounding\.intent\.digest/);
-assert.match(validateTaskManifest({ ...fixture(), ticketFamily: {} }, options).join("\n"), /ticketFamily\.primary must be a SERV ticket/);
+assert.match(validateTaskManifest({ ...fixture(), ticketFamily: {} }, options).join("\n"), /ticketFamily\.primary must be a FirstHelp ticket/);
+assert.deepEqual(validateTaskManifest({ ...fixture(), ticketFamily: { primary: "GEARS-10", related: [] } }, options), []);
+assert.equal(ticketKeyFromValue("NLOS-10 then los-2"), "LOS-2");
+assert.equal(ticketKeyFromValue("nlos-10"), null);
+assert.equal(ticketKeyFromValue("SALES-4"), null);
+assert.equal(isAcceptedTicket("SDX-3"), true);
 
 const resolverRoot = mkdtempSync(path.join(tmpdir(), "task-resolver-"));
 const resolverConfig = { engineering: { taskProtocol: { manifestPath: ".harness/tasks/<task-id>.json", activeManifestEnv: "FHF_ACTIVE_TASK" } } };
@@ -207,6 +214,9 @@ mkdirSync(resolverTasks, { recursive: true });
 writeFileSync(path.join(resolverTasks, "harden-the-export-audit-trail.json"), JSON.stringify({ ...localTask, id: "harden-the-export-audit-trail" }));
 writeFileSync(path.join(resolverTasks, "SERV-42.json"), JSON.stringify({ ...fixture(), id: "SERV-42", ticketFamily: { primary: "SERV-42", related: ["SERV-41"] } }));
 assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "pick up SERV-42" }).match.manifest.id, "SERV-42");
+assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "work GEARS-7" }).kind, "jira");
+assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "work GEARS-7" }).key, "GEARS-7");
+assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "NLOS-10 only" }).kind, "title");
 assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "about SERV-41" }).match.manifest.id, "SERV-42");
 assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "harden the export audit trail next" }).match.manifest.id, "harden-the-export-audit-trail");
 assert.equal(resolveTaskFromText({ root: resolverRoot, config: resolverConfig, text: "yes" }).match, null);

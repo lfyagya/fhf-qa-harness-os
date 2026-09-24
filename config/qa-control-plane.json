@@ -3,6 +3,12 @@
   "atlassian": {
     "siteUrl": "https://firsthelpfinancial.atlassian.net",
     "projectKey": "SERV",
+    "projectKeys": [
+      { "key": "SERV", "name": "Services Team Scrum" },
+      { "key": "GEARS", "name": "GEARS: SharedTech" },
+      { "key": "LOS", "name": "Loan Team Scrum" },
+      { "key": "SDX", "name": "Spark Dealer Experience" }
+    ],
     "serviceApp": "Callcenter",
     "currentSprintJql": "project = SERV AND sprint in openSprints() ORDER BY updated DESC",
     "confluenceSpaces": [
@@ -3349,7 +3355,7 @@
       "factExtractors": [
         {
           "name": "ticket-ids",
-          "match": "\\bSERV-\\d+\\b",
+          "match": "\\b(?:GEARS|SERV|SDX|LOS)-\\d+\\b",
           "flags": "gi"
         },
         {
@@ -3828,8 +3834,6 @@
         "explore"
       ],
       "forbiddenAgents": [
-        "general-purpose",
-        "explore",
         "documentation-writer",
         "test-execution-planner",
         "cypress-bug-hunter",

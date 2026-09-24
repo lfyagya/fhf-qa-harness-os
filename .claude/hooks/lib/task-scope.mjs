@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   humanApprovalBlock,
+  isAcceptedTicket,
   isLocalTask,
   listTaskManifests,
   quickTaskFor,
@@ -13,6 +14,7 @@ import {
   resolveTaskFromText,
   taskQuestion,
   taskRoot,
+  ticketKeyFromValue,
   writeTaskFocus,
 } from "./task-protocol.mjs";
 
@@ -171,7 +173,7 @@ function searchTask({ root, config, repository, relative, command, filePath, cwd
   const branch = repoRoot
     ? String(spawnSync("git", ["-C", repoRoot, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8", timeout: 5000 }).stdout ?? "").trim()
     : "";
-  const key = branch.match(/SERV-\d+/i)?.[0]?.toUpperCase() ?? null;
+  const key = ticketKeyFromValue(branch);
   if (key) {
     const byBranch = resolveTaskFromText({ root, config, text: key });
     searched.push(`branch ${branch}: ${byBranch.match ? byBranch.match.manifest.id : "no manifest"}`);
@@ -239,8 +241,8 @@ function activeTask(config, env, stages, root, hint = null, sessionId = null) {
   if (!stages.includes(manifest.stage)) {
     return { ok: false, reason: `task stage ${manifest.stage ?? "UNKNOWN"} is not authorized for this action` };
   }
-  if (!isLocalTask(manifest) && !/^SERV-\d+$/.test(manifest.ticketFamily?.primary ?? "")) {
-    return { ok: false, reason: "active task manifest must identify the primary SERV ticket" };
+  if (!isLocalTask(manifest) && !isAcceptedTicket(manifest.ticketFamily?.primary)) {
+    return { ok: false, reason: "active task manifest must identify the primary FirstHelp ticket (SERV, GEARS, LOS, or SDX)" };
   }
   const shapeIssues = manifestShapeIssues(config, manifest);
   if (shapeIssues.length > 0) {

@@ -202,14 +202,16 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
           }))),
       subagentStart: HOOKS.subagentStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, {
-          matcher: ENGINEERING.harness.forbiddenAgents.flatMap((name) =>
+          matcher: [...new Set([
+            ...ENGINEERING.harness.genericAgents,
+            ...ENGINEERING.harness.forbiddenAgents,
+          ])].flatMap((name) =>
             name === "general-purpose"
               ? [name, "generalPurpose"]
               : name === "explore"
                 ? [name, "Explore"]
                 : [name]).join("|"),
           failClosed: true,
-          args: "--deny-matched-subagent",
         })),
       postToolUse: HOOKS.postWrite.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, {
@@ -352,8 +354,8 @@ test-failure, and test-flake after an explicit request or a recorded insufficien
 diagnosis. Those tiers are parent policy, not hook gates. Skill invocation mode is
 \`${invocation.mode}\`: follow the matched route \`invoke\`; do not load an unmapped
 marketplace plugin. The skill hook enforces the allow-list and \`skillLanes\` only.
-Every prompt is a task (ADR-0044): with no SERV ticket named it is a quick task that needs one owner
-confirm before automation writes; a named ticket selects its full, gated manifest (ADR-0043);
+Every prompt is a task (ADR-0044): with no FirstHelp ticket (SERV, GEARS, LOS, or SDX) named it is a quick task that needs one owner
+confirm before automation writes; a named ticket selects its full, gated manifest (ADR-0043, ADR-0049);
 application source remains read-only.
 Root \`.claude/\`, Cursor, Copilot, and Gemini loaders are generated from \`fhf-harness-os\`; never
 hand-edit generated copies. Agent changes stay uncommitted for owner review.

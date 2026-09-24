@@ -5,7 +5,7 @@
 | **Status** | Accepted |
 | **Date** | 2026-09-23 |
 | **Relates to** | ADR-0017 (task-scoped backend automation), ADR-0039 (one task, one approved manifest) |
-| **Amended by** | ADR-0044: the path and branch search below no longer selects a full task; its hit is a suggestion in the quick-task confirm |
+| **Amended by** | ADR-0044: the path and branch search below no longer selects a full task; its hit is a suggestion in the quick-task confirm. ADR-0049: a full-task key is SERV, GEARS, LOS, or SDX, not SERV alone |
 | **Amends** | `engineering.taskProtocol.activeManifestEnv` (now an override), `engineering.taskProtocol.activeTask`, `engineering.harness.governance.protectedPaths`, `engineering.taskProtocol.approval.boundFields` |
 
 ## Context
