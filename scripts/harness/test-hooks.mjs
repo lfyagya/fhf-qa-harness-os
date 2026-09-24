@@ -1360,6 +1360,86 @@ expect("governance guard allows a PowerShell Get-Content of a gate",
   run("protect-harness-governance.mjs",
     { tool_name: "PowerShell", tool_input: { command: "Get-Content config/qa-control-plane.json" } }), 0);
 
+// ── ADR-0051: one read-intent vocabulary, in every shell dialect ──────────────────────
+// The classifier and its vocabulary sit in protected paths, so they land through
+// docs/adr/0051-apply.mjs. Until an owner runs that, this block pins the refusals as they are
+// today; after it runs, it pins the contract. A half-applied tree fails either way, which is the
+// point of checking the control plane rather than the calendar.
+const shellInspection = loadHarnessConfig().engineering?.harness?.shellInspection;
+const gateCommand = (command, tool = "Bash") =>
+  run("protect-harness-governance.mjs", { tool_name: tool, tool_input: { command } });
+const artifactCommand = (command, tool = "Bash") =>
+  run("protect-prod-data.mjs", { tool_name: tool, tool_input: { command } });
+
+// POSIX, PowerShell and cmd forms of "look at a gate", in the shape each shell is really driven.
+const CHAINED_INSPECTIONS = [
+  ["POSIX cd prefix", "cd /workspace && ls .claude/hooks", "Bash"],
+  ["POSIX reader into a pager", "rg -n protectedPaths config/qa-control-plane.json | head -40", "Bash"],
+  ["POSIX reader discarding stderr", "ls .claude/hooks 2>/dev/null", "Bash"],
+  ["git history of a gate", "git log --oneline -5 -- config/qa-control-plane.json", "Bash"],
+  ["PowerShell Set-Location chain", "Set-Location C:/work; Get-Content config/qa-control-plane.json", "PowerShell"],
+  ["PowerShell reader into Select-String", "Get-Content .claude/settings.json | Select-String matcher", "PowerShell"],
+  ["cmd cd chain", "cd /d C:\\work & type config\\qa-control-plane.json", "Bash"],
+];
+
+const CHAINED_WRITES = [
+  ["chained in-place rewrite", "cd /workspace && sed -i s/a/b/ config/qa-control-plane.json", "Bash"],
+  ["reader piped into a writer", "cat notes.txt | tee .claude/settings.json", "Bash"],
+  ["chained redirect", "cd /workspace && echo {} > .claude/settings.json", "Bash"],
+  ["git checkout over a gate", "git checkout -- config/qa-control-plane.json", "Bash"],
+  ["PowerShell chained Set-Content", "Set-Location C:/work; Set-Content .claude/settings.json '{}'", "PowerShell"],
+  ["cmd copy over a gate", "cd /d C:\\work & copy seed.json config\\qa-control-plane.json", "Bash"],
+];
+
+if (shellInspection) {
+  for (const [what, command, tool] of CHAINED_INSPECTIONS) {
+    expect(`governance guard allows chained inspection: ${what}`, gateCommand(command, tool), 0);
+  }
+  for (const [what, command, tool] of CHAINED_WRITES) {
+    expect(`governance guard still blocks ${what}`, gateCommand(command, tool), 2);
+  }
+  expect("prod-data allows a chained artifact listing",
+    artifactCommand("cd front-end-automation-smoke && ls cypress/screenshots/"), 0);
+  expect("prod-data still blocks a chained artifact read",
+    artifactCommand("cd front-end-automation-smoke && cat cypress/screenshots/failure.png"), 2);
+  expect("prod-data allows a chained no-network Cloud CLI inspection",
+    artifactCommand("cd front-end-automation-e2e && cy-cloud replay timeline --schema"), 0);
+  expect("prod-data still blocks Test Replay chained after a schema call",
+    artifactCommand("cy-cloud replay timeline --schema && cy-cloud replay timeline --testId abc"), 2);
+  expect("prod-data blocks a PowerShell chained artifact read",
+    artifactCommand("Set-Location smoke; Get-Content cypress/screenshots/failure.png", "PowerShell"), 2);
+  expect("context read guard allows a client whose payload cannot carry a bound",
+    run("context-read-guard.mjs", {
+      hook_event_name: "preToolUse",
+      cursor_version: "1.7.2",
+      tool_name: "Read",
+      tool_input: { file_path: largeRead },
+    }), 0);
+  expect("context read guard still blocks an unbounded read from a client that can bound it",
+    run("context-read-guard.mjs", { tool_name: "Read", tool_input: { file_path: largeRead } }), 2);
+  expect("context read guard accepts a start/end span as a bound",
+    run("context-read-guard.mjs", {
+      tool_name: "Read",
+      tool_input: { file_path: largeRead, start_line: 10, end_line: 60 },
+    }), 0);
+  expect("context read guard leaves an edit payload to the write guards",
+    run("context-read-guard.mjs", {
+      tool_name: "Write",
+      tool_input: { file_path: largeRead, content: "replacement" },
+    }), 0);
+} else {
+  expect("ADR-0051 is pending and its apply script ships the change",
+    { code: 0, stdout: "", stderr: "" },
+    () => existsSync(path.join(HARNESS_ROOT, "docs", "adr", "0051-apply.mjs")));
+  for (const [what, command, tool] of CHAINED_INSPECTIONS) {
+    expect(`ADR-0051 pending: chained inspection is still refused (${what})`,
+      gateCommand(command, tool), 2);
+  }
+  for (const [what, command, tool] of CHAINED_WRITES) {
+    expect(`ADR-0051 pending: ${what} is refused`, gateCommand(command, tool), 2);
+  }
+}
+
 // ── verify-subagent-citations: a summary must cite locations that exist ────────────────
 expect("citation verifier blocks an unresolvable file",
   run("verify-subagent-citations.mjs",
