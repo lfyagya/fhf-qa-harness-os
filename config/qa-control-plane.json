@@ -2692,6 +2692,7 @@
             "fhf-serv-template"
           ],
           "workingDirectory": "<selected-repository-or-package-root>",
+          "interpreters": ["python3", "python", "py"],
           "command": "python -m pytest <selected-test-path>",
           "testKinds": [
             "unit",
@@ -3553,6 +3554,10 @@
       "laneLocalPaths": [],
       "laneLocalPathsNote": "Repo-relative paths (file or directory) a lane owns and canonical does not. sync-loader-shims never deletes these, including under --force. Prefer promoting shared infrastructure to canonical; use this only for genuinely lane-specific files inside a synced directory.",
       "boundaries": {
+        "secondBrain": {
+          "vaultDirectory": "claude-obsidian",
+          "scaffoldDirectories": ["wiki", ".raw"]
+        },
         "applicationSource": {
           "mode": "read-only",
           "pathPatterns": [
