@@ -34,6 +34,8 @@ The engine must not pick a house shell. Linux, macOS, and Windows members use th
 
 Windows cmd, PowerShell, Linux, and macOS follow the same setup. Cypress npm scripts may still require Git Bash as a *script-shell* on Windows; that is a Cypress/npm constraint, not the operator opt-in language.
 
+A cmd window already sitting in the engine clone runs `set FHF_ALLOW_HARNESS_EDIT=1` then `cursor .`. It does not `cd` to a POSIX placeholder and it does not run `export`.
+
 ## What this does not decide
 
 It does not change `protectedPaths`, the opt-in variable names, or which tools the hooks match. It does not make cmd a Cypress test runner.

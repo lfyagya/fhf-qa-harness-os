@@ -226,6 +226,17 @@ Then, from the engine clone:
 cursor .
 ```
 
+If the prompt already shows `...\fhf-harness-os>` (or `.../fhf-harness-os`), you are in the engine.
+Do **not** `cd /path/to/...` and do **not** run `export` in cmd.exe. That is a POSIX assignment.
+In that window:
+
+```
+set FHF_ALLOW_HARNESS_EDIT=1
+cursor .
+```
+
+`'export' is not recognized` means this window is cmd.exe. Use `set`, not `export`.
+
 If `cursor` is not on `PATH`, set the variable, then open this folder in Cursor and start a new
 Agent chat. Production-artifact reads use the same three forms with `FHF_ALLOW_PROD_DATA`.
 
