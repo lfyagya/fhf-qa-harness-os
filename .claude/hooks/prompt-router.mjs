@@ -2,6 +2,7 @@
 // UserPromptSubmit — tool-neutral router engine with runtime-specific output.
 // Replaces: session-topic-guard.mjs, prompt-duplication-guard.mjs, model-routing-guard.mjs.
 import { readFileSync } from 'fs';
+import path from 'node:path';
 import { execSync } from 'child_process';
 import { loadHarnessConfig, detectLane } from './lib/harness-config.mjs';
 import { emitContext, emitEmpty } from './lib/hook-runtime.mjs';
@@ -9,7 +10,7 @@ import { extractFacts, isExternalBackendWorkspace, mergeHandoff } from './lib/me
 import { ticketKeyFromPrompt } from './lib/jira-ticket-access.mjs';
 import { capabilityStatus, formatCapabilityStatus } from './lib/capability-control.mjs';
 import { formatWorkspacePreflight, workspacePreflight } from './lib/workspace-contract.mjs';
-import { formatTaskGateContext, inspectActiveTaskGates, routeTaskFocus, taskRoot } from './lib/task-protocol.mjs';
+import { canonicalTaskPath, formatTaskGateContext, inspectActiveTaskGates, routeTaskFocus, taskRoot } from './lib/task-protocol.mjs';
 
 let payload = {};
 try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { process.exit(0); }
@@ -48,12 +49,19 @@ if (ticket) {
   }
   // Cursor fail-closes UserPromptSubmit on exit 2 and shows only Retry. That
   // overlay cannot collect OAuth. Inject the ask into the turn instead.
-  if (access) lines.push(formatCapabilityStatus(access));
-  if (access && access.exitCode !== 0) {
-    const ask = access.ownerAction
-      ? `Ask the owner in this turn to authenticate, authorize, or choose a declared fallback.`
-      : `Use the active connector to authenticate if needed, then complete the live probe.`;
-    lines.push(`[jira] ${ticket} is not ready (${access.status}). ${ask} Do not invent ticket contents or pick a fallback unprompted.`);
+  const gather = access && (access.status === "live-probe-required" || access.status === "retry-required");
+  if (gather) {
+    const root = taskRoot(payload);
+    const file = path.relative(root, canonicalTaskPath(root, config, { ticket })).replaceAll("\\", "/");
+    lines.push(`[jira] ${ticket}: the Atlassian connector is connected. Read the ticket, record it on ${file}, and continue the main goal.`);
+  } else if (access) {
+    lines.push(formatCapabilityStatus(access));
+    if (access.exitCode !== 0) {
+      const ask = access.ownerAction
+        ? `Ask the owner in this turn to authenticate, authorize, or choose a declared fallback.`
+        : `Use the active connector to authenticate if needed, then complete the live probe.`;
+      lines.push(`[jira] ${ticket} is not ready (${access.status}). ${ask} Do not invent ticket contents or pick a fallback unprompted.`);
+    }
   }
 }
 const isExternalBackend = isExternalBackendWorkspace({ cwd });

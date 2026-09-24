@@ -23,6 +23,7 @@ export const ticketScanPattern = protocol.ticketScanPattern;
 export const projectKeysFromConfig = protocol.projectKeysFromConfig;
 export const listTaskManifests = protocol.listTaskManifests;
 export const resolveTaskFromText = protocol.resolveTaskFromText;
+export const canonicalTaskPath = protocol.canonicalTaskPath;
 export const readTaskFocus = protocol.readTaskFocus;
 export const writeTaskFocus = protocol.writeTaskFocus;
 export const focusFromResolution = protocol.focusFromResolution;
@@ -136,7 +137,7 @@ export function routeTaskFocus({ root, config, text, env = process.env, sessionI
     write(protocol.focusFromResolution(resolution));
     return resolution.candidates.length
       ? `[task] ${resolution.key} matches several manifests (${listed}); name the primary ticket to choose.`
-      : `[task] no manifest for ${resolution.key}; create it at ${relative(resolution.suggestedPath)} before automation work.`;
+      : `[task] no manifest for ${resolution.key}; the task file is ${relative(resolution.suggestedPath)}. Record the ticket there and continue the main goal.`;
   }
   if (resolution.candidates.length) {
     return `[task] title matches several manifests (${listed}); name the ticket or the fuller title to choose.`;

@@ -897,9 +897,9 @@ expect("prompt-router surfaces malformed harness config without blocking the pro
 expect("prompt-router asks for Jira OAuth without blocking the turn",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "false", CLAUDE_CWD: tmp }),
   (r) => r.code === 0 && r.stdout.includes("CAPABILITY BLOCKED") && r.stdout.includes("OAuth") && r.stdout.includes("sanitized ticket export") && r.stdout.includes("Ask the owner") && !r.stderr.includes("CAPABILITY BLOCKED"));
-expect("prompt-router asks for a live ticket read without blocking the turn",
+expect("prompt-router gathers a connected Jira ticket onto its task file",
   run("prompt-router.mjs", { prompt: "work SERV-11887" }, { FHF_JIRA_MCP: "true", CLAUDE_CWD: tmp }),
-  (r) => r.code === 0 && r.stdout.includes("no observed probe result") && r.stdout.includes("authenticate if needed") && r.stdout.includes("ticket contents remain outside runtime state") && !r.stderr.includes("CAPABILITY BLOCKED"));
+  (r) => r.code === 0 && r.stdout.includes("connector is connected") && r.stdout.includes("SERV-11887.json") && r.stdout.includes("continue the main goal") && !r.stdout.includes("CAPABILITY BLOCKED"));
 expect("prompt-router surfaces an unconfigured Smoke workspace without blocking the prompt",
   run("prompt-router.mjs", { cwd: smokeRoot, prompt: "write a new smoke test" }, {
     FHF_HARNESS_CONFIG: smokeConfigPath,
