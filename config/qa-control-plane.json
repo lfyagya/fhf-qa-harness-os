@@ -3833,6 +3833,10 @@
         "general-purpose",
         "explore"
       ],
+      "agentTypeAliases": {
+        "general-purpose": ["generalPurpose"],
+        "explore": ["Explore"]
+      },
       "forbiddenAgents": [
         "documentation-writer",
         "test-execution-planner",

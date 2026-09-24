@@ -25,6 +25,7 @@ import {
   isSmokePath,
 } from './lib/cypress-rule-patterns.mjs';
 import { loadSelectorInventory, findDeadSelectors } from './lib/selector-liveness.mjs';
+import { ticketScanPattern } from './lib/task-protocol.mjs';
 
 // Find the `cypress/configs/ui` root that contains this file, if any.
 function findUiConfigRoot(filePath) {
@@ -358,7 +359,7 @@ if (isSpec && isSmokePath(filePath)) {
   // Quarantine metadata. Inert today (zero quarantine tags exist), so it is safe to block:
   // it can only fire on a newly-written entry, which is exactly when the ticket is known.
   if (QUARANTINE_TAG_RE.test(content)) {
-    const hasTicket = /\b(?:GEARS|SERV|SDX|LOS)-\d+\b/.test(content);
+    const hasTicket = ticketScanPattern().test(content);
     const hasDate = /\b20\d{2}-\d{2}-\d{2}\b/.test(content);
     if (!hasTicket || !hasDate)
       violations.push(
@@ -371,7 +372,7 @@ if (isSpec && isSmokePath(filePath)) {
 
   // A skipped module is invisible in an aggregate — the Checks suite sat at 0/10 for a full run
   // while the headline read 634/669 (§1.5). A ticket reference makes it traceable.
-  if (/\b(?:describe|it|context)\.skip\s*\(/.test(content) && !/\b(?:GEARS|SERV|SDX|LOS)-\d+\b/.test(content))
+  if (/\b(?:describe|it|context)\.skip\s*\(/.test(content) && !ticketScanPattern().test(content))
     warnings.push(
       'Skipped block without a FirstHelp ticket reference — a dead module hides inside a healthy ' +
       'aggregate (smoke-execution-strategy.md §1).'

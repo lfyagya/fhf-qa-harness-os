@@ -19,6 +19,7 @@ export const nextStep = protocol.nextStep;
 export const isLocalTask = protocol.isLocalTask;
 export const isAcceptedTicket = protocol.isAcceptedTicket;
 export const ticketKeyFromValue = protocol.ticketKeyFromValue;
+export const ticketScanPattern = protocol.ticketScanPattern;
 export const projectKeysFromConfig = protocol.projectKeysFromConfig;
 export const listTaskManifests = protocol.listTaskManifests;
 export const resolveTaskFromText = protocol.resolveTaskFromText;

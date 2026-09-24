@@ -180,6 +180,20 @@ function cursorCommand(root, script, { matcher, failClosed, loopLimit, args = ""
   };
 }
 
+
+function fullTaskKeyList() {
+  const listed = HARNESS_CONFIG.atlassian?.projectKeys;
+  const keys = Array.isArray(listed)
+    ? listed.map((item) => String(item?.key ?? item ?? "").trim().toUpperCase()).filter(Boolean)
+    : [];
+  return keys.length ? keys : ["SERV"];
+}
+
+function agentTypeNames(names) {
+  const aliases = ENGINEERING.harness.agentTypeAliases ?? {};
+  return [...new Set(names.flatMap((name) => [name, ...(aliases[name] ?? [])]))];
+}
+
 export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
   const cursorMatcher = {
     preReadExceptE2e: "Read|Bash|read|bash",
@@ -202,15 +216,10 @@ export function cursorHooks(HARNESS_HOOKS = VENDORED_HOOKS, lane = "root") {
           }))),
       subagentStart: HOOKS.subagentStart.map((script) =>
         cursorCommand(HARNESS_HOOKS, script, {
-          matcher: [...new Set([
+          matcher: agentTypeNames([
             ...ENGINEERING.harness.genericAgents,
             ...ENGINEERING.harness.forbiddenAgents,
-          ])].flatMap((name) =>
-            name === "general-purpose"
-              ? [name, "generalPurpose"]
-              : name === "explore"
-                ? [name, "Explore"]
-                : [name]).join("|"),
+          ]).join("|"),
           failClosed: true,
         })),
       postToolUse: HOOKS.postWrite.map((script) =>
@@ -354,8 +363,9 @@ test-failure, and test-flake after an explicit request or a recorded insufficien
 diagnosis. Those tiers are parent policy, not hook gates. Skill invocation mode is
 \`${invocation.mode}\`: follow the matched route \`invoke\`; do not load an unmapped
 marketplace plugin. The skill hook enforces the allow-list and \`skillLanes\` only.
-Every prompt is a task (ADR-0044): with no FirstHelp ticket (SERV, GEARS, LOS, or SDX) named it is a quick task that needs one owner
+Every prompt is a task (ADR-0044): with no FirstHelp ticket (${fullTaskKeyList().join(", ")}) named it is a quick task that needs one owner
 confirm before automation writes; a named ticket selects its full, gated manifest (ADR-0043, ADR-0049);
+${(ENGINEERING.harness.genericAgents ?? []).join(", ")} may start inside that one task. Retired names stay blocked.
 application source remains read-only.
 Root \`.claude/\`, Cursor, Copilot, and Gemini loaders are generated from \`fhf-harness-os\`; never
 hand-edit generated copies. Agent changes stay uncommitted for owner review.
@@ -386,7 +396,7 @@ Read this file, then the selected repository's own \`CLAUDE.md\`. Do not preload
 
 Application source is read-only. Production smoke must never mutate, submit, export, download, or
 send. Every prompt is a task: an unticketed prompt is a quick task confirmed once by the owner; a
-named SERV ticket, manifest file or title selects its full, gated manifest (ADR-0043, ADR-0044).
+named FirstHelp ticket (${fullTaskKeyList().join(", ")}), manifest file or title selects its full, gated manifest (ADR-0043, ADR-0044, ADR-0049).
 
 Two unrelated repositories are named \`fhf-dashboards\`, and both declare \`"name": "fhf-dashboards"\`
 in \`package.json\`: \`fhf-dashboards/\` at the workspace root is the React application and is

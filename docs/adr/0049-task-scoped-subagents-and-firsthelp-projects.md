@@ -23,13 +23,16 @@ back a search that creates `sprint-task.json`.
 
 ## Decision
 
-1. `genericAgents` (`general-purpose`, `explore`, and the Cursor aliases
-   `generalPurpose` and `Explore`) may start. The hook states the active task
+1. `genericAgents` (`general-purpose`, `explore`) may start. Spellings such as
+   `generalPurpose` and `Explore` live in `engineering.harness.agentTypeAliases`
+   and every adapter expands that one map. The same hook states the active task
    (focus file, ticket, or quick-task title) and exits 0. With no task yet it still
    exits 0 and says the subagent stays inside the one session task. It does not
    create or switch a task. Writes and pytest stay on the existing task gates.
    Names in `forbiddenAgents` stay blocked. On SubagentStart a retired name is a
    WARNING. There is no unconditional `--deny-matched-subagent` deny.
+
+Codex stays instruction-only. `AGENTS.md` is generated from this same control plane, including the ticket keys and the generic-agent rule. Claude and Cursor run the same hook script.
 
 2. `atlassian.projectKeys` is SERV, GEARS, LOS, and SDX. Those keys select a full
    task the same way SERV does. `projectKey` and `currentSprintJql` stay SERV.

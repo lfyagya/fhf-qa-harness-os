@@ -28,15 +28,22 @@ const rawType = String(
   "",
 );
 
-function canonicalAgent(value) {
-  const compact = String(value ?? "").toLowerCase().replace(/[\s_-]/g, "");
-  if (compact === "generalpurpose") return "general-purpose";
-  if (compact === "explore") return "explore";
-  return String(value ?? "").toLowerCase();
+function compactAgent(value) {
+  return String(value ?? "").toLowerCase().replace(/[\s_-]/g, "");
 }
 
 const config = loadHarnessConfig();
 const harness = config.engineering.harness;
+const aliases = harness.agentTypeAliases ?? {};
+function canonicalAgent(value) {
+  const compact = compactAgent(value);
+  for (const [name, forms] of Object.entries(aliases)) {
+    if ([name, ...(Array.isArray(forms) ? forms : [])].some((form) => compactAgent(form) === compact)) {
+      return name.toLowerCase();
+    }
+  }
+  return String(value ?? "").toLowerCase();
+}
 const GENERIC = new Set(harness.genericAgents.map((name) => name.toLowerCase()));
 const FORBIDDEN = harness.forbiddenAgents.map((name) => name.toLowerCase());
 const subagentType = canonicalAgent(rawType);
