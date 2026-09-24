@@ -108,6 +108,10 @@ const REMEDIES = [
     hooks: ["protect-harness-governance"],
     means: "The target is a gate itself — the control plane, generated settings, or a hook source.",
     dos: [
+      "Inspecting a gate is allowed, and is how you report a defect instead of editing around it:",
+      "  every step of the command must be a reader (cat, ls, rg, wc, head, jq, Get-Content, type, dir)",
+      "  or a navigation command, with git limited to log/show/diff/status/blame. Chains and pipes are fine.",
+      "A redirect, a backtick, a $(...) substitution or an interpreter (sed, node, python) counts as a write.",
       "Do not edit a gate to make it pass. Report the defect, or the owner re-launches with FHF_ALLOW_HARNESS_EDIT=1.",
       "Structural gate changes also need an ADR in docs/adr/.",
     ],
@@ -150,7 +154,11 @@ const REMEDIES = [
     match: /bound this Read to \d+ lines/i,
     hooks: ["context-read-guard"],
     means: "A whole-file read was refused to stop context thrashing.",
-    dos: ["Re-read with limit set to the configured maximum, then page with offset if needed."],
+    dos: [
+      "Re-read with limit set to the configured maximum, then page with offset if needed.",
+      "A client whose read payload cannot carry a bound belongs in",
+      "  engineering.context.readOutput.boundsUnsupportedClients — the guard then advises instead of refusing.",
+    ],
   },
   {
     match: /no observed probe result is recorded|not declared in this local workspace|live-probe-required/i,

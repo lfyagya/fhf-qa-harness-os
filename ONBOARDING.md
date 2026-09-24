@@ -206,6 +206,27 @@ PowerShell clears it; a plain `cd` will not, because the guard rejects the comma
 **`.claude/` is generated.** Edit policy in the engine and re-run sync. Hand-editing it makes the
 next sync refuse, and your change is lost the moment someone forces past it.
 
+**Gates are readable; they are not agent-writable.** `config/qa-control-plane.json`,
+`.claude/settings.json` and `.claude/hooks/**` refuse agent writes by default (ADR-0027). Looking at
+one is not a write, and since ADR-0051 the guard judges a command step by step, so all of these are
+allowed from any shell: `cd <root> && ls .claude/hooks`,
+`rg protectedPaths config/qa-control-plane.json | head -40`,
+`Get-Content .claude/settings.json | Select-String matcher`, `cd /d C:\work & type config\qa-control-plane.json`,
+and `git log -- config/qa-control-plane.json`. A redirect, a backtick, a `$(…)` substitution or an
+interpreter (`sed -i`, `node -e`, `python -c`) is a write and stays refused.
+
+If a gate is genuinely wrong, the route is a PR: an ADR in `docs/adr/` plus an apply script the
+owner runs with `FHF_ALLOW_HARNESS_EDIT=1` (`docs/adr/0051-apply.mjs` is the current example).
+Never ask an agent to set that variable for itself — an agent that can grant itself the write opt-in
+is an agent that can turn any red gate green, which is the one thing the opt-in exists to prevent.
+
+**A read your client cannot bound.** `context-read-guard.mjs` refuses a whole-file read and tells you
+to pass `limit`. Some clients — Cursor among them — have no bounds field in the payload they send the
+hook, so they cannot comply. Those are named in
+`engineering.context.readOutput.boundsUnsupportedClients`, where the guard advises instead of
+refusing. If a client of yours is refused for a bound it has no way to send, add it there rather than
+working around the guard.
+
 **`fhf_documents` on Windows.** The Oracle/ORDS tree is still cloned, but a Windows working tree can
 fail to check out. If that happens, leave the clone in place and inspect files through Git objects
 (`git ls-tree` / `git show`) rather than deleting it.
