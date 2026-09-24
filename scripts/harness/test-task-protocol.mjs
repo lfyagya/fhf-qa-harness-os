@@ -616,4 +616,48 @@ const afterApprove = spawnSync(process.execPath, [path.join(HERE, "task-protocol
 assert.equal(JSON.parse(afterApprove.stdout).gate, "scenarios");
 rmSync(cliRoot, { recursive: true, force: true });
 
+
+const hookProtocol = await import("../../.claude/hooks/lib/task-protocol.mjs");
+const taskRoot = hookProtocol.taskRoot;
+const savedProject = {
+  CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR,
+  CURSOR_PROJECT_DIR: process.env.CURSOR_PROJECT_DIR,
+};
+delete process.env.CLAUDE_PROJECT_DIR;
+delete process.env.CURSOR_PROJECT_DIR;
+try {
+  const workspace = mkdtempSync(path.join(tmpdir(), "fhf-task-root-"));
+  const e2e = path.join(workspace, "front-end-automation-e2e");
+  mkdirSync(path.join(workspace, ".harness", "tasks"), { recursive: true });
+  mkdirSync(path.join(e2e, ".harness"), { recursive: true });
+  writeFileSync(path.join(workspace, ".harness", "lane.json"), JSON.stringify({ lane: "root" }));
+  writeFileSync(path.join(e2e, ".harness", "lane.json"), JSON.stringify({ lane: "e2e" }));
+  writeFileSync(path.join(e2e, ".harness", "workspace.local.json"), JSON.stringify({ consumerRoot: workspace }));
+  assert.equal(taskRoot({}, path.join(e2e, "cypress")), workspace);
+  assert.equal(taskRoot({}, workspace), workspace);
+
+  const sibling = mkdtempSync(path.join(tmpdir(), "fhf-task-sibling-"));
+  const lane = path.join(sibling, "e2e");
+  const home = path.join(sibling, "FHF");
+  mkdirSync(path.join(home, ".harness", "tasks"), { recursive: true });
+  mkdirSync(path.join(lane, ".harness"), { recursive: true });
+  writeFileSync(path.join(lane, ".harness", "lane.json"), JSON.stringify({ lane: "e2e" }));
+  writeFileSync(path.join(lane, ".harness", "workspace.local.json"), JSON.stringify({ consumerRoot: home }));
+  assert.equal(taskRoot({}, lane), home);
+  const cli = spawnSync(process.execPath, [path.join(HERE, "task-protocol.mjs"), "path", "--ticket", "SERV-1"], {
+    cwd: e2e,
+    encoding: "utf8",
+    env: { ...process.env, CLAUDE_PROJECT_DIR: "", CURSOR_PROJECT_DIR: "" },
+  });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.equal(JSON.parse(cli.stdout).path, path.join(workspace, ".harness", "tasks", "SERV-1.json"));
+  rmSync(workspace, { recursive: true, force: true });
+  rmSync(sibling, { recursive: true, force: true });
+} finally {
+  for (const [key, value] of Object.entries(savedProject)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
+
 console.log("Task protocol tests passed.");

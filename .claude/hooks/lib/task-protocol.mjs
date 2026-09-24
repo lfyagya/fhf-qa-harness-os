@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
+import { loadHarnessConfig } from "./harness-config.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const candidates = [
@@ -58,14 +59,9 @@ export function humanApprovalBlock(manifest, config) {
   };
 }
 
-// One root for every task reader: the project the session opened, then the payload cwd.
-export function taskRoot(payload = {}, cwd = "") {
-  return path.resolve(
-    process.env.CLAUDE_PROJECT_DIR
-      ?? process.env.CURSOR_PROJECT_DIR
-      ?? payload?.cwd
-      ?? (cwd || process.cwd()),
-  );
+// One root for every task reader. Lane names come from the control plane when the caller omits config.
+export function taskRoot(payload = {}, cwd = "", config = null) {
+  return protocol.taskRoot(payload, cwd, config ?? loadHarnessConfig());
 }
 
 export function resolveActiveTask({ root, config, env = process.env, sessionId = null }) {
