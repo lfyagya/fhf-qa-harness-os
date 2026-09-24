@@ -644,6 +644,13 @@ try {
   writeFileSync(path.join(lane, ".harness", "lane.json"), JSON.stringify({ lane: "e2e" }));
   writeFileSync(path.join(lane, ".harness", "workspace.local.json"), JSON.stringify({ consumerRoot: home }));
   assert.equal(taskRoot({}, lane), home);
+  const cli = spawnSync(process.execPath, [path.join(HERE, "task-protocol.mjs"), "path", "--ticket", "SERV-1"], {
+    cwd: e2e,
+    encoding: "utf8",
+    env: { ...process.env, CLAUDE_PROJECT_DIR: "", CURSOR_PROJECT_DIR: "" },
+  });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.equal(JSON.parse(cli.stdout).path, path.join(workspace, ".harness", "tasks", "SERV-1.json"));
   rmSync(workspace, { recursive: true, force: true });
   rmSync(sibling, { recursive: true, force: true });
 } finally {
