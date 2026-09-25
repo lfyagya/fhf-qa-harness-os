@@ -13,7 +13,7 @@ Reader path for the spine itself: `ONBOARDING.md` → `CLAUDE.md` →
 
 | Path | Kind | What changed |
 |---|---|---|
-| `ONBOARDING.md` | updated | Setup-only spine; sync projects the workspace root only (lanes get no `.claude/`); ends at `CLAUDE.md`. |
+| `ONBOARDING.md` | updated | Setup-only spine; sync projects the workspace root only (lanes get no `.claude/`); ends at `CLAUDE.md`. Operator commands are `node`/`git` on Linux, macOS, and Windows; env opt-in and gate inspection list POSIX, PowerShell, and cmd (ADR-0051). |
 | `CLAUDE.md` | updated | Slim router to the engine role and hand-off to `harness-engineering.md`; revision stamp links here. |
 | `docs/framework/harness-engineering.md` | updated | System overview and the single home for current gate and sync behavior; reader path connectors → harness → loops → task protocol. Removed the Context engineering, Memory engineering, and Graph engineering sections and collapsed eval/calibration duplication; `engineering.context`/`engineering.memory` keep one pointer naming the two keys that still bind an agent. Change protocol now carries the engine operating facts: `verify-canonical.mjs`, `core.hooksPath`, sync targets and their env overrides, and the hook rationale ratchet. |
 | `docs/framework/harness-engineering.md` | updated | New **Hooks, agents, and skills** section: what each roster is, who invokes it, the five hook classes with members and firing phases, the seven agents with when/why, the skills grouped by purpose with the `skillLanes` restriction, and the path one prompt takes through all three. Points at the generated `.claude/rules/agent-spawning-gate.md` as the runtime copy. |
@@ -23,6 +23,8 @@ Reader path for the spine itself: `ONBOARDING.md` → `CLAUDE.md` →
 | `docs/governance.md` | updated | When an ADR is required; read-next to the cited ADR with 0001 as the process example. |
 | `docs/adr/0016-task-scoped-sdlc-protocol.md` | updated | Amendment pointers to ADR-0036 and ADR-0039. |
 | `docs/adr/0018-payload-remote-split.md` | updated | Open target-state closed by ADR-0035 — no new repository; this remote is home. |
+| `docs/adr/0051-shell-agnostic-operator-commands.md` | new | Operator commands, owner opt-in, and read-intent classification are the same in POSIX, PowerShell, and cmd. Protected files land through `0051-apply.mjs`. |
+| `docs/adr/0052-on-demand-lane-evaluators.md` | new | Generic pre-merge stays in the parent; engine configuration runs verify-canonical; `cypress-gate` only when Cypress is in the prompt or the diff. |
 | `docs/framework/docs-release.md` | new | This note. |
 
 Every page above carries the `docs-2026-09-22` stamp.

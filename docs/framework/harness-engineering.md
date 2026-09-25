@@ -280,7 +280,7 @@ anything off this list, including the 17 retired names in `forbiddenAgents`.
 | Agent | Use it when | Why it exists |
 |---|---|---|
 | `cypress-generator` | a Cypress spec must be written or changed | the only writer of FHF specs |
-| `cypress-gate` | before any PR touching Cypress | evaluator; drives bounded repair with the generator on BLOCK |
+| `cypress-gate` | only when the diff (or prompt) is Cypress | evaluator; engine configuration uses verify-canonical, not this agent (ADR-0052) |
 | `cypress-debugger` | a spec is red, flaky, or slow | diagnosis needs the failure, not the intent |
 | `cypress-shipper` | the gate passed and the PR is next | shipping and coverage reporting, not authoring |
 | `qa-automation-generator` | backend-only, or combined frontend + backend | one manifest, one author across both layers |
