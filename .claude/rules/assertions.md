@@ -1,3 +1,7 @@
+---
+paths:
+  - "fhf-backend-automation/**"
+---
 # Assertion Standards
 
 All assertion helpers live in `tests/commons/assertions.py`. Import only from there — never write raw `assert` statements or inline validation loops in test files.

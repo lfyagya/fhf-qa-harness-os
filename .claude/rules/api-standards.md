@@ -1,3 +1,7 @@
+---
+paths:
+  - "fhf-backend-automation/**"
+---
 # API & Assertion Standards
 
 ## API Client Layer — Always Use Typed Clients

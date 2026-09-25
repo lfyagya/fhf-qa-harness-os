@@ -1,3 +1,7 @@
+---
+paths:
+  - "fhf-backend-automation/**"
+---
 # Oracle DB Rules
 
 ## DAO Layer Usage

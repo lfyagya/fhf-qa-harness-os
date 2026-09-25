@@ -1,3 +1,7 @@
+---
+paths:
+  - "fhf-backend-automation/**"
+---
 # Testing Rules
 
 ## Test Class Structure
