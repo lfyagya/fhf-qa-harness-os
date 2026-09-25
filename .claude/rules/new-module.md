@@ -1,3 +1,7 @@
+---
+paths:
+  - "fhf-backend-automation/**"
+---
 # Adding a New Test Module — Checklist
 
 Follow these steps in order when adding a new feature module to the framework.
