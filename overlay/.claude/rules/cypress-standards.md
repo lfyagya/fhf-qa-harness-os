@@ -66,8 +66,57 @@ Cypress mechanics (correctness, not style):
 ## Tags
 
 Tag constants live in `cypress/configs/tags/`. Every `describe` carries TYPE + MODULE + FEATURE +
-BEHAVIOR (directly or via `SUITE_TAGS`); every `it` carries STATUS. Currently a warning, not a
-blocker, until both lanes are tagged — flag under-tagging, do not block on it.
+BEHAVIOR, always through `SUITE_TAGS` — never a raw tag array. `context()` carries no tags. Every
+`it` carries exactly the STATUS flags it needs, only from `@critical | @flaky | @wip | @quarantine`.
+Currently a warning, not a blocker, until both lanes are tagged — flag under-tagging, do not block
+on it.
+
+## Commands and reuse
+
+Reuse before you write: grep `cypress/support/commands/**` and `cypress/configs/**` for an
+existing command, selector, route, or API entry before adding one. A second command or constant
+doing the same job is a defect even if both pass (`ui-config-hierarchy.md`).
+
+Commands are verb-first camelCase, registered with `Cypress.Commands.add`, and named for the
+business surface they act on — `assertRepoAssignmentQueueCount`, not `checkTable2`:
+
+| Job | Pattern |
+|---|---|
+| Register GET intercepts | `intercept<Surface>DashboardApis` / `intercept<Surface>DetailApis` |
+| Navigate | `navigateTo<Surface>` (asserts the landed URL) |
+| Wait | `waitFor<Surface>DashboardApis` (via `cy.apiWaitAll`) |
+| Assert | `assert<Surface><What>` |
+| Act | `clickFirst<Surface>Card`, `apply<Surface>Filter`, … |
+
+- No `if/else` or DOM-conditional branching inside a command; drive the state so the path is
+  known. Assertions live only in `assert*` commands.
+- A command that navigates (click → new page) registers the next page's intercepts first.
+- Selectors, routes, and endpoints come only from `cypress/configs/**` constants — in commands and
+  in specs alike. Spec files call commands; they never hold raw selectors.
+- One command file per surface (`dashboard.commands.js`, `detail.commands.js`), imported by the
+  surface entry point `cypress/support/commands/<surface>.commands.js`. File and folder naming:
+  `ui-config-hierarchy.md`.
+
+## Cypress practices (official docs)
+
+From docs.cypress.io best practices; each is a correctness rule here, not style:
+
+- Never assign a command's return value to a variable; use aliases or `.then()` closures.
+- Every `it()` passes on its own, in any order. No test relies on state a previous test left.
+- Log in programmatically and cache it (`cy.ensureAuthenticated()` / `cy.session()`), never through
+  the login UI in every test.
+- Wait on explicit conditions only: intercept aliases (`cy.apiWait`/`cy.apiWaitAll`) and retrying
+  `.should()` assertions. No `cy.wait(ms)`, no hand-written polling loops.
+- Never branch on what the DOM happens to show (conditional testing). Control the data instead.
+- Visit only apps we control; reach third-party systems through `cy.request()`, never `cy.visit()`.
+- `cy.visit()` uses relative routes against the configured `baseUrl`.
+- Secrets through `cy.env()` only; `Cypress.expose()` is for non-secret public configuration.
+
+## Merge readiness
+
+A new or changed spec is merge-ready only when it has passed **5 consecutive Cypress Cloud runs
+with no retries**, and every `it()` narrates its steps with `cy.step()`. A spec that needed a retry
+to pass is flaky, not green (`failure-classification.md`).
 
 ## Test data
 
@@ -127,6 +176,26 @@ absent/reset and rendered rows map to that response. Never assume a filter must 
 Schema contract (once per new API config entry): `include.all.keys([...real field names])`,
 never `deep.equal`. Never invent field names; without a sample response leave
 `// TODO: add field names from live response` and flag it.
+
+## Smoke gate (production)
+
+Smoke exists to catch a broken production read path before users do. Coverage must be protective,
+not decorative:
+
+- **No mutation, ever** (Lanes table). Read paths only.
+- **Cover what matters:** the business-critical read surfaces first — balances and payment
+  history, delinquency queues and their counts, loss-mitigation and repo queues, title/lien status,
+  complaints. A dashboard that renders the wrong count or a stale balance is a failure even with no
+  error thrown.
+- **Assert every GET the page makes:** status, the schema keys the UI depends on
+  (`include.all.keys`), and the response-to-DOM relationship (count == rendered rows, value shown ==
+  value returned). A 200 alone proves nothing.
+- **Fail loudly:** never suppress uncaught application exceptions globally; a 4xx/5xx, a failed
+  required request, an auth failure, or an empty required response fails the test — never converts
+  to a skip or a pass.
+- **Gate tier:** each smoke spec has at least 1 and at most 3 `@critical` tests (the release gate).
+  `@quarantine`/`@flaky` need a ticket and a quarantine date; quarantined tests still run and are
+  reported, only excluded from the verdict. No `describe.skip`/`it.skip` without a ticket.
 
 ## Studio AI / `cy.prompt()` — discovery only
 

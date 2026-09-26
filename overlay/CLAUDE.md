@@ -70,7 +70,10 @@ touching it.**
 - Smoke / production evidence: `prod-data-handling.md`
 - Backend: `backend-automation.md`, `api-standards.md`, `assertions.md`, `oracle-db.md`,
   `testing.md`, `new-module.md`, `security.md`
-- Cross-layer: `cross-layer-qa.md`; app evidence map: `source-map.md`
+- All lanes — coverage, assertion depth, evidence, metrics, FHF risk priorities:
+  `quality-standard.md`
+- Cross-layer chains (seam, `chainId`, verdict): `cross-layer-qa.md`; app evidence map:
+  `source-map.md`
 - Jira fields, workflows, and write policy: `jira-integration.md`
 
 ## Hard lines

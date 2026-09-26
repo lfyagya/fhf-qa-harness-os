@@ -29,3 +29,58 @@ with one builder (`qa-automation-generator`), not two parallel suites.
 
 Production Smoke stays GET-only; backend automation runs Dev/QA only. Never edit application
 source.
+
+## Full-chain acceptance (UI → API → DB)
+
+A chain is accepted only when one scenario has all seven:
+
+1. approved intent and a controlled starting state;
+2. a real UI mutation (Dev/QA);
+3. the exact UI-originated request identity, payload, response, and error branch;
+4. a direct service contract check;
+5. exact DB state — or verified no-write — under the same correlation identity;
+6. downstream reconciliation where money, files, queues, or integrations are involved;
+7. cleanup proven successful.
+
+Similar endpoints or two independently passing suites are not a chain.
+
+## Correlation by contract, not by record
+
+The lanes never share test data. Each creates and cleans up its own synthetic identity; they join
+on the scenario and the request contract observed at the seam. Every chain test carries one
+`chainId` = `<module-key>-<workflow>-<nn>` (module key = the kebab-case module directory, e.g.
+`loss-mitigation-repo-assign-01`): in Cypress scenario metadata beside `jiraId`/`ac`, in the pytest
+docstring. No `chainId` → single-lane evidence, never reported as chain progress.
+
+Who owns what:
+
+- **Cypress:** actor reaches the control under the real role; rendered authorization state;
+  client-side validation; the request the action emits (the seam); the status and outcome the UI
+  shows. It never asserts DB state.
+- **pytest:** service-side authorization and validation; exact persisted state; the prohibited
+  branch writes nothing; money/date/status at field precision (the authoritative money oracle);
+  downstream reconciliation; idempotency. It never asserts rendering.
+- Both: response status and error branch, independently; cleanup of their own identity.
+
+## Seam artifact and verdict
+
+Cypress writes, and pytest completes, `cypress/handoff/chain-contract/<chainId>.json`
+(`fhf-chain-contract/v1`): scenario identity and spec status, `observedRequest` (method, URL
+template with params masked, payload fields/types/business values), `observedResponse`,
+`uiOutcome` (incl. prohibited outcome) — then `assertedRequest`, `persistedState`,
+`noWriteBranch`, `reconciliation` (or `not-applicable` + reason), and per-lane `automationSha`,
+`runId`, `evaluatedAt`. No customer data, credentials, or production values.
+
+A chain is `ACCEPTED` only when both halves exist for the same `chainId` and agree on endpoint,
+method, payload schema, status, and every shared business field. A disagreement is a finding,
+never a reason to relax the stricter side:
+
+| Disagreement | Owner |
+|---|---|
+| UI emits a field pytest never asserts | backend lane extends coverage |
+| pytest asserts a field the UI never emits | product owner classifies first |
+| Same endpoint, different payload shape | application owner (integration defect) |
+| Same payload, different status expectation | reconcile against the approved contract, not the other test |
+
+Neither lane may assume the other ran, ran green, or ran the same deployed version; that a green
+sibling replaces its own missing assertion; or that the other lane cleaned up its data.
