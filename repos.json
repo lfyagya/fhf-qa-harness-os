@@ -1,0 +1,22 @@
+{
+  "lanes": {
+    "front-end-automation-e2e": { "url": "git@github.com:treacyandcoventures/front-end-automation.git", "branch": "dev" },
+    "front-end-automation-smoke": { "url": "git@github.com:treacyandcoventures/front-end-automation.git", "branch": "staging" },
+    "fhf-backend-automation": { "url": "git@github.com:treacyandcoventures/fhf-backend-automation.git", "branch": "master" }
+  },
+  "readOnly": {
+    "fhf-dashboards": { "url": "git@github.com:treacyandcoventures/fhf-dashboards.git", "branch": "dev" },
+    "fhf-rest-internal": { "url": "git@github.com:treacyandcoventures/fhf-rest-internal.git", "branch": "dev" },
+    "fhf-rest-service": { "url": "git@github.com:treacyandcoventures/fhf-rest-service.git", "branch": "dev" },
+    "fhf-rest-external": { "url": "git@github.com:treacyandcoventures/fhf-rest-external.git", "branch": "dev" },
+    "fhf-summer-2016": { "url": "git@github.com:treacyandcoventures/fhf-summer-2016.git", "branch": "dev" },
+    "fhf_documents": { "url": "git@github.com:treacyandcoventures/fhf_documents.git", "branch": "master" },
+    "fhf-letters": { "url": "git@github.com:treacyandcoventures/fhf-letters.git", "branch": "master" },
+    "fhf-python-utils": { "url": "git@github.com:treacyandcoventures/fhf-python-utils.git", "branch": "main" },
+    "fhf-reposession": { "url": "git@github.com:treacyandcoventures/fhf-reposession.git", "branch": "main" },
+    "fhf-serv-agents": { "url": "git@github.com:treacyandcoventures/fhf-serv-agents.git", "branch": "main" },
+    "fhf-serv-template": { "url": "git@github.com:treacyandcoventures/fhf-serv-template.git", "branch": "template" },
+    "fhf-llm-poc": { "url": "git@github.com:treacyandcoventures/fhf-llm-poc.git", "branch": "main" },
+    "oracle-instantclient-dependencies": { "url": "git@github.com:treacyandcoventures/oracle-instantclient-dependencies.git", "branch": "master" }
+  }
+}
